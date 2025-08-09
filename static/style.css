@@ -29,6 +29,7 @@ h1 { font-size: 18px; margin: 0; opacity: 0.85; }
   flex-direction: column;
   align-items: center;
   justify-content: center;
+}
 .panel.full-bleed { width: 100vw; min-height: calc(100vh - 60px); border-radius: 0; margin: 0; border: none; }
 .panel.green { border-color: #1e6f48; background: #0e281b; }
 .panel.red { border-color: #833332; background: #200808; }
@@ -57,6 +58,10 @@ body.bg-yellow { background: #281d07; }
   width: 0;
   left: -9999px;
   top: -9999px;
+  border: none;
+  background: transparent;
+  outline: none;
+  z-index: -1;
 }
 
 .helper { text-align: center; opacity: 0.6; font-size: 14px; }
