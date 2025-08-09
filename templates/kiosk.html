@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel green" id="statusPanel">
+  <div class="icon">✔</div>
+  <h2 id="statusTitle">Scan Restroom Pass</h2>
+  <p id="statusSubtitle">Hold badge up to scanner</p>
+</section>
+
+<input id="hiddenInput" autofocus autocomplete="off" />
+<div class="helper">
+  <p>Tip: most USB/Bluetooth barcode scanners act like a keyboard and send an Enter key at the end. This page captures that keystroke and submits the ID.</p>
+</div>
+<script src="{{ url_for('static', filename='kiosk.js') }}"></script>
+{% endblock %}

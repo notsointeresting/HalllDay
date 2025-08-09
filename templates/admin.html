@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="admin">
+  <h2>Admin</h2>
+  <p>Open sessions: <strong>{{ open_count }}</strong> • Total sessions: <strong>{{ total }}</strong></p>
+
+  <h3>Import roster CSV</h3>
+  <form id="importForm">
+    <input type="file" name="file" accept=".csv">
+    <button type="submit">Upload</button>
+  </form>
+  <div id="importResult"></div>
+
+  <h3>Students ({{ students|length }})</h3>
+  <ul class="students">
+    {% for s in students %}<li>{{ s.id }} — {{ s.name }}</li>{% endfor %}
+  </ul>
+
+  <h3>Force End</h3>
+  <button id="override">End Current Session</button>
+  <a href="{{ url_for('export_csv') }}">Download today's CSV</a>
+</section>
+
+<script>
+document.getElementById('override').onclick = async () => {
+  const r = await fetch('/api/override_end', {method:'POST'});
+  const j = await r.json();
+  alert(j.ok ? 'Ended.' : (j.message || 'Error'));
+};
+
+document.getElementById('importForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const r = await fetch('/api/import_roster', {method:'POST', body: fd});
+  const j = await r.json();
+  document.getElementById('importResult').textContent = j.ok ? `Imported ${j.imported}` : (j.message || 'Error');
+};
+</script>
+{% endblock %}

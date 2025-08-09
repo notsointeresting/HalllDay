@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel" id="displayPanel">
+  <div class="icon" id="displayIcon">✔</div>
+  <h2 id="displayTitle">Available</h2>
+  <p id="displaySubtitle">Scan to check out</p>
+</section>
+<script src="{{ url_for('static', filename='display.js') }}"></script>
+{% endblock %}
