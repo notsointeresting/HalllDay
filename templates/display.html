@@ -5,5 +5,5 @@
   <h2 id="displayTitle">Available</h2>
   <p id="displaySubtitle">Scan to check out</p>
 </section>
-<script src="{{ url_for('static', filename='display.js') }}"></script>
+<script src="{{ url_for('static', filename='display.js') }}?v={{ static_version }}"></script>
 {% endblock %}

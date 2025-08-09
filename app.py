@@ -49,6 +49,8 @@ class Settings(db.Model):
     overdue_minutes = db.Column(db.Integer, nullable=False, default=10)
 
 # Create tables after models are defined (works under Gunicorn too)
+STATIC_VERSION = os.getenv("STATIC_VERSION", str(int(time.time())))
+
 with app.app_context():
     db.create_all()
     # Ensure a singleton settings row exists
@@ -85,7 +87,7 @@ def get_settings():
 
 @app.context_processor
 def inject_room_name():
-    return {"room": get_settings()["room_name"]}
+    return {"room": get_settings()["room_name"], "static_version": STATIC_VERSION}
 
 # ---------- Routes ----------
 

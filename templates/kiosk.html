@@ -8,5 +8,5 @@
 
 <input id="hiddenInput" autofocus autocomplete="off" />
 <div class="helper"></div>
-<script src="{{ url_for('static', filename='kiosk.js') }}"></script>
+<script src="{{ url_for('static', filename='kiosk.js') }}?v={{ static_version }}"></script>
 {% endblock %}
