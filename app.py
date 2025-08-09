@@ -404,28 +404,56 @@ def init_db():
 
 
 def run_migrations():
-    """Perform schema migrations and return log messages."""
+    """Perform schema migrations and return log messages.
+
+    This function is written to be safe on PostgreSQL where a failed statement
+    puts the transaction into an error state. We explicitly roll back before
+    executing DDL and run DDL inside an engine-level transaction block.
+    """
     messages = []
-    # Migration 1: Add kiosk_suspended column to settings table
+
+    # Migration 1: ensure Settings.kiosk_suspended exists
+    column_exists = False
     try:
-        # Check if column exists by trying to query it
-        db.session.execute(text("SELECT kiosk_suspended FROM settings LIMIT 1"))
+        # Prefer information_schema to avoid raising exceptions
+        res = db.session.execute(text(
+            """
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_name = 'settings' AND column_name = 'kiosk_suspended'
+            """
+        ))
+        column_exists = res.scalar() is not None
+    except Exception as e:
+        messages.append(f"Warning: column introspection failed: {e}; attempting ALTER TABLE…")
+
+    if column_exists:
         messages.append("kiosk_suspended column already exists")
+        return messages
+
+    messages.append("Adding kiosk_suspended column to settings table")
+
+    # Clear any failed transaction state before running DDL
+    try:
+        db.session.rollback()
     except Exception:
-        messages.append("Adding kiosk_suspended column to settings table")
+        pass
+
+    try:
+        # Use engine.begin() so DDL is committed independently of the ORM session
+        with db.engine.begin() as conn:
+            conn.execute(text("ALTER TABLE settings ADD COLUMN IF NOT EXISTS kiosk_suspended BOOLEAN DEFAULT FALSE"))
+            conn.execute(text("UPDATE settings SET kiosk_suspended = FALSE WHERE kiosk_suspended IS NULL"))
+            conn.execute(text("ALTER TABLE settings ALTER COLUMN kiosk_suspended SET NOT NULL"))
+        messages.append("Added kiosk_suspended column successfully")
+    except Exception as e:
+        # Make sure session is usable afterwards
         try:
-            # Add the column with default value
-            db.session.execute(text("ALTER TABLE settings ADD COLUMN kiosk_suspended BOOLEAN DEFAULT FALSE"))
-            # Update existing rows to have the default value
-            db.session.execute(text("UPDATE settings SET kiosk_suspended = FALSE WHERE kiosk_suspended IS NULL"))
-            # Make column NOT NULL
-            db.session.execute(text("ALTER TABLE settings ALTER COLUMN kiosk_suspended SET NOT NULL"))
-            db.session.commit()
-            messages.append("Added kiosk_suspended column successfully")
-        except Exception as e:
             db.session.rollback()
-            messages.append(f"Failed to add kiosk_suspended column: {e}")
-            raise
+        except Exception:
+            pass
+        messages.append(f"Failed to add kiosk_suspended column: {e}")
+        raise
 
     return messages
 
@@ -473,6 +501,11 @@ def migrate_api():
         messages = run_migrations()
         return jsonify(ok=True, messages=messages)
     except Exception as e:
+        # Ensure the session is usable after an error
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
         return jsonify(ok=False, message=str(e)), 500
 
 # ---- Settings API ----
