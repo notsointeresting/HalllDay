@@ -47,34 +47,41 @@ document.addEventListener('keydown', (e) => {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({code})
-    }).then(r => {
-      if (r.status === 403) {
-        return r.json().then(j => {
+    }).then(async r => {
+      let j = {};
+      try { j = await r.json(); } catch(e) {}
+      if (!r.ok) {
+        console.error('scan error', r.status, j);
+        if (r.status === 403) {
           setPanel('red', 'KIOSK SUSPENDED', j.message || 'Contact administrator to resume service.');
           beep(200, 300);
-        });
-      }
-      return r.json().then(j => {
-        if (!j.ok && j.action === 'denied') {
-          clearTimeout(denyTimeout);
-          setPanel('red', 'IN USE', j.message);
-          denyTimeout = setTimeout(() => {
-            setPanel('red', 'IN USE', 'Please wait until the pass is returned.');
-          }, 2500);
-          beep(200, 200);
-          return;
-        }
-        if (j.ok && j.action === 'started') {
-          setPanel('red', 'IN USE', `${j.name} is out. Scan to return.`);
-          beep(700, 100);
-        } else if (j.ok && j.action === 'ended') {
-          setPanel('green', 'Available', `${j.name} returned.`);
-          beep(1000, 120);
         } else {
-          setPanel('yellow', 'Check Scanner', j.message || 'Unknown response');
+          setPanel('yellow', 'Server error', j.message || `Status ${r.status}`);
         }
-      });
-    }).catch(() => setPanel('yellow', 'Network issue', 'Try again.'));
+        return;
+      }
+      if (!j.ok && j.action === 'denied') {
+        clearTimeout(denyTimeout);
+        setPanel('red', 'IN USE', j.message);
+        denyTimeout = setTimeout(() => {
+          setPanel('red', 'IN USE', 'Please wait until the pass is returned.');
+        }, 2500);
+        beep(200, 200);
+        return;
+      }
+      if (j.ok && j.action === 'started') {
+        setPanel('red', 'IN USE', `${j.name} is out. Scan to return.`);
+        beep(700, 100);
+      } else if (j.ok && j.action === 'ended') {
+        setPanel('green', 'Available', `${j.name} returned.`);
+        beep(1000, 120);
+      } else {
+        setPanel('yellow', 'Check Scanner', j.message || 'Unknown response');
+      }
+    }).catch(e => {
+      console.error('network error', e);
+      setPanel('yellow', 'Network issue', 'Try again.');
+    });
 
   } else {
     // accumulate characters (digits or general)
