@@ -1,4 +1,3 @@
-\
 function setDisplay(inUse, name, elapsed) {
   const panel = document.getElementById('displayPanel');
   panel.classList.remove('red','green','yellow');

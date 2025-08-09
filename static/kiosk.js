@@ -1,4 +1,3 @@
-\
 const hidden = document.getElementById('hiddenInput');
 hidden.focus();
 
