@@ -7,6 +7,8 @@ function setDisplay(inUse, name, elapsed, overdue) {
 
   if (inUse) {
     panel.classList.add(overdue ? 'yellow' : 'red');
+    document.body.classList.remove('bg-green','bg-red','bg-yellow');
+    document.body.classList.add(overdue ? 'bg-yellow' : 'bg-red');
     icon.textContent = overdue ? '⏰' : '⛔';
     title.textContent = overdue ? 'OVERDUE' : 'IN USE';
     const mins = Math.floor((elapsed||0)/60);
@@ -14,6 +16,8 @@ function setDisplay(inUse, name, elapsed, overdue) {
     subtitle.textContent = `${name} • ${mins}:${secs.toString().padStart(2,'0')}`;
   } else {
     panel.classList.add('green');
+    document.body.classList.remove('bg-red','bg-yellow');
+    document.body.classList.add('bg-green');
     icon.textContent = '✔';
     title.textContent = 'Available';
     subtitle.textContent = 'Scan to check out';

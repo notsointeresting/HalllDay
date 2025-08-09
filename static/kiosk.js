@@ -9,6 +9,11 @@ function setPanel(state, title, subtitle) {
   const panel = document.getElementById('statusPanel');
   panel.classList.remove('red', 'yellow', 'green');
   panel.classList.add(state);
+  // swap body bg for visibility
+  document.body.classList.remove('bg-green','bg-red','bg-yellow');
+  if (state === 'green') document.body.classList.add('bg-green');
+  if (state === 'red') document.body.classList.add('bg-red');
+  if (state === 'yellow') document.body.classList.add('bg-yellow');
   document.getElementById('statusTitle').textContent = title;
   document.getElementById('statusSubtitle').textContent = subtitle || '';
 }
