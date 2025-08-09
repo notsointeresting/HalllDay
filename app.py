@@ -4,28 +4,25 @@ import os
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
-from flask import Flask, jsonify, render_template, request, redirect, url_for, send_file, abort
+from flask import Flask, jsonify, render_template, request, redirect, url_for, send_file
 from flask_sqlalchemy import SQLAlchemy
 
 import config
 
 app = Flask(__name__)
-# Use DATABASE_URL environment variable if set; fall back to config.DATABASE_URL
+
+# Prefer DATABASE_URL from env (Render), else config.py
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", config.DATABASE_URL)
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SECRET_KEY"] = config.SECRET_KEY
+
 db = SQLAlchemy(app)
-
-# ensure tables exist when the app boots (gunicorn path)
-with app.app_context():
-    db.create_all()
-
 TZ = ZoneInfo(config.TIMEZONE)
 
 # ---------- Models ----------
 
 class Student(db.Model):
-    id = db.Column(db.String, primary_key=True)  # barcode value or student id
+    id = db.Column(db.String, primary_key=True)          # barcode value or student id
     name = db.Column(db.String, nullable=False)
 
 class Session(db.Model):
@@ -33,7 +30,7 @@ class Session(db.Model):
     student_id = db.Column(db.String, db.ForeignKey("student.id"), nullable=False, index=True)
     start_ts = db.Column(db.DateTime(timezone=True), nullable=False, index=True)
     end_ts = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
-    ended_by = db.Column(db.String, nullable=True)  # "kiosk_scan", "override", "auto"
+    ended_by = db.Column(db.String, nullable=True)       # "kiosk_scan", "override", "auto"
     room = db.Column(db.String, nullable=True)
 
     student = db.relationship("Student")
@@ -42,6 +39,10 @@ class Session(db.Model):
     def duration_seconds(self):
         end = self.end_ts or datetime.now(timezone.utc)
         return int((end - self.start_ts).total_seconds())
+
+# Create tables after models are defined (works under Gunicorn too)
+with app.app_context():
+    db.create_all()
 
 # ---------- Utility ----------
 
@@ -86,7 +87,6 @@ def display():
 
 @app.route("/admin")
 def admin():
-    # Simple admin page
     total = Session.query.count()
     open_count = Session.query.filter_by(end_ts=None).count()
     students = Student.query.order_by(Student.name.asc()).all()
@@ -97,7 +97,6 @@ def admin():
 @app.post("/api/scan")
 def api_scan():
     auto_end_expired()
-
     payload = request.get_json(silent=True) or {}
     code = (payload.get("code") or "").strip()
     if not code:
