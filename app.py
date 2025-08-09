@@ -16,6 +16,10 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SECRET_KEY"] = config.SECRET_KEY
 db = SQLAlchemy(app)
 
+# ensure tables exist when the app boots (gunicorn path)
+with app.app_context():
+    db.create_all()
+
 TZ = ZoneInfo(config.TIMEZONE)
 
 # ---------- Models ----------
