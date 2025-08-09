@@ -32,11 +32,17 @@ h1 { font-size: 18px; margin: 0; opacity: 0.85; }
 }
 .panel.green { border-color: #1e6f48; }
 .panel.red { border-color: #833332; }
-.panel.yellow { border-color: #7a5a1e; }
+.panel.yellow { border-color: #c28a1e; animation: pulse 1.2s infinite; }
 
 .icon { font-size: 72px; line-height: 1; opacity: 0.9; }
 #statusTitle, #displayTitle { font-size: 40px; margin: 8px 0 4px; }
 #statusSubtitle, #displaySubtitle { font-size: 20px; opacity: 0.9; }
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(242, 201, 76, 0.4); }
+  70% { box-shadow: 0 0 0 12px rgba(242, 201, 76, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(242, 201, 76, 0); }
+}
 
 #hiddenInput {
   position: fixed;

@@ -11,6 +11,19 @@
   </form>
   <div id="importResult"></div>
 
+  <h3>Settings</h3>
+  <form id="settingsForm">
+    <label>Room name <input name="room_name" value="{{ settings.room_name }}" /></label>
+    <label>Capacity <input type="number" min="1" step="1" name="capacity" value="{{ settings.capacity }}" /></label>
+    <label>Overdue minutes <input type="number" min="1" step="1" name="overdue_minutes" value="{{ settings.overdue_minutes }}" /></label>
+    <button type="submit">Save</button>
+  </form>
+  <div id="settingsResult"></div>
+
+  <h3>Usage Charts</h3>
+  <canvas id="chartToday" height="100"></canvas>
+  <canvas id="chartWeek" height="120" style="margin-top:16px;"></canvas>
+
   <h3>Students ({{ students|length }})</h3>
   <ul class="students">
     {% for s in students %}<li>{{ s.id }} — {{ s.name }}</li>{% endfor %}
@@ -35,5 +48,32 @@ document.getElementById('importForm').onsubmit = async (e) => {
   const j = await r.json();
   document.getElementById('importResult').textContent = j.ok ? `Imported ${j.imported}` : (j.message || 'Error');
 };
+
+document.getElementById('settingsForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const payload = {
+    room_name: f.room_name.value,
+    capacity: Number(f.capacity.value),
+    overdue_minutes: Number(f.overdue_minutes.value)
+  };
+  const r = await fetch('/api/settings', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+  const j = await r.json();
+  document.getElementById('settingsResult').textContent = j.ok ? 'Saved.' : (j.message || 'Error');
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+async function loadCharts(){
+  try{
+    const r = await fetch('/api/stats');
+    const j = await r.json();
+    const ctx1 = document.getElementById('chartToday');
+    const ctx2 = document.getElementById('chartWeek');
+    new Chart(ctx1, {type:'bar', data:{labels:[...Array(24).keys()].map(h=>h+':00'), datasets:[{label:'Today', data:j.hourly, backgroundColor:'rgba(41,183,101,0.6)'}]}, options:{responsive:true, plugins:{legend:{display:false}}}});
+    new Chart(ctx2, {type:'line', data:{labels:j.daily_labels, datasets:[{label:'7 days', data:j.daily_counts, borderColor:'#29b765', backgroundColor:'rgba(41,183,101,0.2)'}]}, options:{responsive:true}});
+  }catch(e){}
+}
+loadCharts();
 </script>
 {% endblock %}
