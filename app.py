@@ -55,11 +55,17 @@ STATIC_VERSION = os.getenv("STATIC_VERSION", str(int(time.time())))
 with app.app_context():
     db.create_all()
     # Ensure a singleton settings row exists
-    if not Settings.query.get(1):
-        s = Settings(id=1, room_name=config.ROOM_NAME, capacity=config.CAPACITY,
-                     overdue_minutes=getattr(config, "MAX_MINUTES", 10), kiosk_suspended=False)
-        db.session.add(s)
-        db.session.commit()
+    try:
+        if not Settings.query.get(1):
+            s = Settings(id=1, room_name=config.ROOM_NAME, capacity=config.CAPACITY,
+                         overdue_minutes=getattr(config, "MAX_MINUTES", 10), kiosk_suspended=False)
+            db.session.add(s)
+            db.session.commit()
+    except Exception as e:
+        # If there's an error (like missing column), just create tables and continue
+        # The migration command can be run separately
+        print(f"Warning: Could not initialize settings row: {e}")
+        print("You may need to run 'flask --app app.py migrate' to update the database schema.")
 
 # ---------- Utility ----------
 
@@ -81,10 +87,21 @@ def auto_end_expired():
     return
 
 def get_settings():
-    s = Settings.query.get(1)
-    if not s:
+    try:
+        s = Settings.query.get(1)
+        if not s:
+            return {"room_name": config.ROOM_NAME, "capacity": config.CAPACITY, "overdue_minutes": getattr(config, "MAX_MINUTES", 10), "kiosk_suspended": False}
+        
+        # Handle case where kiosk_suspended column might not exist yet (during migration)
+        try:
+            kiosk_suspended = s.kiosk_suspended
+        except AttributeError:
+            kiosk_suspended = False
+        
+        return {"room_name": s.room_name, "capacity": s.capacity, "overdue_minutes": s.overdue_minutes, "kiosk_suspended": kiosk_suspended}
+    except Exception:
+        # If query fails (e.g., missing column), return defaults
         return {"room_name": config.ROOM_NAME, "capacity": config.CAPACITY, "overdue_minutes": getattr(config, "MAX_MINUTES", 10), "kiosk_suspended": False}
-    return {"room_name": s.room_name, "capacity": s.capacity, "overdue_minutes": s.overdue_minutes, "kiosk_suspended": s.kiosk_suspended}
 
 @app.context_processor
 def inject_room_name():
@@ -375,6 +392,34 @@ def init_db():
         db.session.commit()
         print(f"Loaded roster from {roster}")
     print("Database initialized.")
+
+@app.cli.command("migrate")
+def migrate_db():
+    """Run database migrations for schema updates."""
+    print("Running database migrations...")
+    
+    # Migration 1: Add kiosk_suspended column to settings table
+    try:
+        # Check if column exists by trying to query it
+        db.session.execute(db.text("SELECT kiosk_suspended FROM settings LIMIT 1"))
+        print("✓ kiosk_suspended column already exists")
+    except Exception:
+        print("Adding kiosk_suspended column to settings table...")
+        try:
+            # Add the column with default value
+            db.session.execute(db.text("ALTER TABLE settings ADD COLUMN kiosk_suspended BOOLEAN DEFAULT FALSE"))
+            # Update existing rows to have the default value
+            db.session.execute(db.text("UPDATE settings SET kiosk_suspended = FALSE WHERE kiosk_suspended IS NULL"))
+            # Make column NOT NULL
+            db.session.execute(db.text("ALTER TABLE settings ALTER COLUMN kiosk_suspended SET NOT NULL"))
+            db.session.commit()
+            print("✓ Added kiosk_suspended column successfully")
+        except Exception as e:
+            print(f"✗ Failed to add kiosk_suspended column: {e}")
+            db.session.rollback()
+            return
+    
+    print("Database migrations completed successfully!")
 
 # ---- Settings API ----
 @app.get("/api/settings")

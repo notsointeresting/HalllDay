@@ -76,6 +76,11 @@ The app uses environment variables for configuration. Set these in your deployme
    flask --app app.py init-db
    ```
 
+   **For existing deployments** (if you get database column errors), run:
+   ```bash
+   flask --app app.py migrate
+   ```
+
 ### Railway
 
 1. **Deploy from GitHub**:
@@ -110,6 +115,11 @@ The app uses environment variables for configuration. Set these in your deployme
    heroku run flask --app app.py init-db
    ```
 
+   **For existing deployments**, run:
+   ```bash
+   heroku run flask --app app.py migrate
+   ```
+
 ### Generic Linux VPS
 
 1. **Install dependencies**:
@@ -137,6 +147,11 @@ The app uses environment variables for configuration. Set these in your deployme
 4. **Initialize database**:
    ```bash
    flask --app app.py init-db
+   ```
+
+   **For existing deployments**:
+   ```bash
+   flask --app app.py migrate
    ```
 
 5. **Setup systemd service** (`/etc/systemd/system/hallpass.service`):
@@ -190,6 +205,30 @@ Example CSV:
 - **Suspension**: Admins can suspend the kiosk to prevent new checkouts
 - **Real-time**: Status updates automatically across all connected displays
 - **Mobile Friendly**: All interfaces work on tablets and mobile devices
+
+## Troubleshooting
+
+### Database Column Errors
+
+If you see errors like `column settings.kiosk_suspended does not exist` during deployment, this means you're upgrading from an older version. Run the migration command:
+
+**Render/Heroku/Railway:**
+```bash
+flask --app app.py migrate
+```
+
+**Local development:**
+```bash
+source .venv/bin/activate  # or .venv\Scripts\activate on Windows
+flask --app app.py migrate
+```
+
+### Common Issues
+
+- **Barcode scanner not working**: Ensure the scanner is in "keyboard emulation" mode
+- **Time zone issues**: Set the `HALLPASS_TIMEZONE` environment variable to your local timezone
+- **Database connection errors**: Check your `DATABASE_URL` environment variable
+- **Permission errors on Linux**: Ensure proper file permissions for the database file
 
 ## Support
 
