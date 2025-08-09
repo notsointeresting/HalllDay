@@ -47,6 +47,7 @@ class Settings(db.Model):
     room_name = db.Column(db.String, nullable=False, default=config.ROOM_NAME)
     capacity = db.Column(db.Integer, nullable=False, default=config.CAPACITY)
     overdue_minutes = db.Column(db.Integer, nullable=False, default=10)
+    kiosk_suspended = db.Column(db.Boolean, nullable=False, default=False)
 
 # Create tables after models are defined (works under Gunicorn too)
 STATIC_VERSION = os.getenv("STATIC_VERSION", str(int(time.time())))
@@ -56,7 +57,7 @@ with app.app_context():
     # Ensure a singleton settings row exists
     if not Settings.query.get(1):
         s = Settings(id=1, room_name=config.ROOM_NAME, capacity=config.CAPACITY,
-                     overdue_minutes=getattr(config, "MAX_MINUTES", 10))
+                     overdue_minutes=getattr(config, "MAX_MINUTES", 10), kiosk_suspended=False)
         db.session.add(s)
         db.session.commit()
 
@@ -82,8 +83,8 @@ def auto_end_expired():
 def get_settings():
     s = Settings.query.get(1)
     if not s:
-        return {"room_name": config.ROOM_NAME, "capacity": config.CAPACITY, "overdue_minutes": getattr(config, "MAX_MINUTES", 10)}
-    return {"room_name": s.room_name, "capacity": s.capacity, "overdue_minutes": s.overdue_minutes}
+        return {"room_name": config.ROOM_NAME, "capacity": config.CAPACITY, "overdue_minutes": getattr(config, "MAX_MINUTES", 10), "kiosk_suspended": False}
+    return {"room_name": s.room_name, "capacity": s.capacity, "overdue_minutes": s.overdue_minutes, "kiosk_suspended": s.kiosk_suspended}
 
 @app.context_processor
 def inject_room_name():
@@ -116,6 +117,11 @@ def admin():
 @app.post("/api/scan")
 def api_scan():
     auto_end_expired()
+    
+    # Check if kiosk is suspended
+    if get_settings()["kiosk_suspended"]:
+        return jsonify(ok=False, message="Kiosk is currently suspended by administrator"), 403
+    
     payload = request.get_json(silent=True) or {}
     code = (payload.get("code") or "").strip()
     if not code:
@@ -149,13 +155,15 @@ def api_scan():
 @app.get("/api/status")
 def api_status():
     auto_end_expired()
+    settings = get_settings()
     s = get_current_holder()
-    overdue_minutes = get_settings()["overdue_minutes"]
+    overdue_minutes = settings["overdue_minutes"]
+    kiosk_suspended = settings["kiosk_suspended"]
     if s:
         is_overdue = s.duration_seconds > overdue_minutes * 60
-        return jsonify(in_use=True, name=s.student.name, start=to_local(s.start_ts).isoformat(), elapsed=s.duration_seconds, overdue=is_overdue, overdue_minutes=overdue_minutes)
+        return jsonify(in_use=True, name=s.student.name, start=to_local(s.start_ts).isoformat(), elapsed=s.duration_seconds, overdue=is_overdue, overdue_minutes=overdue_minutes, kiosk_suspended=kiosk_suspended)
     else:
-        return jsonify(in_use=False, overdue_minutes=overdue_minutes)
+        return jsonify(in_use=False, overdue_minutes=overdue_minutes, kiosk_suspended=kiosk_suspended)
 
 @app.get("/events")
 def sse_events():
@@ -163,7 +171,9 @@ def sse_events():
         last_payload = None
         while True:
             s = get_current_holder()
-            overdue_minutes = get_settings()["overdue_minutes"]
+            settings = get_settings()
+            overdue_minutes = settings["overdue_minutes"]
+            kiosk_suspended = settings["kiosk_suspended"]
             if s:
                 payload = {
                     "in_use": True,
@@ -171,9 +181,10 @@ def sse_events():
                     "elapsed": s.duration_seconds,
                     "overdue": s.duration_seconds > overdue_minutes * 60,
                     "overdue_minutes": overdue_minutes,
+                    "kiosk_suspended": kiosk_suspended,
                 }
             else:
-                payload = {"in_use": False, "overdue_minutes": overdue_minutes}
+                payload = {"in_use": False, "overdue_minutes": overdue_minutes, "kiosk_suspended": kiosk_suspended}
             if payload != last_payload:
                 yield f"data: {json.dumps(payload)}\n\n"
                 last_payload = payload
@@ -265,6 +276,28 @@ def api_override_end():
     db.session.commit()
     return jsonify(ok=True)
 
+@app.post("/api/suspend_kiosk")
+def api_suspend_kiosk():
+    s = Settings.query.get(1)
+    if not s:
+        s = Settings(id=1, kiosk_suspended=True)
+        db.session.add(s)
+    else:
+        s.kiosk_suspended = True
+    db.session.commit()
+    return jsonify(ok=True, suspended=True)
+
+@app.post("/api/resume_kiosk")
+def api_resume_kiosk():
+    s = Settings.query.get(1)
+    if not s:
+        s = Settings(id=1, kiosk_suspended=False)
+        db.session.add(s)
+    else:
+        s.kiosk_suspended = False
+    db.session.commit()
+    return jsonify(ok=True, suspended=False)
+
 @app.post("/api/import_roster")
 def api_import_roster():
     """Import a CSV uploaded as form-data file with two columns: id,name."""
@@ -325,7 +358,7 @@ def init_db():
     """Initialize DB and load students.csv if present."""
     db.create_all()
     if not Settings.query.get(1):
-        db.session.add(Settings(id=1, room_name=config.ROOM_NAME, capacity=config.CAPACITY, overdue_minutes=getattr(config, "MAX_MINUTES", 10)))
+        db.session.add(Settings(id=1, room_name=config.ROOM_NAME, capacity=config.CAPACITY, overdue_minutes=getattr(config, "MAX_MINUTES", 10), kiosk_suspended=False))
         db.session.commit()
     roster = "students.csv"
     if os.path.exists(roster):
@@ -367,6 +400,8 @@ def update_settings_api():
             s.overdue_minutes = max(1, int(data["overdue_minutes"]))
         except Exception:
             pass
+    if "kiosk_suspended" in data:
+        s.kiosk_suspended = bool(data["kiosk_suspended"])
     db.session.commit()
     return jsonify(ok=True, settings=get_settings())
 

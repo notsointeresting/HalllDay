@@ -47,25 +47,33 @@ document.addEventListener('keydown', (e) => {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({code})
-    }).then(r => r.json()).then(j => {
-      if (!j.ok && j.action === 'denied') {
-        clearTimeout(denyTimeout);
-        setPanel('red', 'IN USE', j.message);
-        denyTimeout = setTimeout(() => {
-          setPanel('red', 'IN USE', 'Please wait until the pass is returned.');
-        }, 2500);
-        beep(200, 200);
-        return;
+    }).then(r => {
+      if (r.status === 403) {
+        return r.json().then(j => {
+          setPanel('red', 'KIOSK SUSPENDED', j.message || 'Contact administrator to resume service.');
+          beep(200, 300);
+        });
       }
-      if (j.ok && j.action === 'started') {
-        setPanel('red', 'IN USE', `${j.name} is out. Scan to return.`);
-        beep(700, 100);
-      } else if (j.ok && j.action === 'ended') {
-        setPanel('green', 'Available', `${j.name} returned.`);
-        beep(1000, 120);
-      } else {
-        setPanel('yellow', 'Check Scanner', j.message || 'Unknown response');
-      }
+      return r.json().then(j => {
+        if (!j.ok && j.action === 'denied') {
+          clearTimeout(denyTimeout);
+          setPanel('red', 'IN USE', j.message);
+          denyTimeout = setTimeout(() => {
+            setPanel('red', 'IN USE', 'Please wait until the pass is returned.');
+          }, 2500);
+          beep(200, 200);
+          return;
+        }
+        if (j.ok && j.action === 'started') {
+          setPanel('red', 'IN USE', `${j.name} is out. Scan to return.`);
+          beep(700, 100);
+        } else if (j.ok && j.action === 'ended') {
+          setPanel('green', 'Available', `${j.name} returned.`);
+          beep(1000, 120);
+        } else {
+          setPanel('yellow', 'Check Scanner', j.message || 'Unknown response');
+        }
+      });
     }).catch(() => setPanel('yellow', 'Network issue', 'Try again.'));
 
   } else {
@@ -79,6 +87,11 @@ setInterval(() => hidden.focus(), 3000);
 
 // Subscribe to status via SSE to mirror display behavior (full-bleed colors + elapsed/overdue)
 function setFromStatus(j){
+  if (j.kiosk_suspended) {
+    setPanel('red', 'KIOSK SUSPENDED', 'Contact administrator to resume service.');
+    return;
+  }
+  
   if (j.in_use) {
     const mins = Math.floor((j.elapsed||0)/60);
     const secs = (j.elapsed||0)%60;
