@@ -20,9 +20,21 @@
   </form>
   <div id="settingsResult"></div>
 
-  <h3>Usage Charts</h3>
-  <canvas id="chartToday" height="100"></canvas>
-  <canvas id="chartWeek" height="120" style="margin-top:16px;"></canvas>
+  <h3>Weekly Focused Insights</h3>
+  <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:16px;">
+    <div>
+      <h4>Top users (7 days)</h4>
+      <canvas id="chartTopUsage" height="160"></canvas>
+    </div>
+    <div>
+      <h4>Most overdue (count)</h4>
+      <canvas id="chartTopOverdue" height="160"></canvas>
+    </div>
+    <div>
+      <h4>Highest overdue rate %</h4>
+      <canvas id="chartTopOverdueRate" height="160"></canvas>
+    </div>
+  </div>
 
   <h3>Students ({{ students|length }})</h3>
   <ul class="students">
@@ -66,12 +78,14 @@ document.getElementById('settingsForm').onsubmit = async (e) => {
 <script>
 async function loadCharts(){
   try{
-    const r = await fetch('/api/stats');
+    const r = await fetch('/api/stats/week');
     const j = await r.json();
-    const ctx1 = document.getElementById('chartToday');
-    const ctx2 = document.getElementById('chartWeek');
-    new Chart(ctx1, {type:'bar', data:{labels:[...Array(24).keys()].map(h=>h+':00'), datasets:[{label:'Today', data:j.hourly, backgroundColor:'rgba(41,183,101,0.6)'}]}, options:{responsive:true, plugins:{legend:{display:false}}}});
-    new Chart(ctx2, {type:'line', data:{labels:j.daily_labels, datasets:[{label:'7 days', data:j.daily_counts, borderColor:'#29b765', backgroundColor:'rgba(41,183,101,0.2)'}]}, options:{responsive:true}});
+    const c1 = document.getElementById('chartTopUsage');
+    const c2 = document.getElementById('chartTopOverdue');
+    const c3 = document.getElementById('chartTopOverdueRate');
+    new Chart(c1, {type:'bar', data:{labels:j.top_usage.labels, datasets:[{label:'Count', data:j.top_usage.values, backgroundColor:'rgba(41,183,101,0.6)'}]}, options:{plugins:{legend:{display:false}}, indexAxis:'y'}});
+    new Chart(c2, {type:'bar', data:{labels:j.top_overdue.labels, datasets:[{label:'Overdues', data:j.top_overdue.overdues, backgroundColor:'rgba(242, 201, 76, 0.7)'}]}, options:{plugins:{legend:{display:false}}, indexAxis:'y'}});
+    new Chart(c3, {type:'bar', data:{labels:j.top_overdue_rate.labels, datasets:[{label:'Overdue %', data:j.top_overdue_rate.rates, backgroundColor:'rgba(217, 83, 79, 0.7)'}]}, options:{plugins:{legend:{display:false}}, indexAxis:'y'}});
   }catch(e){}
 }
 loadCharts();

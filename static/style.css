@@ -29,10 +29,10 @@ h1 { font-size: 18px; margin: 0; opacity: 0.85; }
   flex-direction: column;
   align-items: center;
   justify-content: center;
-}
-.panel.green { border-color: #1e6f48; }
-.panel.red { border-color: #833332; }
-.panel.yellow { border-color: #c28a1e; animation: pulse 1.2s infinite; }
+.panel.full-bleed { width: 100vw; min-height: calc(100vh - 60px); border-radius: 0; margin: 0; border-width: 0; }
+.panel.green { border-color: #1e6f48; background: #123523; }
+.panel.red { border-color: #833332; background: #3b0f0e; }
+.panel.yellow { border-color: #c28a1e; background: #3b2a0e; animation: pulse 1.2s infinite; }
 
 .icon { font-size: 72px; line-height: 1; opacity: 0.9; }
 #statusTitle, #displayTitle { font-size: 40px; margin: 8px 0 4px; }

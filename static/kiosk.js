@@ -25,6 +25,7 @@ function beep(freq=880, ms=120) {
   } catch {}
 }
 
+let denyTimeout;
 document.addEventListener('keydown', (e) => {
   const now = performance.now();
   if (now - lastTime > THRESHOLD_MS) buffer = ''; // reset if too slow
@@ -43,7 +44,11 @@ document.addEventListener('keydown', (e) => {
       body: JSON.stringify({code})
     }).then(r => r.json()).then(j => {
       if (!j.ok && j.action === 'denied') {
+        clearTimeout(denyTimeout);
         setPanel('red', 'IN USE', j.message);
+        denyTimeout = setTimeout(() => {
+          setPanel('red', 'IN USE', 'Please wait until the pass is returned.');
+        }, 2500);
         beep(200, 200);
         return;
       }
@@ -63,3 +68,41 @@ document.addEventListener('keydown', (e) => {
     if (e.key.length === 1) buffer += e.key;
   }
 });
+
+// Keep focus and show friendly hint if idle
+setInterval(() => hidden.focus(), 3000);
+
+// Subscribe to status via SSE to mirror display behavior (full-bleed colors + elapsed/overdue)
+function setFromStatus(j){
+  if (j.in_use) {
+    const mins = Math.floor((j.elapsed||0)/60);
+    const secs = (j.elapsed||0)%60;
+    if (j.overdue) {
+      setPanel('yellow', 'OVERDUE', `${j.name} • ${mins}:${secs.toString().padStart(2,'0')}`);
+    } else {
+      setPanel('red', 'IN USE', `${j.name} • ${mins}:${secs.toString().padStart(2,'0')}`);
+    }
+  } else {
+    setPanel('green', 'Available', 'Scan your student ID to check out.');
+  }
+}
+
+if ('EventSource' in window) {
+  try{
+    const es = new EventSource('/events');
+    es.onmessage = (evt)=>{
+      const j = JSON.parse(evt.data||'{}');
+      setFromStatus(j);
+    };
+  }catch(e){/* no-op */}
+} else {
+  // fallback polling
+  (async function poll(){
+    try {
+      const r = await fetch('/api/status');
+      const j = await r.json();
+      setFromStatus(j);
+    } catch(e) {}
+    setTimeout(poll, 1000);
+  })();
+}

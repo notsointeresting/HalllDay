@@ -208,6 +208,51 @@ def api_stats():
         "daily_counts": daily_counts,
     })
 
+@app.get("/api/stats/week")
+def api_stats_week():
+    """Weekly, per-student focus: counts and overdues (last 7 days including today)."""
+    settings = get_settings()
+    overdue_minutes = settings["overdue_minutes"]
+    now = now_utc()
+    start_utc = (datetime.now(TZ).date() - timedelta(days=6))
+    start_utc = datetime.combine(start_utc, datetime.min.time(), tzinfo=TZ).astimezone(timezone.utc)
+    rows = Session.query.filter(Session.start_ts >= start_utc).all()
+
+    per_student = {}
+    for r in rows:
+        sid = r.student_id
+        name = r.student.name
+        if sid not in per_student:
+            per_student[sid] = {"name": name, "count": 0, "overdue": 0}
+        per_student[sid]["count"] += 1
+        end = r.end_ts or now
+        duration = int((end - r.start_ts).total_seconds())
+        if duration > overdue_minutes * 60:
+            per_student[sid]["overdue"] += 1
+
+    # top by count
+    top_usage = sorted(per_student.values(), key=lambda x: x["count"], reverse=True)[:10]
+    # top by overdue absolute
+    top_overdue = sorted(per_student.values(), key=lambda x: x["overdue"], reverse=True)[:10]
+    # top by overdue rate (only if count >= 1)
+    for v in per_student.values():
+        v["overdue_rate"] = (v["overdue"] / v["count"]) if v["count"] else 0
+    top_overdue_rate = sorted(per_student.values(), key=lambda x: x["overdue_rate"], reverse=True)[:10]
+
+    def pack(arr):
+        return {"labels": [a["name"] for a in arr], "values": [a["count"] for a in arr], "overdues": [a["overdue"] for a in arr], "rates": [round(a.get("overdue_rate", 0)*100, 1) for a in arr]}
+
+    return jsonify({
+        "top_usage": pack(top_usage),
+        "top_overdue": pack(top_overdue),
+        "top_overdue_rate": {
+            "labels": [a["name"] for a in top_overdue_rate],
+            "values": [a["overdue"] for a in top_overdue_rate],
+            "rates": [round(a["overdue_rate"]*100, 1) for a in top_overdue_rate],
+        },
+        "overdue_minutes": overdue_minutes,
+    })
+
 @app.post("/api/override_end")
 def api_override_end():
     s = get_current_holder()
