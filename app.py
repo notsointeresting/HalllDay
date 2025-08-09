@@ -1,4 +1,3 @@
-\
 import csv
 import io
 import os
@@ -11,10 +10,8 @@ from flask_sqlalchemy import SQLAlchemy
 import config
 
 app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("postgresql://hallpass_db_2f0g_user:icMZ0NlMoXEP0tqCpAgdQjxVbcovnbvW@dpg-d2bb86idbo4c73aluu3g-a/hallpass_db_2f0g")
-
-
-")
+# Use DATABASE_URL environment variable if set; fall back to config.DATABASE_URL
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", config.DATABASE_URL)
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SECRET_KEY"] = config.SECRET_KEY
 db = SQLAlchemy(app)
