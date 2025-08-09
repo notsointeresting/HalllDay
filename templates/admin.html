@@ -52,6 +52,12 @@
     {% endif %}
   </div>
 
+  <h3>Database</h3>
+  <div style="margin-bottom:16px;">
+    <button id="runMigration" style="background:#007bff;color:white;">Run Database Migration</button>
+    <span id="migrationResult"></span>
+  </div>
+
   <h3>Force End</h3>
   <button id="override">End Current Session</button>
   <a href="{{ url_for('export_csv') }}">Download today's CSV</a>
@@ -69,6 +75,7 @@ document.getElementById('importForm').onsubmit = async (e) => {
   const fd = new FormData(e.target);
   const r = await fetch('/api/import_roster', {method:'POST', body: fd});
   const j = await r.json();
+  console.log('import_roster', j);
   document.getElementById('importResult').textContent = j.ok ? `Imported ${j.imported}` : (j.message || 'Error');
 };
 
@@ -82,6 +89,7 @@ document.getElementById('settingsForm').onsubmit = async (e) => {
   };
   const r = await fetch('/api/settings', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
   const j = await r.json();
+  console.log('settings_update', j);
   document.getElementById('settingsResult').textContent = j.ok ? 'Saved.' : (j.message || 'Error');
 };
 
@@ -92,11 +100,17 @@ const resumeBtn = document.getElementById('resumeKiosk');
 if (suspendBtn) {
   suspendBtn.onclick = async () => {
     if (confirm('Are you sure you want to suspend the kiosk? Students will not be able to scan in/out.')) {
-      const r = await fetch('/api/suspend_kiosk', {method:'POST'});
-      const j = await r.json();
-      if (j.ok) {
-        location.reload();
-      } else {
+      try{
+        const r = await fetch('/api/suspend_kiosk', {method:'POST'});
+        const j = await r.json();
+        console.log('suspend', j);
+        if (j.ok) {
+          location.reload();
+        } else {
+          alert(j.message || 'Error suspending kiosk');
+        }
+      }catch(e){
+        console.error('suspend error', e);
         alert('Error suspending kiosk');
       }
     }
@@ -105,12 +119,43 @@ if (suspendBtn) {
 
 if (resumeBtn) {
   resumeBtn.onclick = async () => {
-    const r = await fetch('/api/resume_kiosk', {method:'POST'});
-    const j = await r.json();
-    if (j.ok) {
-      location.reload();
-    } else {
+    try{
+      const r = await fetch('/api/resume_kiosk', {method:'POST'});
+      const j = await r.json();
+      console.log('resume', j);
+      if (j.ok) {
+        location.reload();
+      } else {
+        alert(j.message || 'Error resuming kiosk');
+      }
+    }catch(e){
+      console.error('resume error', e);
       alert('Error resuming kiosk');
+    }
+  };
+}
+
+const migrateBtn = document.getElementById('runMigration');
+if (migrateBtn) {
+  migrateBtn.onclick = async () => {
+    if (!confirm('Run database migration now?')) return;
+    migrateBtn.disabled = true;
+    document.getElementById('migrationResult').textContent = 'Running...';
+    try {
+      const r = await fetch('/api/migrate', {method:'POST'});
+      const j = await r.json();
+      console.log('migrate', j);
+      if (j.ok) {
+        document.getElementById('migrationResult').textContent = 'Migration completed.';
+        setTimeout(()=>location.reload(), 1000);
+      } else {
+        document.getElementById('migrationResult').textContent = j.message || 'Migration failed';
+      }
+    } catch (e) {
+      console.error('migration error', e);
+      document.getElementById('migrationResult').textContent = 'Migration failed';
+    } finally {
+      migrateBtn.disabled = false;
     }
   };
 }

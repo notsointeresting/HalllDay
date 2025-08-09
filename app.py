@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 
 from flask import Flask, jsonify, render_template, request, redirect, url_for, send_file, Response, stream_with_context
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import text
 
 import config
 
@@ -295,25 +296,33 @@ def api_override_end():
 
 @app.post("/api/suspend_kiosk")
 def api_suspend_kiosk():
-    s = Settings.query.get(1)
-    if not s:
-        s = Settings(id=1, kiosk_suspended=True)
-        db.session.add(s)
-    else:
-        s.kiosk_suspended = True
-    db.session.commit()
-    return jsonify(ok=True, suspended=True)
+    try:
+        s = Settings.query.get(1)
+        if not s:
+            s = Settings(id=1, kiosk_suspended=True)
+            db.session.add(s)
+        else:
+            s.kiosk_suspended = True
+        db.session.commit()
+        return jsonify(ok=True, suspended=True)
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(ok=False, message=str(e)), 500
 
 @app.post("/api/resume_kiosk")
 def api_resume_kiosk():
-    s = Settings.query.get(1)
-    if not s:
-        s = Settings(id=1, kiosk_suspended=False)
-        db.session.add(s)
-    else:
-        s.kiosk_suspended = False
-    db.session.commit()
-    return jsonify(ok=True, suspended=False)
+    try:
+        s = Settings.query.get(1)
+        if not s:
+            s = Settings(id=1, kiosk_suspended=False)
+            db.session.add(s)
+        else:
+            s.kiosk_suspended = False
+        db.session.commit()
+        return jsonify(ok=True, suspended=False)
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(ok=False, message=str(e)), 500
 
 @app.post("/api/import_roster")
 def api_import_roster():
@@ -393,33 +402,78 @@ def init_db():
         print(f"Loaded roster from {roster}")
     print("Database initialized.")
 
+
+def run_migrations():
+    """Perform schema migrations and return log messages."""
+    messages = []
+    # Migration 1: Add kiosk_suspended column to settings table
+    try:
+        # Check if column exists by trying to query it
+        db.session.execute(text("SELECT kiosk_suspended FROM settings LIMIT 1"))
+        messages.append("kiosk_suspended column already exists")
+    except Exception:
+        messages.append("Adding kiosk_suspended column to settings table")
+        try:
+            # Add the column with default value
+            db.session.execute(text("ALTER TABLE settings ADD COLUMN kiosk_suspended BOOLEAN DEFAULT FALSE"))
+            # Update existing rows to have the default value
+            db.session.execute(text("UPDATE settings SET kiosk_suspended = FALSE WHERE kiosk_suspended IS NULL"))
+            # Make column NOT NULL
+            db.session.execute(text("ALTER TABLE settings ALTER COLUMN kiosk_suspended SET NOT NULL"))
+            db.session.commit()
+            messages.append("Added kiosk_suspended column successfully")
+        except Exception as e:
+            db.session.rollback()
+            messages.append(f"Failed to add kiosk_suspended column: {e}")
+            raise
+
+    return messages
+
+
 @app.cli.command("migrate")
 def migrate_db():
     """Run database migrations for schema updates."""
     print("Running database migrations...")
-    
-    # Migration 1: Add kiosk_suspended column to settings table
     try:
-        # Check if column exists by trying to query it
-        db.session.execute(db.text("SELECT kiosk_suspended FROM settings LIMIT 1"))
-        print("✓ kiosk_suspended column already exists")
-    except Exception:
-        print("Adding kiosk_suspended column to settings table...")
+        messages = run_migrations()
+        for m in messages:
+            print(f"- {m}")
+        print("Database migrations completed successfully!")
+    except Exception as e:
+        print(f"Migration failed: {e}")
+
+# ---- Debug & Migration API ----
+
+@app.get("/api/debug/settings")
+def api_debug_settings():
+    """Expose raw settings row for debugging purposes."""
+    try:
+        s = Settings.query.get(1)
+        if not s:
+            return jsonify(ok=True, settings=None)
+        data = {
+            "id": s.id,
+            "room_name": s.room_name,
+            "capacity": s.capacity,
+            "overdue_minutes": s.overdue_minutes,
+        }
         try:
-            # Add the column with default value
-            db.session.execute(db.text("ALTER TABLE settings ADD COLUMN kiosk_suspended BOOLEAN DEFAULT FALSE"))
-            # Update existing rows to have the default value
-            db.session.execute(db.text("UPDATE settings SET kiosk_suspended = FALSE WHERE kiosk_suspended IS NULL"))
-            # Make column NOT NULL
-            db.session.execute(db.text("ALTER TABLE settings ALTER COLUMN kiosk_suspended SET NOT NULL"))
-            db.session.commit()
-            print("✓ Added kiosk_suspended column successfully")
-        except Exception as e:
-            print(f"✗ Failed to add kiosk_suspended column: {e}")
-            db.session.rollback()
-            return
-    
-    print("Database migrations completed successfully!")
+            data["kiosk_suspended"] = s.kiosk_suspended
+        except AttributeError:
+            data["kiosk_suspended"] = "<missing>"
+        return jsonify(ok=True, settings=data)
+    except Exception as e:
+        return jsonify(ok=False, message=str(e)), 500
+
+
+@app.post("/api/migrate")
+def migrate_api():
+    """Run database migrations via HTTP for platforms without shell access."""
+    try:
+        messages = run_migrations()
+        return jsonify(ok=True, messages=messages)
+    except Exception as e:
+        return jsonify(ok=False, message=str(e)), 500
 
 # ---- Settings API ----
 @app.get("/api/settings")
