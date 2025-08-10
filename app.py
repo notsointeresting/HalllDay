@@ -179,7 +179,7 @@ def _keep_alive_loop(base_url: str):
             time.sleep(600)
 
 
-@app.before_first_request
+@app.before_request
 def _start_keepalive_thread():
     global _keepalive_started
     if _keepalive_started:
