@@ -31,6 +31,7 @@ function beep(freq=880, ms=120) {
 }
 
 let denyTimeout;
+let resetTimeout;
 document.addEventListener('keydown', (e) => {
   const now = performance.now();
   if (now - lastTime > THRESHOLD_MS) buffer = ''; // reset if too slow
@@ -55,8 +56,28 @@ document.addEventListener('keydown', (e) => {
         if (r.status === 403) {
           setPanel('red', 'KIOSK SUSPENDED', j.message || 'Contact administrator to resume service.');
           beep(200, 300);
+        } else if (r.status === 404) {
+          // Unknown student ID
+          clearTimeout(resetTimeout);
+          setPanel('yellow', 'Student not recognized', (j.message || 'Please try again.')); 
+          beep(220, 220);
+          resetTimeout = setTimeout(async () => {
+            try {
+              const sr = await fetch('/api/status');
+              const sj = await sr.json();
+              setFromStatus(sj);
+            } catch(e) {}
+          }, 3500);
         } else {
-          setPanel('yellow', 'Server error', j.message || `Status ${r.status}`);
+          clearTimeout(resetTimeout);
+          setPanel('yellow', 'Service issue', j.message || `Status ${r.status}`);
+          resetTimeout = setTimeout(async () => {
+            try {
+              const sr = await fetch('/api/status');
+              const sj = await sr.json();
+              setFromStatus(sj);
+            } catch(e) {}
+          }, 3500);
         }
         return;
       }
