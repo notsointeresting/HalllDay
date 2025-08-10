@@ -12,6 +12,9 @@ from sqlalchemy import text
 
 import config
 import sheets_logger
+import threading
+import requests
+from urllib.parse import urljoin
 
 app = Flask(__name__)
 
@@ -148,6 +151,46 @@ def admin():
         sheets_status=sheets_status,
         sheets_link=sheets_link,
     )
+
+# ---------- Keep-alive (Render) ----------
+_keepalive_started = False
+
+def _should_ping_now(ts_local: datetime) -> bool:
+    # Monday=0 ... Sunday=6; work hours 8:00<=h<17:00
+    return ts_local.weekday() < 5 and 8 <= ts_local.hour < 17
+
+
+def _keep_alive_loop(base_url: str):
+    target = urljoin(base_url, "/api/status")
+    while True:
+        try:
+            now_local = datetime.now(TZ)
+            if _should_ping_now(now_local):
+                try:
+                    requests.get(target, timeout=5)
+                except Exception:
+                    pass
+                # every 10 minutes during work hours
+                time.sleep(600)
+            else:
+                # sleep off-hours without pinging
+                time.sleep(900)
+        except Exception:
+            time.sleep(600)
+
+
+@app.before_first_request
+def _start_keepalive_thread():
+    global _keepalive_started
+    if _keepalive_started:
+        return
+    try:
+        base = request.url_root  # e.g., https://yourapp.onrender.com/
+    except Exception:
+        return
+    t = threading.Thread(target=_keep_alive_loop, args=(base,), daemon=True)
+    t.start()
+    _keepalive_started = True
 
 # ---- API ----
 

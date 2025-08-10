@@ -5,3 +5,4 @@ psycopg2-binary==2.9.9
 tzdata==2024.1
 gspread==6.1.2
 google-auth==2.33.0
+requests==2.32.3
