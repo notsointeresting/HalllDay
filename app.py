@@ -11,6 +11,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
 
 import config
+import sheets_logger
 
 app = Flask(__name__)
 
@@ -128,7 +129,25 @@ def admin():
     open_count = Session.query.filter_by(end_ts=None).count()
     students = Student.query.order_by(Student.name.asc()).all()
     settings = get_settings()
-    return render_template("admin.html", total=total, open_count=open_count, students=students, settings=settings)
+    # Sheets status/link for admin chip
+    try:
+        sheets_status = sheets_logger.get_status()
+    except Exception:
+        sheets_status = "off"
+    sheets_link = None
+    if sheets_logger.sheets_enabled():
+        sid = os.getenv("GOOGLE_SHEETS_LOG_ID")
+        if sid:
+            sheets_link = f"https://docs.google.com/spreadsheets/d/{sid}/edit#gid=0"
+    return render_template(
+        "admin.html",
+        total=total,
+        open_count=open_count,
+        students=students,
+        settings=settings,
+        sheets_status=sheets_status,
+        sheets_link=sheets_link,
+    )
 
 # ---- API ----
 
@@ -157,6 +176,19 @@ def api_scan():
             s.end_ts = now_utc()
             s.ended_by = "kiosk_scan"
             db.session.commit()
+            # Sheets completion (non-blocking)
+            try:
+                if sheets_logger.sheets_enabled():
+                    end_iso = s.end_ts.astimezone(timezone.utc).isoformat()
+                    sheets_logger.complete_end(
+                        student_id=student.id,
+                        end_iso=end_iso,
+                        duration_seconds=s.duration_seconds,
+                        ended_by="kiosk_scan",
+                        updated_iso=end_iso,
+                    )
+            except Exception:
+                pass
             return jsonify(ok=True, action="ended", name=student.name)
 
     # If capacity is full and someone else is out, deny
@@ -168,6 +200,21 @@ def api_scan():
     sess = Session(student_id=student.id, start_ts=now_utc(), room=get_settings()["room_name"])
     db.session.add(sess)
     db.session.commit()
+    # Sheets append (non-blocking)
+    try:
+        if sheets_logger.sheets_enabled():
+            start_iso = sess.start_ts.astimezone(timezone.utc).isoformat()
+            created_iso = datetime.now(timezone.utc).isoformat()
+            sheets_logger.append_start(
+                session_id=sess.id,
+                student_id=student.id,
+                name=student.name,
+                room=get_settings()["room_name"],
+                start_iso=start_iso,
+                created_iso=created_iso,
+            )
+    except Exception:
+        pass
     return jsonify(ok=True, action="started", name=student.name)
 
 @app.get("/api/status")

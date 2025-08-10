@@ -12,6 +12,17 @@
   <div id="importResult"></div>
 
   <h3>Settings</h3>
+  <div style="margin:6px 0 12px 0; display:flex; gap:12px; align-items:center;">
+    {% if sheets_status == 'ok' %}
+      <span style="padding:2px 8px; border-radius:12px; background:#e6ffed; color:#1f7a1f; border:1px solid #c6f6d5;">Sheets: OK</span>
+      {% if sheets_link %}<a href="{{ sheets_link }}" target="_blank" rel="noopener">Open Logs Sheet</a>{% endif %}
+    {% elif sheets_status == 'degraded' %}
+      <span style="padding:2px 8px; border-radius:12px; background:#fffbea; color:#975a16; border:1px solid #f6e05e;">Sheets: Degraded</span>
+      {% if sheets_link %}<a href="{{ sheets_link }}" target="_blank" rel="noopener">Open Logs Sheet</a>{% endif %}
+    {% else %}
+      <span style="padding:2px 8px; border-radius:12px; background:#edf2f7; color:#4a5568; border:1px solid #e2e8f0;">Sheets: Off</span>
+    {% endif %}
+  </div>
   <form id="settingsForm">
     <label>Room name <input name="room_name" value="{{ settings.room_name }}" /></label>
     <label>Capacity <input type="number" min="1" step="1" name="capacity" value="{{ settings.capacity }}" /></label>
