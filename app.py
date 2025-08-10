@@ -160,6 +160,42 @@ def _should_ping_now(ts_local: datetime) -> bool:
     return ts_local.weekday() < 5 and 8 <= ts_local.hour < 17
 
 
+def _calculate_sleep_until_work_hours(now_local: datetime) -> int:
+    """Calculate seconds to sleep until next work period (Mon-Fri 8am-5pm)"""
+    # If currently in work hours, this shouldn't be called, but return short sleep as fallback
+    if _should_ping_now(now_local):
+        return 600  # 10 minutes
+    
+    # Calculate next Monday 8am if we're on weekend or after Friday 5pm
+    current_weekday = now_local.weekday()  # Monday=0, Sunday=6
+    current_hour = now_local.hour
+    
+    # If it's Friday after 5pm or weekend, sleep until Monday 8am
+    if current_weekday == 4 and current_hour >= 17:  # Friday after 5pm
+        days_until_monday = 3
+        target_hour = 8
+    elif current_weekday >= 5:  # Weekend (Saturday=5, Sunday=6)
+        days_until_monday = 7 - current_weekday  # Saturday: 2 days, Sunday: 1 day
+        target_hour = 8
+    else:  # Monday-Thursday after hours or before 8am
+        if current_hour >= 17:  # After 5pm, sleep until 8am next day
+            days_until_monday = 1 if current_weekday < 4 else 3  # Next day or Monday if Thursday
+            target_hour = 8
+        else:  # Before 8am, sleep until 8am today
+            days_until_monday = 0
+            target_hour = 8
+    
+    # Calculate target datetime
+    target_date = now_local.date() + timedelta(days=days_until_monday)
+    target_datetime = datetime.combine(target_date, datetime.min.time().replace(hour=target_hour), tzinfo=now_local.tzinfo)
+    
+    # Calculate seconds until target time
+    sleep_seconds = int((target_datetime - now_local).total_seconds())
+    
+    # Minimum sleep of 1 hour to avoid rapid checking if calculation goes wrong
+    return max(sleep_seconds, 3600)
+
+
 def _keep_alive_loop(base_url: str):
     target = urljoin(base_url, "/api/status")
     while True:
@@ -173,8 +209,9 @@ def _keep_alive_loop(base_url: str):
                 # every 10 minutes during work hours
                 time.sleep(600)
             else:
-                # sleep off-hours without pinging
-                time.sleep(900)
+                # Calculate time until next work period starts
+                sleep_duration = _calculate_sleep_until_work_hours(now_local)
+                time.sleep(sleep_duration)
         except Exception:
             time.sleep(600)
 
