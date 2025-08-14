@@ -31,7 +31,7 @@ flask --app app.py run --debug
 **Access the application:**
 - `http://localhost:5000/kiosk` - Scanning interface for students
 - `http://localhost:5000/display` - Status display for monitors/projectors  
-- `http://localhost:5000/admin` - Admin management panel
+- `http://localhost:5000/admin` - Admin management panel (requires passcode)
 
 ## Configuration
 
@@ -41,6 +41,7 @@ The app uses environment variables for configuration. Set these in your deployme
 |----------|-------------|---------|
 | `DATABASE_URL` | Database connection string | `sqlite:///instance/hallpass.db` |
 | `HALLPASS_SECRET_KEY` | Flask secret key (change in production!) | `change-me-in-production` |
+| `HALLPASS_ADMIN_PASSCODE` | Admin panel access passcode | `admin123` |
 | `HALLPASS_ROOM_NAME` | Display name for the room/location | `Hall Pass` |
 | `HALLPASS_CAPACITY` | Max students out simultaneously | `1` |
 | `HALLPASS_MAX_MINUTES` | Minutes before marking overdue | `12` |

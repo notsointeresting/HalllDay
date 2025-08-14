@@ -6,7 +6,7 @@ import time
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
-from flask import Flask, jsonify, render_template, request, redirect, url_for, send_file, Response, stream_with_context
+from flask import Flask, jsonify, render_template, request, redirect, url_for, send_file, Response, stream_with_context, session, flash
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
 
@@ -22,6 +22,7 @@ app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", config.DATABASE_URL)
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SECRET_KEY"] = config.SECRET_KEY
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=8)  # Admin sessions last 8 hours
 
 db = SQLAlchemy(app)
 TZ = ZoneInfo(config.TIMEZONE)
@@ -112,6 +113,32 @@ def get_settings():
 def inject_room_name():
     return {"room": get_settings()["room_name"], "static_version": STATIC_VERSION}
 
+# ---------- Admin Authentication ----------
+
+def is_admin_authenticated():
+    """Check if current session is authenticated as admin."""
+    return session.get('admin_authenticated', False)
+
+def require_admin_auth(f):
+    """Decorator to require admin authentication for a route."""
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not is_admin_authenticated():
+            return redirect(url_for('admin_login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def require_admin_auth_api(f):
+    """Decorator to require admin authentication for API routes (returns JSON error)."""
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not is_admin_authenticated():
+            return jsonify(ok=False, message="Admin authentication required"), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
 # ---------- Routes ----------
 
 @app.route("/")
@@ -126,7 +153,25 @@ def kiosk():
 def display():
     return render_template("display.html")
 
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    if request.method == "POST":
+        passcode = request.form.get("passcode", "").strip()
+        if passcode == config.ADMIN_PASSCODE:
+            session['admin_authenticated'] = True
+            session.permanent = True  # Keep session alive
+            return redirect(url_for('admin'))
+        else:
+            return render_template("admin_login.html", error="Invalid passcode. Please try again.")
+    return render_template("admin_login.html")
+
+@app.route("/admin/logout")
+def admin_logout():
+    session.pop('admin_authenticated', None)
+    return redirect(url_for('admin_login'))
+
 @app.route("/admin")
+@require_admin_auth
 def admin():
     total = Session.query.count()
     open_count = Session.query.filter_by(end_ts=None).count()
@@ -412,6 +457,7 @@ def api_stats_week():
     })
 
 @app.post("/api/override_end")
+@require_admin_auth_api
 def api_override_end():
     s = get_current_holder()
     if not s:
@@ -422,6 +468,7 @@ def api_override_end():
     return jsonify(ok=True)
 
 @app.post("/api/suspend_kiosk")
+@require_admin_auth_api
 def api_suspend_kiosk():
     try:
         s = Settings.query.get(1)
@@ -437,6 +484,7 @@ def api_suspend_kiosk():
         return jsonify(ok=False, message=str(e)), 500
 
 @app.post("/api/resume_kiosk")
+@require_admin_auth_api
 def api_resume_kiosk():
     try:
         s = Settings.query.get(1)
@@ -452,6 +500,7 @@ def api_resume_kiosk():
         return jsonify(ok=False, message=str(e)), 500
 
 @app.post("/api/import_roster")
+@require_admin_auth_api
 def api_import_roster():
     """Import a CSV uploaded as form-data file with two columns: id,name."""
     if "file" not in request.files:
@@ -622,6 +671,7 @@ def api_debug_settings():
 
 
 @app.post("/api/migrate")
+@require_admin_auth_api
 def migrate_api():
     """Run database migrations via HTTP for platforms without shell access."""
     try:
@@ -637,10 +687,12 @@ def migrate_api():
 
 # ---- Settings API ----
 @app.get("/api/settings")
+@require_admin_auth_api
 def get_settings_api():
     return jsonify(get_settings())
 
 @app.post("/api/settings")
+@require_admin_auth_api
 def update_settings_api():
     data = request.get_json(silent=True) or {}
     s = Settings.query.get(1)
