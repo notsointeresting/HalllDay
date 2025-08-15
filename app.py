@@ -132,7 +132,10 @@ def store_student_name_db(student_id, name):
         db.session.commit()
     except Exception as e:
         print(f"DEBUG: Error storing student name: {e}")
-        db.session.rollback()
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
 
 def get_student_name_db(student_id):
     """Get student name from database using hash lookup"""
@@ -198,7 +201,16 @@ def to_local(dt_utc):
     return dt_utc.astimezone(TZ)
 
 def get_open_sessions():
-    return Session.query.filter_by(end_ts=None).order_by(Session.start_ts.asc()).all()
+    try:
+        return Session.query.filter_by(end_ts=None).order_by(Session.start_ts.asc()).all()
+    except Exception as e:
+        # Handle database transaction errors
+        print(f"DEBUG: Database error in get_open_sessions, rolling back: {e}")
+        db.session.rollback()
+        try:
+            return Session.query.filter_by(end_ts=None).order_by(Session.start_ts.asc()).all()
+        except Exception:
+            return []
 
 def get_current_holder():
     open_sessions = get_open_sessions()
