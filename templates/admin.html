@@ -98,8 +98,8 @@
   <!-- Danger Zone -->
   <div style="margin-bottom:16px; padding:12px; border:1px solid #dc3545; background:#fff5f5;">
     <h4 style="color:#dc3545; margin:0 0 8px 0;">Danger Zone</h4>
-    <p style="margin:0 0 8px 0; color:#dc3545; font-size:13px;">This will permanently DELETE all legacy sessions and students from the database. Your current browser session roster will remain intact.</p>
-    <button id="resetDbBtn" style="background:#dc3545; color:white;">Delete ALL Sessions and Students</button>
+    <p style="margin:0 0 8px 0; color:#dc3545; font-size:13px;">This will permanently DELETE all session history from the database. Your current browser session roster will remain intact.</p>
+    <button id="resetDbBtn" style="background:#dc3545; color:white;">Delete ALL Session History</button>
     <span id="resetDbResult" style="margin-left:8px;"></span>
   </div>
 
@@ -388,7 +388,7 @@ if (migrateBtn) {
 const resetDbBtn = document.getElementById('resetDbBtn');
 if (resetDbBtn) {
   resetDbBtn.onclick = async () => {
-    if (!confirm('This will permanently DELETE all sessions and students from the database. Continue?')) return;
+    if (!confirm('This will permanently DELETE all session history from the database. Continue?')) return;
     if (!confirm('Are you absolutely sure? This cannot be undone.')) return;
     resetDbBtn.disabled = true;
     const result = document.getElementById('resetDbResult');
@@ -397,7 +397,7 @@ if (resetDbBtn) {
       const r = await fetch('/api/reset_database', {method:'POST'});
       const j = await r.json();
       if (j.ok) {
-        result.textContent = `Done. Removed ${j.cleared_sessions} sessions, ${j.cleared_students} students.`;
+        result.textContent = `Done. Removed ${j.cleared_sessions} sessions.`;
         setTimeout(()=>location.reload(), 1200);
       } else {
         result.textContent = j.message || 'Reset failed';

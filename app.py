@@ -293,26 +293,12 @@ def api_scan():
     if not code:
         return jsonify(ok=False, message="No code scanned"), 400
 
-    # FERPA Compliance: Check session roster first, then database
+    # FERPA Compliance: Check session roster only - no database interactions
     student_roster = session.get('student_roster', {})
     student_name = student_roster.get(code)
     
-    if student_name:
-        # Student found in session roster - FERPA compliant
-        student = Student.query.get(code)
-        if not student:
-            # Create anonymous record in database
-            import time
-            anonymous_id = str(int(time.time()))[-4:]  # Use timestamp for uniqueness
-            student = Student(id=code, name=f"Anonymous_{anonymous_id}")
-            db.session.add(student)
-            db.session.commit()
-    else:
-        # Fallback to database (legacy mode)
-        student = Student.query.get(code)
-        if not student:
-            return jsonify(ok=False, message=f"Unknown ID: {code}"), 404
-        student_name = getattr(student, 'name', 'Student')
+    if not student_name:
+        return jsonify(ok=False, message=f"Unknown ID: {code} - Please upload roster first"), 404
 
     open_sessions = get_open_sessions()
 
@@ -545,10 +531,9 @@ def api_upload_session_roster():
         text = f.stream.read().decode("utf-8", errors="ignore")
         reader = csv.reader(io.StringIO(text))
         
-        # Store roster in session only - FERPA compliant
+        # Store roster in session only - FERPA compliant (no database interactions)
         student_roster = {}
         count = 0
-        db_updates = 0
         
         for row in reader:
             if not row or len(row) < 2:
@@ -558,29 +543,14 @@ def api_upload_session_roster():
                 continue
             student_roster[sid] = name
             count += 1
-            
-            # Create or update anonymous student record in database
-            existing_student = Student.query.get(sid)
-            if not existing_student:
-                # Create new anonymous record
-                db.session.add(Student(id=sid, name=f"Anonymous_{count:04d}"))
-                db_updates += 1
-            elif existing_student.name.startswith(('Student_', 'Anonymous_')):
-                # Update existing anonymous record to ensure it's properly anonymized
-                existing_student.name = f"Anonymous_{count:04d}"
-                db_updates += 1
         
-        # Always update session roster, regardless of database operations
+        # Store roster in session only - no database storage
         session['student_roster'] = student_roster
         session.permanent = True
-        
-        if db_updates > 0:
-            db.session.commit()
             
-        return jsonify(ok=True, imported=count, message=f"Roster uploaded to session only - FERPA compliant")
+        return jsonify(ok=True, imported=count, message=f"Roster uploaded to session only - FERPA compliant (no database storage)")
         
     except Exception as e:
-        db.session.rollback()
         return jsonify(ok=False, message=f"Upload failed: {str(e)}"), 500
 
 @app.post("/api/test_auth")
@@ -609,29 +579,23 @@ def api_clear_session_roster():
 @app.post("/api/reset_database")
 @require_admin_auth_api
 def api_reset_database():
-    """Hard reset: delete all sessions, then all students (to satisfy FK constraints).
+    """Reset: Delete all sessions from database (students stored in session only).
 
-    This completely clears legacy database data so new session rosters can be used
-    without ID collisions. Settings are preserved.
+    This clears all session history while preserving student roster in browser session.
+    Settings are preserved.
     """
     try:
         # Count before deletion
         total_sessions = Session.query.count()
-        total_students = Student.query.count()
 
-        # Delete sessions first to satisfy FK constraint
+        # Delete all sessions (no need to delete students - they're session-only now)
         db.session.query(Session).delete()
-        db.session.commit()
-
-        # Now delete students
-        db.session.query(Student).delete()
         db.session.commit()
 
         return jsonify(
             ok=True,
             cleared_sessions=total_sessions,
-            cleared_students=total_students,
-            message="Database reset complete (sessions and students removed)"
+            message="Database reset complete - all sessions removed (student roster remains in session)"
         )
     except Exception as e:
         try:
@@ -673,26 +637,13 @@ def export_csv():
 
 @app.cli.command("init-db")
 def init_db():
-    """Initialize DB and load students.csv if present."""
+    """Initialize DB (students are now session-only, not database-stored)."""
     db.create_all()
     if not Settings.query.get(1):
         db.session.add(Settings(id=1, room_name=config.ROOM_NAME, capacity=config.CAPACITY, overdue_minutes=getattr(config, "MAX_MINUTES", 10), kiosk_suspended=False))
         db.session.commit()
-    roster = "students.csv"
-    if os.path.exists(roster):
-        with open(roster, newline="", encoding="utf-8") as f:
-            reader = csv.reader(f)
-            for row in reader:
-                if not row or len(row) < 2:
-                    continue
-                sid, name = row[0].strip(), row[1].strip()
-                if not sid or not name:
-                    continue
-                if not Student.query.get(sid):
-                    db.session.add(Student(id=sid, name=name))
-        db.session.commit()
-        print(f"Loaded roster from {roster}")
-    print("Database initialized.")
+    # Note: Student roster is now uploaded via web interface to session only (FERPA compliant)
+    print("Database initialized (students are session-only).")
 
 
 def run_migrations():
