@@ -33,25 +33,7 @@
     </div>
   </div>
 
-  <!-- Legacy Database Upload -->
-  <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 15px;">
-    <h4 style="color: #856404; margin: 0 0 10px 0;">⚠️ Legacy Upload (Database Storage)</h4>
-    <p style="margin: 0 0 10px 0; color: #856404; font-size: 14px;">Stores student names in database - may not be FERPA compliant</p>
-    <form id="importForm">
-      <input type="file" id="legacyFileInput" name="file" accept=".csv" style="margin-right: 10px;">
-      <button type="submit" style="background: #ffc107; color: #212529; margin-right: 10px;">Upload to Database</button>
-      <button type="button" id="legacyUploadBtn" style="background: #ff9800; color: white;">Alternative Upload</button>
-    </form>
-    <div id="importResult"></div>
-    
-    <!-- Clear Legacy Database -->
-    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ffc107;">
-      <h5 style="color: #856404; margin: 0 0 10px 0;">🔒 Anonymize Legacy Database</h5>
-      <p style="margin: 0 0 10px 0; color: #856404; font-size: 12px;">Replace all student names with anonymous IDs (keeps session roster intact)</p>
-      <button type="button" id="clearDatabaseBtn" style="background: #dc3545; color: white; margin-right: 10px;">Anonymize Database Names</button>
-      <div id="clearDatabaseResult"></div>
-    </div>
-  </div>
+
 
   <h3>Settings</h3>
   <div style="margin:6px 0 12px 0; display:flex; gap:12px; align-items:center;">
@@ -89,28 +71,12 @@
     </div>
   </div>
 
-  <h3>Student Data Summary</h3>
-  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-    <div style="background: #e8f5e8; border: 1px solid #4caf50; border-radius: 4px; padding: 15px;">
-      <h4 style="color: #2e7d32; margin: 0 0 10px 0;">🔒 Session Roster (FERPA Compliant)</h4>
-      <p style="margin: 0; font-size: 24px; font-weight: bold; color: #2e7d32;">{{ roster_count }} students</p>
-      <p style="margin: 5px 0 0 0; color: #2e7d32; font-size: 12px;">Stored in browser session only</p>
-    </div>
-    <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 15px;">
-      <h4 style="color: #856404; margin: 0 0 10px 0;">⚠️ Database Students (Legacy)</h4>
-      <p style="margin: 0; font-size: 24px; font-weight: bold; color: #856404;">{{ students|length }} students</p>
-      <p style="margin: 5px 0 0 0; color: #856404; font-size: 12px;">Stored in external database</p>
-    </div>
+  <h3>Student Roster</h3>
+  <div style="background: #e8f5e8; border: 1px solid #4caf50; border-radius: 4px; padding: 15px; margin-bottom: 20px;">
+    <h4 style="color: #2e7d32; margin: 0 0 10px 0;">🔒 FERPA-Compliant Session Roster</h4>
+    <p style="margin: 0; font-size: 24px; font-weight: bold; color: #2e7d32;">{{ roster_count }} students</p>
+    <p style="margin: 5px 0 0 0; color: #2e7d32; font-size: 12px;">All student data stored in browser session only - no external database storage</p>
   </div>
-
-  {% if students|length > 0 %}
-  <details style="margin-bottom: 20px;">
-    <summary style="cursor: pointer; font-weight: bold; color: #856404;">View Database Students ({{ students|length }})</summary>
-    <ul class="students" style="margin-top: 10px;">
-      {% for s in students %}<li>{{ s.id }} — {{ s.name }}</li>{% endfor %}
-    </ul>
-  </details>
-  {% endif %}
 
   <h3>Kiosk Control</h3>
   <div style="margin-bottom: 16px;">
@@ -149,7 +115,6 @@ console.log('Admin panel JavaScript loaded');
 document.addEventListener('DOMContentLoaded', function() {
   console.log('DOM loaded');
   console.log('sessionRosterForm exists:', !!document.getElementById('sessionRosterForm'));
-  console.log('importForm exists:', !!document.getElementById('importForm'));
 });
 
 document.getElementById('override').onclick = async () => {
@@ -193,34 +158,7 @@ document.getElementById('sessionRosterForm').onsubmit = async (e) => {
   }
 };
 
-// Legacy Database Upload
-document.getElementById('importForm').onsubmit = async (e) => {
-  e.preventDefault();
-  console.log('Legacy import form submitted');
-  
-  const fileInput = e.target.querySelector('input[type="file"]');
-  const resultDiv = document.getElementById('importResult');
-  
-  if (!fileInput.files || fileInput.files.length === 0) {
-    resultDiv.textContent = 'Please select a CSV file';
-    return;
-  }
-  
-  resultDiv.textContent = 'Uploading...';
-  
-  try {
-    const fd = new FormData(e.target);
-    console.log('Sending request to /api/import_roster');
-    const r = await fetch('/api/import_roster', {method:'POST', body: fd});
-    console.log('Response status:', r.status);
-    const j = await r.json();
-    console.log('import_roster response:', j);
-    resultDiv.textContent = j.ok ? `Imported ${j.imported} students` : (j.message || 'Upload failed');
-  } catch (error) {
-    console.error('Import error:', error);
-    resultDiv.textContent = `Network error: ${error.message}`;
-  }
-};
+
 
 // Alternative button handlers (in case form submission doesn't work)
 document.addEventListener('DOMContentLoaded', function() {
@@ -261,73 +199,9 @@ document.addEventListener('DOMContentLoaded', function() {
     };
   }
   
-  // Legacy roster alternative upload
-  const legacyUploadBtn = document.getElementById('legacyUploadBtn');
-  if (legacyUploadBtn) {
-    legacyUploadBtn.onclick = async () => {
-      console.log('Legacy alternative button clicked');
-      const fileInput = document.getElementById('legacyFileInput');
-      const resultDiv = document.getElementById('importResult');
-      
-      if (!fileInput.files || fileInput.files.length === 0) {
-        resultDiv.textContent = 'Please select a CSV file first';
-        return;
-      }
-      
-      resultDiv.textContent = 'Uploading via alternative method...';
-      
-      try {
-        const fd = new FormData();
-        fd.append('file', fileInput.files[0]);
-        console.log('Sending alternative request to /api/import_roster');
-        const r = await fetch('/api/import_roster', {method:'POST', body: fd});
-        console.log('Alternative response status:', r.status);
-        const j = await r.json();
-        console.log('Alternative import_roster response:', j);
-        resultDiv.textContent = j.ok ? `Imported ${j.imported} students` : (j.message || 'Upload failed');
-      } catch (error) {
-        console.error('Alternative import error:', error);
-        resultDiv.textContent = `Network error: ${error.message}`;
-      }
-    };
-  }
+
   
-  // Clear legacy database button
-  const clearDatabaseBtn = document.getElementById('clearDatabaseBtn');
-  if (clearDatabaseBtn) {
-    clearDatabaseBtn.onclick = async () => {
-      const confirmed = confirm(
-        'Are you sure you want to anonymize all student names in the database?\n\n' +
-        '🔒 This will replace student names with anonymous IDs (e.g., "Student_1234").\n' +
-        '✅ Your session roster will remain intact and functional.\n' +
-        '📊 All session data and functionality will continue normally.\n' +
-        '🛡️ Database will be FERPA compliant after this action.\n\n' +
-        'This action cannot be undone.'
-      );
-      
-      if (!confirmed) return;
-      
-      console.log('Clear database button clicked');
-      const resultDiv = document.getElementById('clearDatabaseResult');
-      resultDiv.innerHTML = `<p style="color: #dc3545; margin: 5px 0 0 0;">🔒 Anonymizing database...</p>`;
-      
-      try {
-        const r = await fetch('/api/clear_database_students', {method:'POST'});
-        console.log('Clear database response status:', r.status);
-        const j = await r.json();
-        console.log('Clear database response:', j);
-        
-        if (j.ok) {
-          resultDiv.innerHTML = `<p style="color: #28a745; margin: 5px 0 0 0;">✅ ${j.message} (${j.cleared} students anonymized)</p>`;
-        } else {
-          resultDiv.innerHTML = `<p style="color: #dc3545; margin: 5px 0 0 0;">❌ ${j.message || 'Anonymization failed'}</p>`;
-        }
-      } catch (error) {
-        console.error('Clear database error:', error);
-        resultDiv.innerHTML = `<p style="color: #dc3545; margin: 5px 0 0 0;">❌ Network error: ${error.message}</p>`;
-      }
-    };
-  }
+
   
   // Test authentication button
   const testAuthBtn = document.getElementById('testAuthBtn');

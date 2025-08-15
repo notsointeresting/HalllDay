@@ -175,7 +175,6 @@ def admin_logout():
 def admin():
     total = Session.query.count()
     open_count = Session.query.filter_by(end_ts=None).count()
-    students = Student.query.order_by(Student.name.asc()).all()
     settings = get_settings()
     
     # FERPA Compliance: Get session-based roster count
@@ -196,7 +195,6 @@ def admin():
         "admin.html",
         total=total,
         open_count=open_count,
-        students=students,
         settings=settings,
         sheets_status=sheets_status,
         sheets_link=sheets_link,
@@ -530,30 +528,7 @@ def api_resume_kiosk():
         db.session.rollback()
         return jsonify(ok=False, message=str(e)), 500
 
-@app.post("/api/import_roster")
-@require_admin_auth_api
-def api_import_roster():
-    """Import a CSV uploaded as form-data file with two columns: id,name."""
-    if "file" not in request.files:
-        return jsonify(ok=False, message="No file uploaded"), 400
-    f = request.files["file"]
-    text = f.stream.read().decode("utf-8", errors="ignore")
-    reader = csv.reader(io.StringIO(text))
-    count = 0
-    for row in reader:
-        if not row or len(row) < 2:
-            continue
-        sid, name = row[0].strip(), row[1].strip()
-        if not sid or not name:
-            continue
-        existing = Student.query.get(sid)
-        if existing:
-            existing.name = name
-        else:
-            db.session.add(Student(id=sid, name=name))
-        count += 1
-    db.session.commit()
-    return jsonify(ok=True, imported=count)
+
 
 @app.post("/api/upload_session_roster")
 @require_admin_auth_api
@@ -628,34 +603,7 @@ def api_clear_session_roster():
     session.pop('student_roster', None)
     return jsonify(ok=True, message="Session roster cleared")
 
-@app.post("/api/clear_database_students")
-@require_admin_auth_api
-def api_clear_database_students():
-    """FERPA-compliant: Anonymize student names in database while keeping IDs for session references"""
-    try:
-        # Count students before anonymizing
-        all_students = Student.query.all()
-        student_count = len(all_students)
-        
-        if student_count == 0:
-            return jsonify(ok=True, cleared=0, message="No students found in database")
-        
-        # Anonymize student names but keep IDs (for foreign key integrity)
-        import random
-        for i, student in enumerate(all_students):
-            # Use sequential anonymous names to avoid any ID conflicts
-            student.name = f"Anonymous_{i+1:04d}"  # Anonymous_0001, Anonymous_0002, etc.
-        
-        db.session.commit()
-        
-        return jsonify(
-            ok=True, 
-            cleared=student_count,
-            message=f"Student names anonymized in database - session roster remains intact"
-        )
-    except Exception as e:
-        db.session.rollback()
-        return jsonify(ok=False, message=f"Failed to anonymize student names: {str(e)}"), 500
+
 
 
 @app.post("/api/reset_database")
