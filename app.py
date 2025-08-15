@@ -304,7 +304,7 @@ def api_scan():
         student = Student.query.get(code)
         if not student:
             # Create anonymous record in database
-            student = Student(id=code)
+            student = Student(id=code, name=f"Student_{code[-4:]}")
             db.session.add(student)
             db.session.commit()
     else:
@@ -557,36 +557,50 @@ def api_import_roster():
 @require_admin_auth_api
 def api_upload_session_roster():
     """FERPA-compliant: Upload student roster to session only (not database)"""
-    if "file" not in request.files:
-        return jsonify(ok=False, message="No file uploaded"), 400
-    
-    f = request.files["file"]
-    text = f.stream.read().decode("utf-8", errors="ignore")
-    reader = csv.reader(io.StringIO(text))
-    
-    # Store roster in session only - FERPA compliant
-    student_roster = {}
-    count = 0
-    
-    for row in reader:
-        if not row or len(row) < 2:
-            continue
-        sid, name = row[0].strip(), row[1].strip()
-        if not sid or not name:
-            continue
-        student_roster[sid] = name
+    try:
+        if "file" not in request.files:
+            return jsonify(ok=False, message="No file uploaded"), 400
         
-        # Create anonymous student record in database (ID only, no name)
-        if not Student.query.get(sid):
-            db.session.add(Student(id=sid))
-        count += 1
-    
-    if count > 0:
-        db.session.commit()
-        session['student_roster'] = student_roster
-        session.permanent = True
+        f = request.files["file"]
+        if not f or f.filename == '':
+            return jsonify(ok=False, message="No file selected"), 400
+            
+        text = f.stream.read().decode("utf-8", errors="ignore")
+        reader = csv.reader(io.StringIO(text))
         
-    return jsonify(ok=True, imported=count, message=f"Roster uploaded to session only - FERPA compliant")
+        # Store roster in session only - FERPA compliant
+        student_roster = {}
+        count = 0
+        
+        for row in reader:
+            if not row or len(row) < 2:
+                continue
+            sid, name = row[0].strip(), row[1].strip()
+            if not sid or not name:
+                continue
+            student_roster[sid] = name
+            
+            # Create anonymous student record in database (ID only, no name)
+            if not Student.query.get(sid):
+                db.session.add(Student(id=sid, name=f"Student_{sid[-4:]}"))  # Provide required name field
+            count += 1
+        
+        if count > 0:
+            db.session.commit()
+            session['student_roster'] = student_roster
+            session.permanent = True
+            
+        return jsonify(ok=True, imported=count, message=f"Roster uploaded to session only - FERPA compliant")
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(ok=False, message=f"Upload failed: {str(e)}"), 500
+
+@app.post("/api/test_auth")
+@require_admin_auth_api
+def api_test_auth():
+    """Test endpoint to verify admin authentication is working"""
+    return jsonify(ok=True, message="Admin authentication is working", authenticated=True)
 
 @app.post("/api/clear_database_students")
 @require_admin_auth_api

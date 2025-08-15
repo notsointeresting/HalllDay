@@ -22,6 +22,12 @@
     {% if roster_count > 0 %}
       <p style="margin: 10px 0 0 0; color: #2e7d32; font-size: 14px;">✅ Session roster: {{ roster_count }} students loaded</p>
     {% endif %}
+    
+    <!-- Debug Authentication -->
+    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #4caf50;">
+      <button type="button" id="testAuthBtn" style="background: #9c27b0; color: white; font-size: 12px;">Test Authentication</button>
+      <div id="testAuthResult" style="font-size: 12px; margin-top: 5px;"></div>
+    </div>
   </div>
 
   <!-- Legacy Database Upload -->
@@ -308,6 +314,35 @@ document.addEventListener('DOMContentLoaded', function() {
       } catch (error) {
         console.error('Clear database error:', error);
         resultDiv.innerHTML = `<p style="color: #dc3545; margin: 5px 0 0 0;">❌ Network error: ${error.message}</p>`;
+      }
+    };
+  }
+  
+  // Test authentication button
+  const testAuthBtn = document.getElementById('testAuthBtn');
+  if (testAuthBtn) {
+    testAuthBtn.onclick = async () => {
+      console.log('Testing authentication...');
+      const resultDiv = document.getElementById('testAuthResult');
+      resultDiv.textContent = 'Testing...';
+      
+      try {
+        const r = await fetch('/api/test_auth', {method:'POST'});
+        console.log('Test auth response status:', r.status);
+        const j = await r.json();
+        console.log('Test auth response:', j);
+        
+        if (j.ok) {
+          resultDiv.style.color = '#2e7d32';
+          resultDiv.textContent = '✅ Authentication working';
+        } else {
+          resultDiv.style.color = '#d32f2f';
+          resultDiv.textContent = `❌ Auth failed: ${j.message}`;
+        }
+      } catch (error) {
+        console.error('Test auth error:', error);
+        resultDiv.style.color = '#d32f2f';
+        resultDiv.textContent = `❌ Error: ${error.message}`;
       }
     };
   }
