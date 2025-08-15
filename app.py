@@ -58,20 +58,20 @@ class Settings(db.Model):
 # Create tables after models are defined (works under Gunicorn too)
 STATIC_VERSION = os.getenv("STATIC_VERSION", str(int(time.time())))
 
-with app.app_context():
-    db.create_all()
-    # Ensure a singleton settings row exists
-    try:
-        if not Settings.query.get(1):
-            s = Settings(id=1, room_name=config.ROOM_NAME, capacity=config.CAPACITY,
-                         overdue_minutes=getattr(config, "MAX_MINUTES", 10), kiosk_suspended=False)
-            db.session.add(s)
-            db.session.commit()
-    except Exception as e:
-        # If there's an error (like missing column), just create tables and continue
-        # The migration command can be run separately
-        print(f"Warning: Could not initialize settings row: {e}")
-        print("You may need to run 'flask --app app.py migrate' to update the database schema.")
+# Database initialization temporarily commented out for testing
+# Uncomment and run 'flask --app app.py init-db' if needed
+# with app.app_context():
+#     db.create_all()
+#     # Ensure a singleton settings row exists
+#     try:
+#         if not Settings.query.get(1):
+#             s = Settings(id=1, room_name=config.ROOM_NAME, capacity=config.CAPACITY,
+#                          overdue_minutes=getattr(config, "MAX_MINUTES", 10), kiosk_suspended=False)
+#             db.session.add(s)
+#             db.session.commit()
+#     except Exception as e:
+#         print(f"Warning: Could not initialize settings row: {e}")
+#         print("You may need to run database migrations.")
 
 # ---------- Utility ----------
 
@@ -293,12 +293,18 @@ def api_scan():
     if not code:
         return jsonify(ok=False, message="No code scanned"), 400
 
-    # FERPA Compliance: Check session roster only - no database interactions
+    # FERPA Compliance: Check session roster only
     student_roster = session.get('student_roster', {})
     student_name = student_roster.get(code)
     
     if not student_name:
         return jsonify(ok=False, message=f"Unknown ID: {code} - Please upload roster first"), 404
+    
+    # Ensure minimal Student record exists for foreign key constraint (anonymous)
+    if not Student.query.get(code):
+        anonymous_student = Student(id=code, name=f"Anonymous_{code}")
+        db.session.add(anonymous_student)
+        db.session.commit()
 
     open_sessions = get_open_sessions()
 
