@@ -14,8 +14,9 @@
     <h4 style="color: #2e7d32; margin: 0 0 10px 0;">🔒 FERPA-Compliant Upload (Recommended)</h4>
     <p style="margin: 0 0 10px 0; color: #2e7d32; font-size: 14px;">Student names stored in browser session only - not on external servers</p>
     <form id="sessionRosterForm">
-      <input type="file" name="file" accept=".csv" style="margin-right: 10px;">
-      <button type="submit" style="background: #4caf50; color: white;">Upload to Session Only</button>
+      <input type="file" id="sessionFileInput" name="file" accept=".csv" style="margin-right: 10px;">
+      <button type="submit" style="background: #4caf50; color: white; margin-right: 10px;">Upload to Session Only</button>
+      <button type="button" id="sessionUploadBtn" style="background: #2196f3; color: white;">Alternative Upload</button>
     </form>
     <div id="sessionRosterResult"></div>
     {% if roster_count > 0 %}
@@ -28,8 +29,9 @@
     <h4 style="color: #856404; margin: 0 0 10px 0;">⚠️ Legacy Upload (Database Storage)</h4>
     <p style="margin: 0 0 10px 0; color: #856404; font-size: 14px;">Stores student names in database - may not be FERPA compliant</p>
     <form id="importForm">
-      <input type="file" name="file" accept=".csv" style="margin-right: 10px;">
-      <button type="submit" style="background: #ffc107; color: #212529;">Upload to Database</button>
+      <input type="file" id="legacyFileInput" name="file" accept=".csv" style="margin-right: 10px;">
+      <button type="submit" style="background: #ffc107; color: #212529; margin-right: 10px;">Upload to Database</button>
+      <button type="button" id="legacyUploadBtn" style="background: #ff9800; color: white;">Alternative Upload</button>
     </form>
     <div id="importResult"></div>
   </div>
@@ -98,6 +100,15 @@
 </section>
 
 <script>
+console.log('Admin panel JavaScript loaded');
+
+// Test if forms exist
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('DOM loaded');
+  console.log('sessionRosterForm exists:', !!document.getElementById('sessionRosterForm'));
+  console.log('importForm exists:', !!document.getElementById('importForm'));
+});
+
 document.getElementById('override').onclick = async () => {
   const r = await fetch('/api/override_end', {method:'POST'});
   const j = await r.json();
@@ -107,28 +118,137 @@ document.getElementById('override').onclick = async () => {
 // FERPA-Compliant Session Upload
 document.getElementById('sessionRosterForm').onsubmit = async (e) => {
   e.preventDefault();
-  const fd = new FormData(e.target);
-  const r = await fetch('/api/upload_session_roster', {method:'POST', body: fd});
-  const j = await r.json();
-  console.log('session_roster_upload', j);
+  console.log('Session roster form submitted');
+  
+  const fileInput = e.target.querySelector('input[type="file"]');
   const resultDiv = document.getElementById('sessionRosterResult');
-  if (j.ok) {
-    resultDiv.innerHTML = `<p style="color: #2e7d32; margin: 5px 0 0 0;">✅ ${j.imported} students loaded to session (FERPA compliant)</p>`;
-    setTimeout(() => location.reload(), 1500); // Refresh to show updated count
-  } else {
-    resultDiv.innerHTML = `<p style="color: #d32f2f; margin: 5px 0 0 0;">❌ ${j.message || 'Error'}</p>`;
+  
+  if (!fileInput.files || fileInput.files.length === 0) {
+    resultDiv.innerHTML = `<p style="color: #d32f2f; margin: 5px 0 0 0;">❌ Please select a CSV file</p>`;
+    return;
+  }
+  
+  resultDiv.innerHTML = `<p style="color: #2196f3; margin: 5px 0 0 0;">📤 Uploading...</p>`;
+  
+  try {
+    const fd = new FormData(e.target);
+    console.log('Sending request to /api/upload_session_roster');
+    const r = await fetch('/api/upload_session_roster', {method:'POST', body: fd});
+    console.log('Response status:', r.status);
+    const j = await r.json();
+    console.log('session_roster_upload response:', j);
+    
+    if (j.ok) {
+      resultDiv.innerHTML = `<p style="color: #2e7d32; margin: 5px 0 0 0;">✅ ${j.imported} students loaded to session (FERPA compliant)</p>`;
+      setTimeout(() => location.reload(), 1500); // Refresh to show updated count
+    } else {
+      resultDiv.innerHTML = `<p style="color: #d32f2f; margin: 5px 0 0 0;">❌ ${j.message || 'Upload failed'}</p>`;
+    }
+  } catch (error) {
+    console.error('Upload error:', error);
+    resultDiv.innerHTML = `<p style="color: #d32f2f; margin: 5px 0 0 0;">❌ Network error: ${error.message}</p>`;
   }
 };
 
 // Legacy Database Upload
 document.getElementById('importForm').onsubmit = async (e) => {
   e.preventDefault();
-  const fd = new FormData(e.target);
-  const r = await fetch('/api/import_roster', {method:'POST', body: fd});
-  const j = await r.json();
-  console.log('import_roster', j);
-  document.getElementById('importResult').textContent = j.ok ? `Imported ${j.imported}` : (j.message || 'Error');
+  console.log('Legacy import form submitted');
+  
+  const fileInput = e.target.querySelector('input[type="file"]');
+  const resultDiv = document.getElementById('importResult');
+  
+  if (!fileInput.files || fileInput.files.length === 0) {
+    resultDiv.textContent = 'Please select a CSV file';
+    return;
+  }
+  
+  resultDiv.textContent = 'Uploading...';
+  
+  try {
+    const fd = new FormData(e.target);
+    console.log('Sending request to /api/import_roster');
+    const r = await fetch('/api/import_roster', {method:'POST', body: fd});
+    console.log('Response status:', r.status);
+    const j = await r.json();
+    console.log('import_roster response:', j);
+    resultDiv.textContent = j.ok ? `Imported ${j.imported} students` : (j.message || 'Upload failed');
+  } catch (error) {
+    console.error('Import error:', error);
+    resultDiv.textContent = `Network error: ${error.message}`;
+  }
 };
+
+// Alternative button handlers (in case form submission doesn't work)
+document.addEventListener('DOMContentLoaded', function() {
+  // Session roster alternative upload
+  const sessionUploadBtn = document.getElementById('sessionUploadBtn');
+  if (sessionUploadBtn) {
+    sessionUploadBtn.onclick = async () => {
+      console.log('Session alternative button clicked');
+      const fileInput = document.getElementById('sessionFileInput');
+      const resultDiv = document.getElementById('sessionRosterResult');
+      
+      if (!fileInput.files || fileInput.files.length === 0) {
+        resultDiv.innerHTML = `<p style="color: #d32f2f; margin: 5px 0 0 0;">❌ Please select a CSV file first</p>`;
+        return;
+      }
+      
+      resultDiv.innerHTML = `<p style="color: #2196f3; margin: 5px 0 0 0;">📤 Uploading via alternative method...</p>`;
+      
+      try {
+        const fd = new FormData();
+        fd.append('file', fileInput.files[0]);
+        console.log('Sending alternative request to /api/upload_session_roster');
+        const r = await fetch('/api/upload_session_roster', {method:'POST', body: fd});
+        console.log('Alternative response status:', r.status);
+        const j = await r.json();
+        console.log('Alternative session_roster_upload response:', j);
+        
+        if (j.ok) {
+          resultDiv.innerHTML = `<p style="color: #2e7d32; margin: 5px 0 0 0;">✅ ${j.imported} students loaded to session (FERPA compliant)</p>`;
+          setTimeout(() => location.reload(), 1500);
+        } else {
+          resultDiv.innerHTML = `<p style="color: #d32f2f; margin: 5px 0 0 0;">❌ ${j.message || 'Upload failed'}</p>`;
+        }
+      } catch (error) {
+        console.error('Alternative upload error:', error);
+        resultDiv.innerHTML = `<p style="color: #d32f2f; margin: 5px 0 0 0;">❌ Network error: ${error.message}</p>`;
+      }
+    };
+  }
+  
+  // Legacy roster alternative upload
+  const legacyUploadBtn = document.getElementById('legacyUploadBtn');
+  if (legacyUploadBtn) {
+    legacyUploadBtn.onclick = async () => {
+      console.log('Legacy alternative button clicked');
+      const fileInput = document.getElementById('legacyFileInput');
+      const resultDiv = document.getElementById('importResult');
+      
+      if (!fileInput.files || fileInput.files.length === 0) {
+        resultDiv.textContent = 'Please select a CSV file first';
+        return;
+      }
+      
+      resultDiv.textContent = 'Uploading via alternative method...';
+      
+      try {
+        const fd = new FormData();
+        fd.append('file', fileInput.files[0]);
+        console.log('Sending alternative request to /api/import_roster');
+        const r = await fetch('/api/import_roster', {method:'POST', body: fd});
+        console.log('Alternative response status:', r.status);
+        const j = await r.json();
+        console.log('Alternative import_roster response:', j);
+        resultDiv.textContent = j.ok ? `Imported ${j.imported} students` : (j.message || 'Upload failed');
+      } catch (error) {
+        console.error('Alternative import error:', error);
+        resultDiv.textContent = `Network error: ${error.message}`;
+      }
+    };
+  }
+});
 
 document.getElementById('settingsForm').onsubmit = async (e) => {
   e.preventDefault();
