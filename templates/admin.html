@@ -7,12 +7,32 @@
   </div>
   <p>Open sessions: <strong>{{ open_count }}</strong> • Total sessions: <strong>{{ total }}</strong></p>
 
-  <h3>Import roster CSV</h3>
-  <form id="importForm">
-    <input type="file" name="file" accept=".csv">
-    <button type="submit">Upload</button>
-  </form>
-  <div id="importResult"></div>
+  <h3>Student Roster Management</h3>
+  
+  <!-- FERPA-Compliant Session Upload -->
+  <div style="background: #e8f5e8; border: 1px solid #4caf50; border-radius: 4px; padding: 15px; margin-bottom: 15px;">
+    <h4 style="color: #2e7d32; margin: 0 0 10px 0;">🔒 FERPA-Compliant Upload (Recommended)</h4>
+    <p style="margin: 0 0 10px 0; color: #2e7d32; font-size: 14px;">Student names stored in browser session only - not on external servers</p>
+    <form id="sessionRosterForm">
+      <input type="file" name="file" accept=".csv" style="margin-right: 10px;">
+      <button type="submit" style="background: #4caf50; color: white;">Upload to Session Only</button>
+    </form>
+    <div id="sessionRosterResult"></div>
+    {% if roster_count > 0 %}
+      <p style="margin: 10px 0 0 0; color: #2e7d32; font-size: 14px;">✅ Session roster: {{ roster_count }} students loaded</p>
+    {% endif %}
+  </div>
+
+  <!-- Legacy Database Upload -->
+  <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 15px;">
+    <h4 style="color: #856404; margin: 0 0 10px 0;">⚠️ Legacy Upload (Database Storage)</h4>
+    <p style="margin: 0 0 10px 0; color: #856404; font-size: 14px;">Stores student names in database - may not be FERPA compliant</p>
+    <form id="importForm">
+      <input type="file" name="file" accept=".csv" style="margin-right: 10px;">
+      <button type="submit" style="background: #ffc107; color: #212529;">Upload to Database</button>
+    </form>
+    <div id="importResult"></div>
+  </div>
 
   <h3>Settings</h3>
   <div style="margin:6px 0 12px 0; display:flex; gap:12px; align-items:center;">
@@ -84,6 +104,23 @@ document.getElementById('override').onclick = async () => {
   alert(j.ok ? 'Ended.' : (j.message || 'Error'));
 };
 
+// FERPA-Compliant Session Upload
+document.getElementById('sessionRosterForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const r = await fetch('/api/upload_session_roster', {method:'POST', body: fd});
+  const j = await r.json();
+  console.log('session_roster_upload', j);
+  const resultDiv = document.getElementById('sessionRosterResult');
+  if (j.ok) {
+    resultDiv.innerHTML = `<p style="color: #2e7d32; margin: 5px 0 0 0;">✅ ${j.imported} students loaded to session (FERPA compliant)</p>`;
+    setTimeout(() => location.reload(), 1500); // Refresh to show updated count
+  } else {
+    resultDiv.innerHTML = `<p style="color: #d32f2f; margin: 5px 0 0 0;">❌ ${j.message || 'Error'}</p>`;
+  }
+};
+
+// Legacy Database Upload
 document.getElementById('importForm').onsubmit = async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);

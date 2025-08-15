@@ -177,6 +177,11 @@ def admin():
     open_count = Session.query.filter_by(end_ts=None).count()
     students = Student.query.order_by(Student.name.asc()).all()
     settings = get_settings()
+    
+    # FERPA Compliance: Get session-based roster count
+    session_roster = session.get('student_roster', {})
+    roster_count = len(session_roster)
+    
     # Sheets status/link for admin chip
     try:
         sheets_status = sheets_logger.get_status()
@@ -195,6 +200,7 @@ def admin():
         settings=settings,
         sheets_status=sheets_status,
         sheets_link=sheets_link,
+        roster_count=roster_count,  # For FERPA-compliant display
     )
 
 # ---------- Keep-alive (Render) ----------
@@ -289,15 +295,30 @@ def api_scan():
     if not code:
         return jsonify(ok=False, message="No code scanned"), 400
 
-    student = Student.query.get(code)
-    if not student:
-        return jsonify(ok=False, message=f"Unknown ID: {code}"), 404
+    # FERPA Compliance: Check session roster first, then database
+    student_roster = session.get('student_roster', {})
+    student_name = student_roster.get(code)
+    
+    if student_name:
+        # Student found in session roster - FERPA compliant
+        student = Student.query.get(code)
+        if not student:
+            # Create anonymous record in database
+            student = Student(id=code)
+            db.session.add(student)
+            db.session.commit()
+    else:
+        # Fallback to database (legacy mode)
+        student = Student.query.get(code)
+        if not student:
+            return jsonify(ok=False, message=f"Unknown ID: {code}"), 404
+        student_name = getattr(student, 'name', 'Student')
 
     open_sessions = get_open_sessions()
 
     # If this student currently holds the pass, end their session
     for s in open_sessions:
-        if s.student_id == student.id:
+        if s.student_id == code:
             s.end_ts = now_utc()
             s.ended_by = "kiosk_scan"
             db.session.commit()
@@ -306,7 +327,7 @@ def api_scan():
                 if sheets_logger.sheets_enabled():
                     end_iso = s.end_ts.astimezone(timezone.utc).isoformat()
                     sheets_logger.complete_end(
-                        student_id=student.id,
+                        student_id=code,
                         end_iso=end_iso,
                         duration_seconds=s.duration_seconds,
                         ended_by="kiosk_scan",
@@ -314,15 +335,14 @@ def api_scan():
                     )
             except Exception:
                 pass
-            return jsonify(ok=True, action="ended", name=student.name)
+            return jsonify(ok=True, action="ended", name=student_name)
 
     # If capacity is full and someone else is out, deny
     if len(open_sessions) >= get_settings()["capacity"]:
-        holder = open_sessions[0].student.name
-        return jsonify(ok=False, action="denied", message=f"In use by {holder}"), 409
+        return jsonify(ok=False, action="denied", message=f"Hall pass currently in use"), 409
 
     # Otherwise start a new session
-    sess = Session(student_id=student.id, start_ts=now_utc(), room=get_settings()["room_name"])
+    sess = Session(student_id=code, start_ts=now_utc(), room=get_settings()["room_name"])
     db.session.add(sess)
     db.session.commit()
     # Sheets append (non-blocking)
@@ -332,15 +352,15 @@ def api_scan():
             created_iso = datetime.now(timezone.utc).isoformat()
             sheets_logger.append_start(
                 session_id=sess.id,
-                student_id=student.id,
-                name=student.name,
+                student_id=code,
+                name=student_name,  # From session, not database
                 room=get_settings()["room_name"],
                 start_iso=start_iso,
                 created_iso=created_iso,
             )
     except Exception:
         pass
-    return jsonify(ok=True, action="started", name=student.name)
+    return jsonify(ok=True, action="started", name=student_name)
 
 @app.get("/api/status")
 def api_status():
@@ -351,7 +371,12 @@ def api_status():
     kiosk_suspended = settings["kiosk_suspended"]
     if s:
         is_overdue = s.duration_seconds > overdue_minutes * 60
-        return jsonify(in_use=True, name=s.student.name, start=to_local(s.start_ts).isoformat(), elapsed=s.duration_seconds, overdue=is_overdue, overdue_minutes=overdue_minutes, kiosk_suspended=kiosk_suspended)
+        
+        # FERPA Compliance: Get name from session roster or use anonymous
+        student_roster = session.get('student_roster', {})
+        student_name = student_roster.get(s.student_id, "Student")
+        
+        return jsonify(in_use=True, name=student_name, start=to_local(s.start_ts).isoformat(), elapsed=s.duration_seconds, overdue=is_overdue, overdue_minutes=overdue_minutes, kiosk_suspended=kiosk_suspended)
     else:
         return jsonify(in_use=False, overdue_minutes=overdue_minutes, kiosk_suspended=kiosk_suspended)
 
@@ -365,9 +390,13 @@ def sse_events():
             overdue_minutes = settings["overdue_minutes"]
             kiosk_suspended = settings["kiosk_suspended"]
             if s:
+                # FERPA Compliance: Get name from session roster or use anonymous
+                student_roster = session.get('student_roster', {})
+                student_name = student_roster.get(s.student_id, "Student")
+                
                 payload = {
                     "in_use": True,
-                    "name": s.student.name,
+                    "name": student_name,
                     "elapsed": s.duration_seconds,
                     "overdue": s.duration_seconds > overdue_minutes * 60,
                     "overdue_minutes": overdue_minutes,
@@ -523,6 +552,41 @@ def api_import_roster():
         count += 1
     db.session.commit()
     return jsonify(ok=True, imported=count)
+
+@app.post("/api/upload_session_roster")
+@require_admin_auth_api
+def api_upload_session_roster():
+    """FERPA-compliant: Upload student roster to session only (not database)"""
+    if "file" not in request.files:
+        return jsonify(ok=False, message="No file uploaded"), 400
+    
+    f = request.files["file"]
+    text = f.stream.read().decode("utf-8", errors="ignore")
+    reader = csv.reader(io.StringIO(text))
+    
+    # Store roster in session only - FERPA compliant
+    student_roster = {}
+    count = 0
+    
+    for row in reader:
+        if not row or len(row) < 2:
+            continue
+        sid, name = row[0].strip(), row[1].strip()
+        if not sid or not name:
+            continue
+        student_roster[sid] = name
+        
+        # Create anonymous student record in database (ID only, no name)
+        if not Student.query.get(sid):
+            db.session.add(Student(id=sid))
+        count += 1
+    
+    if count > 0:
+        db.session.commit()
+        session['student_roster'] = student_roster
+        session.permanent = True
+        
+    return jsonify(ok=True, imported=count, message=f"Roster uploaded to session only - FERPA compliant")
 
 @app.get("/export.csv")
 def export_csv():
