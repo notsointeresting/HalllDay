@@ -27,6 +27,12 @@ app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=8)  # Admin sessions 
 db = SQLAlchemy(app)
 TZ = ZoneInfo(config.TIMEZONE)
 
+# FERPA-Compliant Memory Cache for Student Roster
+# This is not persistent storage - roster expires automatically
+_memory_roster = {}
+_roster_expiry = None
+ROSTER_EXPIRY_HOURS = 24  # Roster expires after 24 hours for FERPA compliance
+
 # ---------- Models ----------
 
 class Student(db.Model):
@@ -72,6 +78,46 @@ STATIC_VERSION = os.getenv("STATIC_VERSION", str(int(time.time())))
 #     except Exception as e:
 #         print(f"Warning: Could not initialize settings row: {e}")
 #         print("You may need to run database migrations.")
+
+# ---------- FERPA-Compliant Roster Utilities ----------
+
+def get_memory_roster():
+    """Get student roster from memory cache, checking expiry for FERPA compliance."""
+    global _memory_roster, _roster_expiry
+    
+    if _roster_expiry is None or datetime.now(timezone.utc) > _roster_expiry:
+        # Roster expired or never set - clear it for FERPA compliance
+        _memory_roster = {}
+        _roster_expiry = None
+        return {}
+    
+    return _memory_roster
+
+def set_memory_roster(roster_dict):
+    """Set student roster in memory cache with automatic expiry for FERPA compliance."""
+    global _memory_roster, _roster_expiry
+    
+    _memory_roster = roster_dict.copy()
+    _roster_expiry = datetime.now(timezone.utc) + timedelta(hours=ROSTER_EXPIRY_HOURS)
+
+def clear_memory_roster():
+    """Clear student roster from memory cache."""
+    global _memory_roster, _roster_expiry
+    
+    _memory_roster = {}
+    _roster_expiry = None
+
+def get_student_name(student_id, fallback="Student"):
+    """Get student name from both session and memory roster for FERPA compliance."""
+    # First try session roster (for admin session)
+    session_roster = session.get('student_roster', {})
+    name = session_roster.get(student_id)
+    if name:
+        return name
+    
+    # Then try memory roster (for display/kiosk from different sessions)
+    memory_roster = get_memory_roster()
+    return memory_roster.get(student_id, fallback)
 
 # ---------- Utility ----------
 
@@ -177,9 +223,22 @@ def admin():
     open_count = Session.query.filter_by(end_ts=None).count()
     settings = get_settings()
     
-    # FERPA Compliance: Get session-based roster count
+    # FERPA Compliance: Get session-based and memory roster counts
     session_roster = session.get('student_roster', {})
-    roster_count = len(session_roster)
+    session_roster_count = len(session_roster)
+    memory_roster = get_memory_roster()
+    memory_roster_count = len(memory_roster)
+    
+    # Calculate memory roster expiry info
+    global _roster_expiry
+    memory_expires_in_hours = None
+    if _roster_expiry:
+        now = datetime.now(timezone.utc)
+        if _roster_expiry > now:
+            remaining = _roster_expiry - now
+            memory_expires_in_hours = round(remaining.total_seconds() / 3600, 1)
+        else:
+            memory_expires_in_hours = 0
     
     # Sheets status/link for admin chip
     try:
@@ -198,7 +257,9 @@ def admin():
         settings=settings,
         sheets_status=sheets_status,
         sheets_link=sheets_link,
-        roster_count=roster_count,  # For FERPA-compliant display
+        session_roster_count=session_roster_count,  # For FERPA-compliant display
+        memory_roster_count=memory_roster_count,
+        memory_expires_in_hours=memory_expires_in_hours,
     )
 
 # ---------- Keep-alive (Render) ----------
@@ -293,11 +354,10 @@ def api_scan():
     if not code:
         return jsonify(ok=False, message="No code scanned"), 400
 
-    # FERPA Compliance: Check session roster only
-    student_roster = session.get('student_roster', {})
-    student_name = student_roster.get(code)
+    # FERPA Compliance: Check both session and memory roster
+    student_name = get_student_name(code)
     
-    if not student_name:
+    if student_name == "Student":  # Default fallback means student not found
         return jsonify(ok=False, message=f"Unknown ID: {code} - Please upload roster first"), 404
     
     # Ensure minimal Student record exists for foreign key constraint (anonymous)
@@ -364,9 +424,8 @@ def api_status():
     if s:
         is_overdue = s.duration_seconds > overdue_minutes * 60
         
-        # FERPA Compliance: Get name from session roster or use anonymous
-        student_roster = session.get('student_roster', {})
-        student_name = student_roster.get(s.student_id, "Student")
+        # FERPA Compliance: Get name from session or memory roster
+        student_name = get_student_name(s.student_id, "Student")
         
         return jsonify(in_use=True, name=student_name, start=to_local(s.start_ts).isoformat(), elapsed=s.duration_seconds, overdue=is_overdue, overdue_minutes=overdue_minutes, kiosk_suspended=kiosk_suspended)
     else:
@@ -382,9 +441,8 @@ def sse_events():
             overdue_minutes = settings["overdue_minutes"]
             kiosk_suspended = settings["kiosk_suspended"]
             if s:
-                # FERPA Compliance: Get name from session roster or use anonymous
-                student_roster = session.get('student_roster', {})
-                student_name = student_roster.get(s.student_id, "Student")
+                # FERPA Compliance: Get name from session or memory roster
+                student_name = get_student_name(s.student_id, "Student")
                 
                 payload = {
                     "in_use": True,
@@ -550,11 +608,14 @@ def api_upload_session_roster():
             student_roster[sid] = name
             count += 1
         
-        # Store roster in session only - no database storage
+        # Store roster in both session and memory for FERPA compliance
         session['student_roster'] = student_roster
         session.permanent = True
+        
+        # Also store in memory cache so display can access it (expires automatically)
+        set_memory_roster(student_roster)
             
-        return jsonify(ok=True, imported=count, message=f"Roster uploaded to session only - FERPA compliant (no database storage)")
+        return jsonify(ok=True, imported=count, message=f"Roster uploaded (FERPA compliant - memory only, expires in {ROSTER_EXPIRY_HOURS} hours)")
         
     except Exception as e:
         return jsonify(ok=False, message=f"Upload failed: {str(e)}"), 500
@@ -572,12 +633,37 @@ def api_get_session_roster():
     student_roster = session.get('student_roster', {})
     return jsonify(ok=True, roster=student_roster, count=len(student_roster))
 
+@app.get("/api/memory_roster_status")
+@require_admin_auth_api
+def api_get_memory_roster_status():
+    """Get memory roster status for admin display"""
+    global _roster_expiry
+    memory_roster = get_memory_roster()
+    
+    status = {
+        'count': len(memory_roster),
+        'active': len(memory_roster) > 0,
+        'expiry': _roster_expiry.isoformat() if _roster_expiry else None,
+        'expires_in_hours': None
+    }
+    
+    if _roster_expiry:
+        now = datetime.now(timezone.utc)
+        if _roster_expiry > now:
+            remaining = _roster_expiry - now
+            status['expires_in_hours'] = round(remaining.total_seconds() / 3600, 1)
+        else:
+            status['expires_in_hours'] = 0
+    
+    return jsonify(ok=True, **status)
+
 @app.post("/api/clear_session_roster")
 @require_admin_auth_api
 def api_clear_session_roster():
-    """Clear the session roster"""
+    """Clear both session and memory roster for FERPA compliance"""
     session.pop('student_roster', None)
-    return jsonify(ok=True, message="Session roster cleared")
+    clear_memory_roster()
+    return jsonify(ok=True, message="All rosters cleared (session and memory)")
 
 
 

@@ -19,8 +19,15 @@
       <button type="button" id="sessionUploadBtn" style="background: #2196f3; color: white;">Alternative Upload</button>
     </form>
     <div id="sessionRosterResult"></div>
-    {% if roster_count > 0 %}
-      <p style="margin: 10px 0 0 0; color: #2e7d32; font-size: 14px;">✅ Session roster: {{ roster_count }} students loaded</p>
+    {% if session_roster_count > 0 %}
+      <p style="margin: 10px 0 0 0; color: #2e7d32; font-size: 14px;">✅ Session roster: {{ session_roster_count }} students loaded</p>
+    {% endif %}
+    {% if memory_roster_count > 0 %}
+      <p style="margin: 5px 0 0 0; color: #1976d2; font-size: 14px;">🖥️ Display roster: {{ memory_roster_count }} students 
+      {% if memory_expires_in_hours is not none %}
+        (expires in {{ memory_expires_in_hours }}h)
+      {% endif %}
+      </p>
     {% endif %}
     
     <!-- Debug Authentication -->
@@ -71,11 +78,24 @@
     </div>
   </div>
 
-  <h3>Student Roster</h3>
+  <h3>Student Roster Status</h3>
   <div style="background: #e8f5e8; border: 1px solid #4caf50; border-radius: 4px; padding: 15px; margin-bottom: 20px;">
-    <h4 style="color: #2e7d32; margin: 0 0 10px 0;">🔒 FERPA-Compliant Session Roster</h4>
-    <p style="margin: 0; font-size: 24px; font-weight: bold; color: #2e7d32;">{{ roster_count }} students</p>
-    <p style="margin: 5px 0 0 0; color: #2e7d32; font-size: 12px;">All student data stored in browser session only - no external database storage</p>
+    <h4 style="color: #2e7d32; margin: 0 0 10px 0;">🔒 FERPA-Compliant Roster Status</h4>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+      <div>
+        <p style="margin: 0; font-size: 18px; font-weight: bold; color: #2e7d32;">{{ session_roster_count }} students</p>
+        <p style="margin: 5px 0 0 0; color: #2e7d32; font-size: 12px;">Session roster (admin access)</p>
+      </div>
+      <div>
+        <p style="margin: 0; font-size: 18px; font-weight: bold; color: #1976d2;">{{ memory_roster_count }} students</p>
+        <p style="margin: 5px 0 0 0; color: #1976d2; font-size: 12px;">Display roster 
+        {% if memory_expires_in_hours is not none %}
+          (expires in {{ memory_expires_in_hours }}h)
+        {% endif %}
+        </p>
+      </div>
+    </div>
+    <p style="margin: 10px 0 0 0; color: #666; font-size: 12px;">All student data stored in memory only - no persistent external storage</p>
   </div>
 
   <h3>Kiosk Control</h3>
