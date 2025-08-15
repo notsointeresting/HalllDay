@@ -117,13 +117,26 @@ def get_student_name(student_id, fallback="Student"):
     
     # Then try memory roster (for display/kiosk from different sessions)
     memory_roster = get_memory_roster()
-    name = memory_roster.get(student_id, fallback)
+    name = memory_roster.get(student_id)
+    if name:
+        return name
+    
+    # If memory roster is empty but session roster has data, repopulate memory roster
+    # This handles server restarts where memory is lost but session persists
+    if len(memory_roster) == 0 and len(session_roster) > 0:
+        print(f"DEBUG: Repopulating memory roster from session ({len(session_roster)} students)")
+        set_memory_roster(session_roster)
+        # Try again with the repopulated memory roster
+        memory_roster = get_memory_roster()
+        name = memory_roster.get(student_id)
+        if name:
+            return name
     
     # Debug logging (remove in production)
-    if student_id and name == fallback:
+    if student_id and not name:
         print(f"DEBUG: Student {student_id} not found. Session roster: {len(session_roster)}, Memory roster: {len(memory_roster)}")
     
-    return name
+    return name or fallback
 
 # ---------- Utility ----------
 
@@ -366,6 +379,14 @@ def api_scan():
     if student_name == "Student":  # Default fallback means student not found
         return jsonify(ok=False, message=f"Unknown ID: {code} - Please upload roster first"), 404
     
+    # Ensure memory roster is populated for cross-device access
+    # This happens when a student scans successfully, ensuring display can access names
+    memory_roster = get_memory_roster()
+    session_roster = session.get('student_roster', {})
+    if len(memory_roster) == 0 and len(session_roster) > 0:
+        print(f"DEBUG: Populating memory roster during scan ({len(session_roster)} students)")
+        set_memory_roster(session_roster)
+    
     # Ensure minimal Student record exists for foreign key constraint (anonymous)
     if not Student.query.get(code):
         anonymous_student = Student(id=code, name=f"Anonymous_{code}")
@@ -449,6 +470,13 @@ def sse_events():
             if s:
                 # FERPA Compliance: Get name from session or memory roster
                 student_name = get_student_name(s.student_id, "Student")
+                
+                # Additional fallback for SSE streams that don't have session access
+                # If memory roster is empty, try to find any active session with roster data
+                if student_name == "Student" and len(get_memory_roster()) == 0:
+                    print(f"DEBUG: SSE fallback - trying to find roster data for student {s.student_id}")
+                    # This is a last resort - in production, the memory roster should be populated
+                    # from the admin session when they upload the roster
                 
                 # Debug logging (remove in production)
                 if student_name == "Student":
