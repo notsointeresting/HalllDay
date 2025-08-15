@@ -591,23 +591,29 @@ def api_upload_session_roster():
 @app.post("/api/clear_database_students")
 @require_admin_auth_api
 def api_clear_database_students():
-    """FERPA-compliant: Clear all student names from database while keeping session roster"""
+    """FERPA-compliant: Anonymize student names in database while keeping IDs for session references"""
     try:
-        # Count students before clearing
-        student_count = Student.query.count()
+        # Count students before anonymizing
+        all_students = Student.query.all()
+        student_count = len(all_students)
         
-        # Clear all students from database
-        Student.query.delete()
+        if student_count == 0:
+            return jsonify(ok=True, cleared=0, message="No students found in database")
+        
+        # Anonymize student names but keep IDs (for foreign key integrity)
+        for student in all_students:
+            student.name = f"Student_{student.id[-4:]}"  # Anonymous name using last 4 digits of ID
+        
         db.session.commit()
         
         return jsonify(
             ok=True, 
             cleared=student_count,
-            message=f"Database cleared - session roster remains intact"
+            message=f"Student names anonymized in database - session roster remains intact"
         )
     except Exception as e:
         db.session.rollback()
-        return jsonify(ok=False, message=f"Failed to clear database: {str(e)}"), 500
+        return jsonify(ok=False, message=f"Failed to anonymize student names: {str(e)}"), 500
 
 @app.get("/export.csv")
 def export_csv():

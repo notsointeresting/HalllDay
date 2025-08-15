@@ -37,9 +37,9 @@
     
     <!-- Clear Legacy Database -->
     <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ffc107;">
-      <h5 style="color: #856404; margin: 0 0 10px 0;">🗑️ Clear Legacy Database</h5>
-      <p style="margin: 0 0 10px 0; color: #856404; font-size: 12px;">Remove all student names from external database (keeps session roster intact)</p>
-      <button type="button" id="clearDatabaseBtn" style="background: #dc3545; color: white; margin-right: 10px;">Clear Database Students</button>
+      <h5 style="color: #856404; margin: 0 0 10px 0;">🔒 Anonymize Legacy Database</h5>
+      <p style="margin: 0 0 10px 0; color: #856404; font-size: 12px;">Replace all student names with anonymous IDs (keeps session roster intact)</p>
+      <button type="button" id="clearDatabaseBtn" style="background: #dc3545; color: white; margin-right: 10px;">Anonymize Database Names</button>
       <div id="clearDatabaseResult"></div>
     </div>
   </div>
@@ -280,10 +280,11 @@ document.addEventListener('DOMContentLoaded', function() {
   if (clearDatabaseBtn) {
     clearDatabaseBtn.onclick = async () => {
       const confirmed = confirm(
-        'Are you sure you want to clear all student names from the database?\n\n' +
-        '⚠️ This will remove all student names from the external database.\n' +
-        '✅ Your session roster will remain intact.\n' +
-        '📊 Session data will continue to work normally.\n\n' +
+        'Are you sure you want to anonymize all student names in the database?\n\n' +
+        '🔒 This will replace student names with anonymous IDs (e.g., "Student_1234").\n' +
+        '✅ Your session roster will remain intact and functional.\n' +
+        '📊 All session data and functionality will continue normally.\n' +
+        '🛡️ Database will be FERPA compliant after this action.\n\n' +
         'This action cannot be undone.'
       );
       
@@ -291,7 +292,7 @@ document.addEventListener('DOMContentLoaded', function() {
       
       console.log('Clear database button clicked');
       const resultDiv = document.getElementById('clearDatabaseResult');
-      resultDiv.innerHTML = `<p style="color: #dc3545; margin: 5px 0 0 0;">🗑️ Clearing database...</p>`;
+      resultDiv.innerHTML = `<p style="color: #dc3545; margin: 5px 0 0 0;">🔒 Anonymizing database...</p>`;
       
       try {
         const r = await fetch('/api/clear_database_students', {method:'POST'});
@@ -300,9 +301,9 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Clear database response:', j);
         
         if (j.ok) {
-          resultDiv.innerHTML = `<p style="color: #28a745; margin: 5px 0 0 0;">✅ ${j.message} (${j.cleared} students removed)</p>`;
+          resultDiv.innerHTML = `<p style="color: #28a745; margin: 5px 0 0 0;">✅ ${j.message} (${j.cleared} students anonymized)</p>`;
         } else {
-          resultDiv.innerHTML = `<p style="color: #dc3545; margin: 5px 0 0 0;">❌ ${j.message || 'Clear failed'}</p>`;
+          resultDiv.innerHTML = `<p style="color: #dc3545; margin: 5px 0 0 0;">❌ ${j.message || 'Anonymization failed'}</p>`;
         }
       } catch (error) {
         console.error('Clear database error:', error);
