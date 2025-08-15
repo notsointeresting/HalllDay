@@ -25,8 +25,11 @@
     
     <!-- Debug Authentication -->
     <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #4caf50;">
-      <button type="button" id="testAuthBtn" style="background: #9c27b0; color: white; font-size: 12px;">Test Authentication</button>
+      <button type="button" id="testAuthBtn" style="background: #9c27b0; color: white; font-size: 12px; margin-right: 5px;">Test Authentication</button>
+      <button type="button" id="viewSessionBtn" style="background: #607d8b; color: white; font-size: 12px; margin-right: 5px;">View Session Roster</button>
+      <button type="button" id="clearSessionBtn" style="background: #f44336; color: white; font-size: 12px;">Clear Session</button>
       <div id="testAuthResult" style="font-size: 12px; margin-top: 5px;"></div>
+      <div id="sessionDebugResult" style="font-size: 12px; margin-top: 5px; max-height: 200px; overflow-y: auto;"></div>
     </div>
   </div>
 
@@ -341,6 +344,76 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       } catch (error) {
         console.error('Test auth error:', error);
+        resultDiv.style.color = '#d32f2f';
+        resultDiv.textContent = `❌ Error: ${error.message}`;
+      }
+    };
+  }
+  
+  // View session roster button
+  const viewSessionBtn = document.getElementById('viewSessionBtn');
+  if (viewSessionBtn) {
+    viewSessionBtn.onclick = async () => {
+      console.log('Viewing session roster...');
+      const resultDiv = document.getElementById('sessionDebugResult');
+      resultDiv.textContent = 'Loading...';
+      
+      try {
+        const r = await fetch('/api/session_roster');
+        console.log('Session roster response status:', r.status);
+        const j = await r.json();
+        console.log('Session roster response:', j);
+        
+        if (j.ok) {
+          resultDiv.style.color = '#2e7d32';
+          const rosterEntries = Object.entries(j.roster);
+          if (rosterEntries.length === 0) {
+            resultDiv.innerHTML = '📝 Session roster is empty';
+          } else {
+            resultDiv.innerHTML = `📝 Session roster (${j.count} students):<br/>` + 
+              rosterEntries.slice(0, 10).map(([id, name]) => `${id}: ${name}`).join('<br/>') +
+              (rosterEntries.length > 10 ? `<br/>... and ${rosterEntries.length - 10} more` : '');
+          }
+        } else {
+          resultDiv.style.color = '#d32f2f';
+          resultDiv.textContent = `❌ Failed: ${j.message}`;
+        }
+      } catch (error) {
+        console.error('View session error:', error);
+        resultDiv.style.color = '#d32f2f';
+        resultDiv.textContent = `❌ Error: ${error.message}`;
+      }
+    };
+  }
+  
+  // Clear session roster button
+  const clearSessionBtn = document.getElementById('clearSessionBtn');
+  if (clearSessionBtn) {
+    clearSessionBtn.onclick = async () => {
+      if (!confirm('Clear the session roster? This will remove all uploaded student data from your session.')) {
+        return;
+      }
+      
+      console.log('Clearing session roster...');
+      const resultDiv = document.getElementById('sessionDebugResult');
+      resultDiv.textContent = 'Clearing...';
+      
+      try {
+        const r = await fetch('/api/clear_session_roster', {method:'POST'});
+        console.log('Clear session response status:', r.status);
+        const j = await r.json();
+        console.log('Clear session response:', j);
+        
+        if (j.ok) {
+          resultDiv.style.color = '#2e7d32';
+          resultDiv.textContent = '✅ Session roster cleared';
+          setTimeout(() => location.reload(), 1000);
+        } else {
+          resultDiv.style.color = '#d32f2f';
+          resultDiv.textContent = `❌ Failed: ${j.message}`;
+        }
+      } catch (error) {
+        console.error('Clear session error:', error);
         resultDiv.style.color = '#d32f2f';
         resultDiv.textContent = `❌ Error: ${error.message}`;
       }

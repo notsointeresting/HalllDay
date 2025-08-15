@@ -304,7 +304,9 @@ def api_scan():
         student = Student.query.get(code)
         if not student:
             # Create anonymous record in database
-            student = Student(id=code, name=f"Student_{code[-4:]}")
+            import time
+            anonymous_id = str(int(time.time()))[-4:]  # Use timestamp for uniqueness
+            student = Student(id=code, name=f"Anonymous_{anonymous_id}")
             db.session.add(student)
             db.session.commit()
     else:
@@ -571,6 +573,7 @@ def api_upload_session_roster():
         # Store roster in session only - FERPA compliant
         student_roster = {}
         count = 0
+        db_updates = 0
         
         for row in reader:
             if not row or len(row) < 2:
@@ -579,16 +582,25 @@ def api_upload_session_roster():
             if not sid or not name:
                 continue
             student_roster[sid] = name
-            
-            # Create anonymous student record in database (ID only, no name)
-            if not Student.query.get(sid):
-                db.session.add(Student(id=sid, name=f"Student_{sid[-4:]}"))  # Provide required name field
             count += 1
+            
+            # Create or update anonymous student record in database
+            existing_student = Student.query.get(sid)
+            if not existing_student:
+                # Create new anonymous record
+                db.session.add(Student(id=sid, name=f"Anonymous_{count:04d}"))
+                db_updates += 1
+            elif existing_student.name.startswith(('Student_', 'Anonymous_')):
+                # Update existing anonymous record to ensure it's properly anonymized
+                existing_student.name = f"Anonymous_{count:04d}"
+                db_updates += 1
         
-        if count > 0:
+        # Always update session roster, regardless of database operations
+        session['student_roster'] = student_roster
+        session.permanent = True
+        
+        if db_updates > 0:
             db.session.commit()
-            session['student_roster'] = student_roster
-            session.permanent = True
             
         return jsonify(ok=True, imported=count, message=f"Roster uploaded to session only - FERPA compliant")
         
@@ -601,6 +613,20 @@ def api_upload_session_roster():
 def api_test_auth():
     """Test endpoint to verify admin authentication is working"""
     return jsonify(ok=True, message="Admin authentication is working", authenticated=True)
+
+@app.get("/api/session_roster")
+@require_admin_auth_api
+def api_get_session_roster():
+    """Get current session roster for debugging"""
+    student_roster = session.get('student_roster', {})
+    return jsonify(ok=True, roster=student_roster, count=len(student_roster))
+
+@app.post("/api/clear_session_roster")
+@require_admin_auth_api
+def api_clear_session_roster():
+    """Clear the session roster"""
+    session.pop('student_roster', None)
+    return jsonify(ok=True, message="Session roster cleared")
 
 @app.post("/api/clear_database_students")
 @require_admin_auth_api
@@ -615,8 +641,10 @@ def api_clear_database_students():
             return jsonify(ok=True, cleared=0, message="No students found in database")
         
         # Anonymize student names but keep IDs (for foreign key integrity)
-        for student in all_students:
-            student.name = f"Student_{student.id[-4:]}"  # Anonymous name using last 4 digits of ID
+        import random
+        for i, student in enumerate(all_students):
+            # Use sequential anonymous names to avoid any ID conflicts
+            student.name = f"Anonymous_{i+1:04d}"  # Anonymous_0001, Anonymous_0002, etc.
         
         db.session.commit()
         
