@@ -117,7 +117,13 @@ def get_student_name(student_id, fallback="Student"):
     
     # Then try memory roster (for display/kiosk from different sessions)
     memory_roster = get_memory_roster()
-    return memory_roster.get(student_id, fallback)
+    name = memory_roster.get(student_id, fallback)
+    
+    # Debug logging (remove in production)
+    if student_id and name == fallback:
+        print(f"DEBUG: Student {student_id} not found. Session roster: {len(session_roster)}, Memory roster: {len(memory_roster)}")
+    
+    return name
 
 # ---------- Utility ----------
 
@@ -444,6 +450,10 @@ def sse_events():
                 # FERPA Compliance: Get name from session or memory roster
                 student_name = get_student_name(s.student_id, "Student")
                 
+                # Debug logging (remove in production)
+                if student_name == "Student":
+                    print(f"DEBUG: SSE stream - Student {s.student_id} showing as 'Student' (name not found)")
+                
                 payload = {
                     "in_use": True,
                     "name": student_name,
@@ -614,6 +624,10 @@ def api_upload_session_roster():
         
         # Also store in memory cache so display can access it (expires automatically)
         set_memory_roster(student_roster)
+        
+        # Debug logging (remove in production)
+        print(f"DEBUG: Roster uploaded - {count} students stored in session and memory")
+        print(f"DEBUG: Memory roster now contains {len(get_memory_roster())} students")
             
         return jsonify(ok=True, imported=count, message=f"Roster uploaded (FERPA compliant - memory only, expires in {ROSTER_EXPIRY_HOURS} hours)")
         
@@ -656,6 +670,35 @@ def api_get_memory_roster_status():
             status['expires_in_hours'] = 0
     
     return jsonify(ok=True, **status)
+
+@app.get("/api/debug_roster")
+def api_debug_roster():
+    """Debug endpoint to check roster status (no auth required for testing)"""
+    global _roster_expiry, _memory_roster
+    
+    # Get current session holder
+    s = get_current_holder()
+    student_id = s.student_id if s else None
+    
+    # Check both rosters
+    session_roster = session.get('student_roster', {})
+    memory_roster = get_memory_roster()
+    
+    # Test get_student_name function
+    test_name = get_student_name(student_id, "Student") if student_id else None
+    
+    debug_info = {
+        'current_student_id': student_id,
+        'session_roster_count': len(session_roster),
+        'memory_roster_count': len(memory_roster),
+        'memory_roster_expired': _roster_expiry is None or datetime.now(timezone.utc) > _roster_expiry if _roster_expiry else True,
+        'expiry_time': _roster_expiry.isoformat() if _roster_expiry else None,
+        'test_student_name': test_name,
+        'memory_roster_sample': dict(list(memory_roster.items())[:3]) if memory_roster else {},
+        'session_roster_sample': dict(list(session_roster.items())[:3]) if session_roster else {}
+    }
+    
+    return jsonify(ok=True, debug=debug_info)
 
 @app.post("/api/clear_session_roster")
 @require_admin_auth_api
@@ -878,4 +921,4 @@ def update_settings_api():
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5001, debug=True)
