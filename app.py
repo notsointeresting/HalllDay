@@ -657,6 +657,41 @@ def api_clear_database_students():
         db.session.rollback()
         return jsonify(ok=False, message=f"Failed to anonymize student names: {str(e)}"), 500
 
+
+@app.post("/api/reset_database")
+@require_admin_auth_api
+def api_reset_database():
+    """Hard reset: delete all sessions, then all students (to satisfy FK constraints).
+
+    This completely clears legacy database data so new session rosters can be used
+    without ID collisions. Settings are preserved.
+    """
+    try:
+        # Count before deletion
+        total_sessions = Session.query.count()
+        total_students = Student.query.count()
+
+        # Delete sessions first to satisfy FK constraint
+        db.session.query(Session).delete()
+        db.session.commit()
+
+        # Now delete students
+        db.session.query(Student).delete()
+        db.session.commit()
+
+        return jsonify(
+            ok=True,
+            cleared_sessions=total_sessions,
+            cleared_students=total_students,
+            message="Database reset complete (sessions and students removed)"
+        )
+    except Exception as e:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        return jsonify(ok=False, message=f"Reset failed: {str(e)}"), 500
+
 @app.get("/export.csv")
 def export_csv():
     """Export sessions for the current day in local timezone."""
