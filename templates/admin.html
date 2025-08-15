@@ -34,6 +34,14 @@
       <button type="button" id="legacyUploadBtn" style="background: #ff9800; color: white;">Alternative Upload</button>
     </form>
     <div id="importResult"></div>
+    
+    <!-- Clear Legacy Database -->
+    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ffc107;">
+      <h5 style="color: #856404; margin: 0 0 10px 0;">🗑️ Clear Legacy Database</h5>
+      <p style="margin: 0 0 10px 0; color: #856404; font-size: 12px;">Remove all student names from external database (keeps session roster intact)</p>
+      <button type="button" id="clearDatabaseBtn" style="background: #dc3545; color: white; margin-right: 10px;">Clear Database Students</button>
+      <div id="clearDatabaseResult"></div>
+    </div>
   </div>
 
   <h3>Settings</h3>
@@ -72,10 +80,28 @@
     </div>
   </div>
 
-  <h3>Students ({{ students|length }})</h3>
-  <ul class="students">
-    {% for s in students %}<li>{{ s.id }} — {{ s.name }}</li>{% endfor %}
-  </ul>
+  <h3>Student Data Summary</h3>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+    <div style="background: #e8f5e8; border: 1px solid #4caf50; border-radius: 4px; padding: 15px;">
+      <h4 style="color: #2e7d32; margin: 0 0 10px 0;">🔒 Session Roster (FERPA Compliant)</h4>
+      <p style="margin: 0; font-size: 24px; font-weight: bold; color: #2e7d32;">{{ roster_count }} students</p>
+      <p style="margin: 5px 0 0 0; color: #2e7d32; font-size: 12px;">Stored in browser session only</p>
+    </div>
+    <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 15px;">
+      <h4 style="color: #856404; margin: 0 0 10px 0;">⚠️ Database Students (Legacy)</h4>
+      <p style="margin: 0; font-size: 24px; font-weight: bold; color: #856404;">{{ students|length }} students</p>
+      <p style="margin: 5px 0 0 0; color: #856404; font-size: 12px;">Stored in external database</p>
+    </div>
+  </div>
+
+  {% if students|length > 0 %}
+  <details style="margin-bottom: 20px;">
+    <summary style="cursor: pointer; font-weight: bold; color: #856404;">View Database Students ({{ students|length }})</summary>
+    <ul class="students" style="margin-top: 10px;">
+      {% for s in students %}<li>{{ s.id }} — {{ s.name }}</li>{% endfor %}
+    </ul>
+  </details>
+  {% endif %}
 
   <h3>Kiosk Control</h3>
   <div style="margin-bottom: 16px;">
@@ -245,6 +271,42 @@ document.addEventListener('DOMContentLoaded', function() {
       } catch (error) {
         console.error('Alternative import error:', error);
         resultDiv.textContent = `Network error: ${error.message}`;
+      }
+    };
+  }
+  
+  // Clear legacy database button
+  const clearDatabaseBtn = document.getElementById('clearDatabaseBtn');
+  if (clearDatabaseBtn) {
+    clearDatabaseBtn.onclick = async () => {
+      const confirmed = confirm(
+        'Are you sure you want to clear all student names from the database?\n\n' +
+        '⚠️ This will remove all student names from the external database.\n' +
+        '✅ Your session roster will remain intact.\n' +
+        '📊 Session data will continue to work normally.\n\n' +
+        'This action cannot be undone.'
+      );
+      
+      if (!confirmed) return;
+      
+      console.log('Clear database button clicked');
+      const resultDiv = document.getElementById('clearDatabaseResult');
+      resultDiv.innerHTML = `<p style="color: #dc3545; margin: 5px 0 0 0;">🗑️ Clearing database...</p>`;
+      
+      try {
+        const r = await fetch('/api/clear_database_students', {method:'POST'});
+        console.log('Clear database response status:', r.status);
+        const j = await r.json();
+        console.log('Clear database response:', j);
+        
+        if (j.ok) {
+          resultDiv.innerHTML = `<p style="color: #28a745; margin: 5px 0 0 0;">✅ ${j.message} (${j.cleared} students removed)</p>`;
+        } else {
+          resultDiv.innerHTML = `<p style="color: #dc3545; margin: 5px 0 0 0;">❌ ${j.message || 'Clear failed'}</p>`;
+        }
+      } catch (error) {
+        console.error('Clear database error:', error);
+        resultDiv.innerHTML = `<p style="color: #dc3545; margin: 5px 0 0 0;">❌ Network error: ${error.message}</p>`;
       }
     };
   }

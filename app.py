@@ -588,6 +588,27 @@ def api_upload_session_roster():
         
     return jsonify(ok=True, imported=count, message=f"Roster uploaded to session only - FERPA compliant")
 
+@app.post("/api/clear_database_students")
+@require_admin_auth_api
+def api_clear_database_students():
+    """FERPA-compliant: Clear all student names from database while keeping session roster"""
+    try:
+        # Count students before clearing
+        student_count = Student.query.count()
+        
+        # Clear all students from database
+        Student.query.delete()
+        db.session.commit()
+        
+        return jsonify(
+            ok=True, 
+            cleared=student_count,
+            message=f"Database cleared - session roster remains intact"
+        )
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(ok=False, message=f"Failed to clear database: {str(e)}"), 500
+
 @app.get("/export.csv")
 def export_csv():
     """Export sessions for the current day in local timezone."""
