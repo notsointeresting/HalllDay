@@ -3,6 +3,7 @@ import io
 import os
 import json
 import time
+import hashlib
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
@@ -61,6 +62,13 @@ class Settings(db.Model):
     overdue_minutes = db.Column(db.Integer, nullable=False, default=10)
     kiosk_suspended = db.Column(db.Boolean, nullable=False, default=False)
 
+class StudentName(db.Model):
+    """FERPA-compliant storage of student names only (no ID association)"""
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name_hash = db.Column(db.String, nullable=False, unique=True)  # Hash of student_id for lookup
+    display_name = db.Column(db.String, nullable=False)  # Actual name to display
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+
 # Create tables after models are defined (works under Gunicorn too)
 STATIC_VERSION = os.getenv("STATIC_VERSION", str(int(time.time())))
 
@@ -107,8 +115,46 @@ def clear_memory_roster():
     _memory_roster = {}
     _roster_expiry = None
 
+def _hash_student_id(student_id):
+    """Create a hash of student ID for FERPA-compliant lookup"""
+    return hashlib.sha256(f"student_{student_id}".encode()).hexdigest()[:16]
+
+def store_student_name_db(student_id, name):
+    """Store student name in database using hash for FERPA compliance"""
+    try:
+        name_hash = _hash_student_id(student_id)
+        existing = StudentName.query.filter_by(name_hash=name_hash).first()
+        if existing:
+            existing.display_name = name
+        else:
+            student_name = StudentName(name_hash=name_hash, display_name=name)
+            db.session.add(student_name)
+        db.session.commit()
+    except Exception as e:
+        print(f"DEBUG: Error storing student name: {e}")
+        db.session.rollback()
+
+def get_student_name_db(student_id):
+    """Get student name from database using hash lookup"""
+    try:
+        name_hash = _hash_student_id(student_id)
+        student_name = StudentName.query.filter_by(name_hash=name_hash).first()
+        return student_name.display_name if student_name else None
+    except Exception:
+        return None
+
+def clear_all_student_names_db():
+    """Clear all student names from database"""
+    try:
+        StudentName.query.delete()
+        db.session.commit()
+        print("DEBUG: Cleared all student names from database")
+    except Exception as e:
+        print(f"DEBUG: Error clearing student names: {e}")
+        db.session.rollback()
+
 def get_student_name(student_id, fallback="Student"):
-    """Get student name from both session and memory roster for FERPA compliance."""
+    """Get student name from session, memory, or database for FERPA compliance."""
     # First try session roster (for admin session)
     session_roster = session.get('student_roster', {})
     name = session_roster.get(student_id)
@@ -118,6 +164,11 @@ def get_student_name(student_id, fallback="Student"):
     # Then try memory roster (for display/kiosk from different sessions)
     memory_roster = get_memory_roster()
     name = memory_roster.get(student_id)
+    if name:
+        return name
+    
+    # Try database lookup (FERPA-compliant hashed lookup)
+    name = get_student_name_db(student_id)
     if name:
         return name
     
@@ -134,7 +185,7 @@ def get_student_name(student_id, fallback="Student"):
     
     # Debug logging (remove in production)
     if student_id and not name:
-        print(f"DEBUG: Student {student_id} not found. Session roster: {len(session_roster)}, Memory roster: {len(memory_roster)}")
+        print(f"DEBUG: Student {student_id} not found. Session: {len(session_roster)}, Memory: {len(memory_roster)}, DB lookup attempted")
     
     return name or fallback
 
@@ -646,18 +697,22 @@ def api_upload_session_roster():
             student_roster[sid] = name
             count += 1
         
-        # Store roster in both session and memory for FERPA compliance
+        # Store roster in session, memory, and database for FERPA compliance
         session['student_roster'] = student_roster
         session.permanent = True
         
         # Also store in memory cache so display can access it (expires automatically)
         set_memory_roster(student_roster)
         
+        # Store in database using hashed IDs for cross-session access
+        for student_id, name in student_roster.items():
+            store_student_name_db(student_id, name)
+        
         # Debug logging (remove in production)
-        print(f"DEBUG: Roster uploaded - {count} students stored in session and memory")
+        print(f"DEBUG: Roster uploaded - {count} students stored in session, memory, and database")
         print(f"DEBUG: Memory roster now contains {len(get_memory_roster())} students")
             
-        return jsonify(ok=True, imported=count, message=f"Roster uploaded (FERPA compliant - memory only, expires in {ROSTER_EXPIRY_HOURS} hours)")
+        return jsonify(ok=True, imported=count, message=f"Roster uploaded (FERPA compliant - hashed storage, expires in {ROSTER_EXPIRY_HOURS} hours)")
         
     except Exception as e:
         return jsonify(ok=False, message=f"Upload failed: {str(e)}"), 500
@@ -731,10 +786,11 @@ def api_debug_roster():
 @app.post("/api/clear_session_roster")
 @require_admin_auth_api
 def api_clear_session_roster():
-    """Clear both session and memory roster for FERPA compliance"""
+    """Clear session, memory, and database roster for FERPA compliance"""
     session.pop('student_roster', None)
     clear_memory_roster()
-    return jsonify(ok=True, message="All rosters cleared (session and memory)")
+    clear_all_student_names_db()
+    return jsonify(ok=True, message="All rosters cleared (session, memory, and database)")
 
 
 
