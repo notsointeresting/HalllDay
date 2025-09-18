@@ -72,20 +72,43 @@ class StudentName(db.Model):
 # Create tables after models are defined (works under Gunicorn too)
 STATIC_VERSION = os.getenv("STATIC_VERSION", str(int(time.time())))
 
-# Database initialization temporarily commented out for testing
-# Uncomment and run 'flask --app app.py init-db' if needed
-# with app.app_context():
-#     db.create_all()
-#     # Ensure a singleton settings row exists
-#     try:
-#         if not Settings.query.get(1):
-#             s = Settings(id=1, room_name=config.ROOM_NAME, capacity=config.CAPACITY,
-#                          overdue_minutes=getattr(config, "MAX_MINUTES", 10), kiosk_suspended=False)
-#             db.session.add(s)
-#             db.session.commit()
-#     except Exception as e:
-#         print(f"Warning: Could not initialize settings row: {e}")
-#         print("You may need to run database migrations.")
+# Automatic database initialization - detects empty/new databases
+def initialize_database_if_needed():
+    """Initialize database tables and settings if they don't exist."""
+    try:
+        with app.app_context():
+            # First, try to create all tables (safe if they already exist)
+            db.create_all()
+            
+            # Check if Settings table exists and has data
+            settings_exists = False
+            try:
+                # Try to query the Settings table
+                Settings.query.get(1)
+                settings_exists = True
+                print("Database appears to be initialized (Settings table accessible)")
+            except Exception:
+                # Table doesn't exist or is empty
+                print("Database needs initialization - creating settings...")
+                settings_exists = False
+            
+            # Initialize settings if needed
+            if not settings_exists:
+                try:
+                    s = Settings(id=1, room_name=config.ROOM_NAME, capacity=config.CAPACITY,
+                               overdue_minutes=getattr(config, "MAX_MINUTES", 10), kiosk_suspended=False)
+                    db.session.add(s)
+                    db.session.commit()
+                    print("Database initialized successfully with default settings")
+                except Exception as e:
+                    print(f"Warning: Could not initialize settings: {e}")
+                    db.session.rollback()
+            
+    except Exception as e:
+        print(f"Database initialization check failed: {e}")
+
+# Run automatic initialization
+initialize_database_if_needed()
 
 # ---------- FERPA-Compliant Roster Utilities ----------
 
