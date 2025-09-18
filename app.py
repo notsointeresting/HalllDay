@@ -75,37 +75,62 @@ STATIC_VERSION = os.getenv("STATIC_VERSION", str(int(time.time())))
 # Automatic database initialization - detects empty/new databases
 def initialize_database_if_needed():
     """Initialize database tables and settings if they don't exist."""
+    print("Starting database initialization check...")
     try:
         with app.app_context():
+            print(f"Using database URL: {app.config['SQLALCHEMY_DATABASE_URI'][:50]}...")
+            
             # First, try to create all tables (safe if they already exist)
+            print("Creating database tables...")
             db.create_all()
+            print("Tables created successfully")
             
             # Check if Settings table exists and has data
             settings_exists = False
             try:
                 # Try to query the Settings table
-                Settings.query.get(1)
-                settings_exists = True
-                print("Database appears to be initialized (Settings table accessible)")
-            except Exception:
-                # Table doesn't exist or is empty
-                print("Database needs initialization - creating settings...")
+                result = Settings.query.get(1)
+                if result:
+                    settings_exists = True
+                    print("Database appears to be initialized (Settings found)")
+                else:
+                    print("Settings table exists but is empty - initializing...")
+                    settings_exists = False
+            except Exception as e:
+                # Table doesn't exist or query failed
+                print(f"Settings table query failed: {e} - will initialize...")
                 settings_exists = False
             
             # Initialize settings if needed
             if not settings_exists:
                 try:
+                    print("Creating default settings record...")
                     s = Settings(id=1, room_name=config.ROOM_NAME, capacity=config.CAPACITY,
                                overdue_minutes=getattr(config, "MAX_MINUTES", 10), kiosk_suspended=False)
                     db.session.add(s)
                     db.session.commit()
                     print("Database initialized successfully with default settings")
                 except Exception as e:
-                    print(f"Warning: Could not initialize settings: {e}")
-                    db.session.rollback()
+                    print(f"ERROR: Could not initialize settings: {e}")
+                    try:
+                        db.session.rollback()
+                    except Exception:
+                        pass
+                    raise  # Re-raise to see the full error
+            
+            # Test that we can actually query the database
+            try:
+                test_count = Session.query.count()
+                print(f"Database test successful - found {test_count} sessions")
+            except Exception as e:
+                print(f"ERROR: Database test query failed: {e}")
+                raise
             
     except Exception as e:
-        print(f"Database initialization check failed: {e}")
+        print(f"CRITICAL: Database initialization failed: {e}")
+        import traceback
+        print(f"Full traceback: {traceback.format_exc()}")
+        # Don't re-raise - let the app try to start anyway
 
 # Run automatic initialization
 initialize_database_if_needed()
@@ -989,6 +1014,59 @@ def api_debug_settings():
         return jsonify(ok=True, settings=data)
     except Exception as e:
         return jsonify(ok=False, message=str(e)), 500
+
+@app.get("/api/debug/database")
+def api_debug_database():
+    """Debug endpoint to check database status - accessible without auth for troubleshooting."""
+    debug_info = {
+        "database_url": app.config['SQLALCHEMY_DATABASE_URI'][:50] + "..." if len(app.config['SQLALCHEMY_DATABASE_URI']) > 50 else app.config['SQLALCHEMY_DATABASE_URI'],
+        "tables_exist": {},
+        "settings_record": None,
+        "session_count": None,
+        "errors": []
+    }
+    
+    # Check if each table exists and can be queried
+    tables_to_check = [
+        ("settings", Settings),
+        ("session", Session),
+        ("student", Student),
+        ("student_name", StudentName)
+    ]
+    
+    for table_name, model_class in tables_to_check:
+        try:
+            count = model_class.query.count()
+            debug_info["tables_exist"][table_name] = f"exists ({count} records)"
+        except Exception as e:
+            debug_info["tables_exist"][table_name] = f"error: {str(e)}"
+            debug_info["errors"].append(f"{table_name}: {str(e)}")
+    
+    # Try to get settings record
+    try:
+        s = Settings.query.get(1)
+        if s:
+            debug_info["settings_record"] = {
+                "id": s.id,
+                "room_name": s.room_name,
+                "capacity": s.capacity,
+                "overdue_minutes": s.overdue_minutes,
+                "kiosk_suspended": getattr(s, 'kiosk_suspended', 'missing_column')
+            }
+        else:
+            debug_info["settings_record"] = "not_found"
+    except Exception as e:
+        debug_info["settings_record"] = f"error: {str(e)}"
+        debug_info["errors"].append(f"settings_query: {str(e)}")
+    
+    # Try to count sessions
+    try:
+        debug_info["session_count"] = Session.query.count()
+    except Exception as e:
+        debug_info["session_count"] = f"error: {str(e)}"
+        debug_info["errors"].append(f"session_count: {str(e)}")
+    
+    return jsonify(ok=True, debug=debug_info)
 
 
 @app.post("/api/migrate")
