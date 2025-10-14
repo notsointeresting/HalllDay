@@ -2,8 +2,6 @@ const hidden = document.getElementById('hiddenInput');
 hidden.focus();
 
 let buffer = '';
-let lastTime = 0;
-const THRESHOLD_MS = 50; // scans are fast; keystrokes slower
 
 function setPanel(state, title, subtitle) {
   const panel = document.getElementById('statusPanel');
@@ -32,81 +30,86 @@ function beep(freq=880, ms=120) {
 
 let denyTimeout;
 let resetTimeout;
-document.addEventListener('keydown', (e) => {
-  const now = performance.now();
-  if (now - lastTime > THRESHOLD_MS) buffer = ''; // reset if too slow
-  lastTime = now;
 
+// Centralized code processing function used by both scanner and numpad
+function processCode(code) {
+  if (!code) return;
+
+  setPanel('yellow', 'Pass Recognized!', 'Processing...');
+
+  fetch('/api/scan', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({code})
+  }).then(async r => {
+    let j = {};
+    try { j = await r.json(); } catch(e) {}
+    if (!r.ok) {
+      console.error('scan error', r.status, j);
+      if (r.status === 403) {
+        setPanel('red', 'KIOSK SUSPENDED', j.message || 'Contact administrator to resume service.');
+        beep(200, 300);
+      } else if (r.status === 404) {
+        // Unknown student ID
+        clearTimeout(resetTimeout);
+        setPanel('yellow', 'Student not recognized', (j.message || 'Please try again.')); 
+        beep(220, 220);
+        resetTimeout = setTimeout(async () => {
+          try {
+            const sr = await fetch('/api/status');
+            const sj = await sr.json();
+            setFromStatus(sj);
+          } catch(e) {}
+        }, 3500);
+      } else {
+        clearTimeout(resetTimeout);
+        setPanel('yellow', 'Service issue', j.message || `Status ${r.status}`);
+        resetTimeout = setTimeout(async () => {
+          try {
+            const sr = await fetch('/api/status');
+            const sj = await sr.json();
+            setFromStatus(sj);
+          } catch(e) {}
+        }, 3500);
+      }
+      return;
+    }
+    if (!j.ok && j.action === 'denied') {
+      clearTimeout(denyTimeout);
+      setPanel('red', 'IN USE', j.message);
+      denyTimeout = setTimeout(() => {
+        setPanel('red', 'IN USE', 'Please wait until the pass is returned.');
+      }, 2500);
+      beep(200, 200);
+      return;
+    }
+    if (j.ok && j.action === 'started') {
+      setPanel('red', 'IN USE', `${j.name} is out. Scan to return.`);
+      beep(700, 100);
+    } else if (j.ok && j.action === 'ended') {
+      setPanel('green', 'Available', `${j.name} returned.`);
+      beep(1000, 120);
+    } else {
+      setPanel('yellow', 'Check Scanner', j.message || 'Unknown response');
+    }
+  }).catch(e => {
+    console.error('network error', e);
+    setPanel('yellow', 'Network issue', 'Try again.');
+  });
+}
+
+// Handle both barcode scanner and manual numpad entry
+document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
     const code = buffer.trim();
     buffer = '';
-    if (!code) return;
-
-    setPanel('yellow', 'Pass Recognized!', 'Redirecting to student ID entry...');
-
-    fetch('/api/scan', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({code})
-    }).then(async r => {
-      let j = {};
-      try { j = await r.json(); } catch(e) {}
-      if (!r.ok) {
-        console.error('scan error', r.status, j);
-        if (r.status === 403) {
-          setPanel('red', 'KIOSK SUSPENDED', j.message || 'Contact administrator to resume service.');
-          beep(200, 300);
-        } else if (r.status === 404) {
-          // Unknown student ID
-          clearTimeout(resetTimeout);
-          setPanel('yellow', 'Student not recognized', (j.message || 'Please try again.')); 
-          beep(220, 220);
-          resetTimeout = setTimeout(async () => {
-            try {
-              const sr = await fetch('/api/status');
-              const sj = await sr.json();
-              setFromStatus(sj);
-            } catch(e) {}
-          }, 3500);
-        } else {
-          clearTimeout(resetTimeout);
-          setPanel('yellow', 'Service issue', j.message || `Status ${r.status}`);
-          resetTimeout = setTimeout(async () => {
-            try {
-              const sr = await fetch('/api/status');
-              const sj = await sr.json();
-              setFromStatus(sj);
-            } catch(e) {}
-          }, 3500);
-        }
-        return;
-      }
-      if (!j.ok && j.action === 'denied') {
-        clearTimeout(denyTimeout);
-        setPanel('red', 'IN USE', j.message);
-        denyTimeout = setTimeout(() => {
-          setPanel('red', 'IN USE', 'Please wait until the pass is returned.');
-        }, 2500);
-        beep(200, 200);
-        return;
-      }
-      if (j.ok && j.action === 'started') {
-        setPanel('red', 'IN USE', `${j.name} is out. Scan to return.`);
-        beep(700, 100);
-      } else if (j.ok && j.action === 'ended') {
-        setPanel('green', 'Available', `${j.name} returned.`);
-        beep(1000, 120);
-      } else {
-        setPanel('yellow', 'Check Scanner', j.message || 'Unknown response');
-      }
-    }).catch(e => {
-      console.error('network error', e);
-      setPanel('yellow', 'Network issue', 'Try again.');
-    });
-
-  } else {
-    // accumulate characters (digits or general)
-    if (e.key.length === 1) buffer += e.key;
+    if (code) processCode(code);
+  } else if (e.key.length === 1) {
+    // Accumulate any single character (digits, letters, etc.)
+    buffer += e.key;
+  } else if (e.key === 'Backspace') {
+    // Allow corrections
+    buffer = buffer.slice(0, -1);
   }
 });
 
@@ -129,7 +132,7 @@ function setFromStatus(j){
       setPanel('red', 'IN USE', `${j.name} • ${mins}:${secs.toString().padStart(2,'0')}`);
     }
   } else {
-    setPanel('green', 'Available', 'Scan your student ID to check out.');
+    setPanel('green', 'Available', 'Scan your badge or type your student ID and press Enter');
   }
 }
 
