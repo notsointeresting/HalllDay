@@ -1,7 +1,7 @@
 :root {
   --green: #00ff00;
-  --red: #ff1744;
-  --yellow: #f0ad4e;
+  --red: #ff0000;
+  --yellow: #ffdd00;
   --bg: #101114;
   --text: #f7f7f7;
 }
@@ -31,23 +31,23 @@ h1 { font-size: 18px; margin: 0; opacity: 0.85; }
   justify-content: center;
 }
 .panel.full-bleed { width: 100vw; min-height: calc(100vh - 60px); border-radius: 0; margin: 0; border: none; }
-.panel.green { border-color: #00ff00; background: #003300; }
-.panel.red { border-color: #ff1744; background: #330000; }
-.panel.yellow { border-color: #c28a1e; background: #281d07; animation: pulse 1.2s infinite; }
+.panel.green { border-color: #00ff00; background: #00aa00; }
+.panel.red { border-color: #ff0000; background: #cc0000; }
+.panel.yellow { border-color: #ffdd00; background: #ff9900; animation: pulse 1.2s infinite; }
 
 /* Body-wide background swaps for maximum visibility */
-body.bg-green { background: #003300; }
-body.bg-red { background: #330000; }
-body.bg-yellow { background: #281d07; }
+body.bg-green { background: #00aa00; }
+body.bg-red { background: #cc0000; }
+body.bg-yellow { background: #ff9900; }
 
 .icon { font-size: 72px; line-height: 1; opacity: 0.9; }
 #statusTitle, #displayTitle { font-size: 72px; margin: 8px 0 4px; font-weight: bold; }
 #statusSubtitle, #displaySubtitle { font-size: 36px; opacity: 0.9; font-weight: 600; }
 
 @keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(242, 201, 76, 0.4); }
-  70% { box-shadow: 0 0 0 12px rgba(242, 201, 76, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(242, 201, 76, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(255, 221, 0, 0.7); }
+  70% { box-shadow: 0 0 0 12px rgba(255, 221, 0, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 221, 0, 0); }
 }
 
 #hiddenInput {
