@@ -68,6 +68,7 @@ class StudentName(db.Model):
     name_hash = db.Column(db.String, nullable=False, unique=True)  # Hash of student_id for lookup
     display_name = db.Column(db.String, nullable=False)  # Actual name to display
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    banned = db.Column(db.Boolean, nullable=False, default=False)  # Restroom ban flag
 
 # Create tables after models are defined (works under Gunicorn too)
 STATIC_VERSION = os.getenv("STATIC_VERSION", str(int(time.time())))
@@ -239,6 +240,34 @@ def get_student_name(student_id, fallback="Student"):
         print(f"DEBUG: Student {student_id} not found. Session: {len(session_roster)}, Memory: {len(memory_roster)}, DB lookup attempted")
     
     return name or fallback
+
+def is_student_banned(student_id):
+    """Check if a student is banned from using the restroom."""
+    try:
+        name_hash = _hash_student_id(student_id)
+        student_name = StudentName.query.filter_by(name_hash=name_hash).first()
+        return student_name.banned if student_name else False
+    except Exception as e:
+        print(f"DEBUG: Error checking ban status for {student_id}: {e}")
+        return False
+
+def set_student_banned(student_id, banned_status):
+    """Ban or unban a student from using the restroom."""
+    try:
+        name_hash = _hash_student_id(student_id)
+        student_name = StudentName.query.filter_by(name_hash=name_hash).first()
+        if student_name:
+            student_name.banned = banned_status
+            db.session.commit()
+            return True
+        return False
+    except Exception as e:
+        print(f"DEBUG: Error setting ban status for {student_id}: {e}")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        return False
 
 # ---------- Utility ----------
 
@@ -490,6 +519,10 @@ def api_scan():
     if student_name == "Student":  # Default fallback means student not found
         return jsonify(ok=False, message=f"Unknown ID: {code} - Please upload roster first"), 404
     
+    # Check if student is banned from using restroom
+    if is_student_banned(code):
+        return jsonify(ok=False, action="banned", message="RESTROOM PRIVILEGES SUSPENDED - SEE TEACHER", name=student_name), 403
+    
     # Ensure memory roster is populated for cross-device access
     # This happens when a student scans successfully, ensuring display can access names
     memory_roster = get_memory_roster()
@@ -727,6 +760,82 @@ def api_resume_kiosk():
         db.session.rollback()
         return jsonify(ok=False, message=str(e)), 500
 
+@app.get("/api/students")
+@require_admin_auth_api
+def api_get_students():
+    """Get list of all students with their ban status."""
+    try:
+        # Get students from session roster and their ban status from database
+        session_roster = session.get('student_roster', {})
+        students = []
+        
+        for student_id, name in session_roster.items():
+            banned = is_student_banned(student_id)
+            students.append({
+                'id': student_id,
+                'name': name,
+                'banned': banned
+            })
+        
+        # Sort alphabetically by name
+        students.sort(key=lambda x: x['name'].lower())
+        
+        return jsonify(ok=True, students=students, count=len(students))
+    except Exception as e:
+        return jsonify(ok=False, message=str(e)), 500
+
+@app.post("/api/ban_student")
+@require_admin_auth_api
+def api_ban_student():
+    """Ban a student from using the restroom."""
+    try:
+        payload = request.get_json(silent=True) or {}
+        student_id = payload.get('student_id', '').strip()
+        
+        if not student_id:
+            return jsonify(ok=False, message="No student ID provided"), 400
+        
+        # Get student name to confirm they exist
+        student_name = get_student_name(student_id)
+        if student_name == "Student":
+            return jsonify(ok=False, message="Student not found in roster"), 404
+        
+        # Set ban status
+        success = set_student_banned(student_id, True)
+        
+        if success:
+            return jsonify(ok=True, message=f"{student_name} banned from restroom", student_id=student_id)
+        else:
+            return jsonify(ok=False, message="Failed to ban student"), 500
+    except Exception as e:
+        return jsonify(ok=False, message=str(e)), 500
+
+@app.post("/api/unban_student")
+@require_admin_auth_api
+def api_unban_student():
+    """Unban a student from using the restroom."""
+    try:
+        payload = request.get_json(silent=True) or {}
+        student_id = payload.get('student_id', '').strip()
+        
+        if not student_id:
+            return jsonify(ok=False, message="No student ID provided"), 400
+        
+        # Get student name to confirm they exist
+        student_name = get_student_name(student_id)
+        if student_name == "Student":
+            return jsonify(ok=False, message="Student not found in roster"), 404
+        
+        # Remove ban status
+        success = set_student_banned(student_id, False)
+        
+        if success:
+            return jsonify(ok=True, message=f"{student_name} unbanned from restroom", student_id=student_id)
+        else:
+            return jsonify(ok=False, message="Failed to unban student"), 500
+    except Exception as e:
+        return jsonify(ok=False, message=str(e)), 500
+
 
 
 @app.post("/api/upload_session_roster")
@@ -935,7 +1044,7 @@ def run_migrations():
     messages = []
 
     # Migration 1: ensure Settings.kiosk_suspended exists
-    column_exists = False
+    kiosk_suspended_exists = False
     try:
         # Prefer information_schema to avoid raising exceptions
         res = db.session.execute(text(
@@ -945,37 +1054,77 @@ def run_migrations():
             WHERE table_name = 'settings' AND column_name = 'kiosk_suspended'
             """
         ))
-        column_exists = res.scalar() is not None
+        kiosk_suspended_exists = res.scalar() is not None
     except Exception as e:
         messages.append(f"Warning: column introspection failed: {e}; attempting ALTER TABLE…")
 
-    if column_exists:
-        messages.append("kiosk_suspended column already exists")
-        return messages
+    if not kiosk_suspended_exists:
+        messages.append("Adding kiosk_suspended column to settings table")
 
-    messages.append("Adding kiosk_suspended column to settings table")
-
-    # Clear any failed transaction state before running DDL
-    try:
-        db.session.rollback()
-    except Exception:
-        pass
-
-    try:
-        # Use engine.begin() so DDL is committed independently of the ORM session
-        with db.engine.begin() as conn:
-            conn.execute(text("ALTER TABLE settings ADD COLUMN IF NOT EXISTS kiosk_suspended BOOLEAN DEFAULT FALSE"))
-            conn.execute(text("UPDATE settings SET kiosk_suspended = FALSE WHERE kiosk_suspended IS NULL"))
-            conn.execute(text("ALTER TABLE settings ALTER COLUMN kiosk_suspended SET NOT NULL"))
-        messages.append("Added kiosk_suspended column successfully")
-    except Exception as e:
-        # Make sure session is usable afterwards
+        # Clear any failed transaction state before running DDL
         try:
             db.session.rollback()
         except Exception:
             pass
-        messages.append(f"Failed to add kiosk_suspended column: {e}")
-        raise
+
+        try:
+            # Use engine.begin() so DDL is committed independently of the ORM session
+            with db.engine.begin() as conn:
+                conn.execute(text("ALTER TABLE settings ADD COLUMN IF NOT EXISTS kiosk_suspended BOOLEAN DEFAULT FALSE"))
+                conn.execute(text("UPDATE settings SET kiosk_suspended = FALSE WHERE kiosk_suspended IS NULL"))
+                conn.execute(text("ALTER TABLE settings ALTER COLUMN kiosk_suspended SET NOT NULL"))
+            messages.append("Added kiosk_suspended column successfully")
+        except Exception as e:
+            # Make sure session is usable afterwards
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+            messages.append(f"Failed to add kiosk_suspended column: {e}")
+            raise
+    else:
+        messages.append("kiosk_suspended column already exists")
+
+    # Migration 2: ensure StudentName.banned exists
+    banned_exists = False
+    try:
+        res = db.session.execute(text(
+            """
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_name = 'student_name' AND column_name = 'banned'
+            """
+        ))
+        banned_exists = res.scalar() is not None
+    except Exception as e:
+        messages.append(f"Warning: banned column introspection failed: {e}; attempting ALTER TABLE…")
+
+    if not banned_exists:
+        messages.append("Adding banned column to student_name table")
+
+        # Clear any failed transaction state before running DDL
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
+        try:
+            # Use engine.begin() so DDL is committed independently of the ORM session
+            with db.engine.begin() as conn:
+                conn.execute(text("ALTER TABLE student_name ADD COLUMN IF NOT EXISTS banned BOOLEAN DEFAULT FALSE"))
+                conn.execute(text("UPDATE student_name SET banned = FALSE WHERE banned IS NULL"))
+                conn.execute(text("ALTER TABLE student_name ALTER COLUMN banned SET NOT NULL"))
+            messages.append("Added banned column successfully")
+        except Exception as e:
+            # Make sure session is usable afterwards
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+            messages.append(f"Failed to add banned column: {e}")
+            raise
+    else:
+        messages.append("banned column already exists")
 
     return messages
 

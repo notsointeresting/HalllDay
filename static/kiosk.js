@@ -46,7 +46,23 @@ function processCode(code) {
     try { j = await r.json(); } catch(e) {}
     if (!r.ok) {
       console.error('scan error', r.status, j);
-      if (r.status === 403) {
+      if (r.status === 403 && j.action === 'banned') {
+        // BANNED STUDENT - Show scary red warning with loud beep
+        clearTimeout(resetTimeout);
+        setPanel('red', '🚫 RESTROOM BANNED 🚫', j.message || 'RESTROOM PRIVILEGES SUSPENDED - SEE TEACHER');
+        // Super loud scary beep (low frequency, long duration)
+        beep(150, 800);  // Very low pitch, very long duration
+        setTimeout(() => beep(150, 800), 900);  // Double beep for emphasis
+        setTimeout(() => beep(150, 800), 1800);  // Triple beep!
+        // Hold message for longer so teacher can see
+        resetTimeout = setTimeout(async () => {
+          try {
+            const sr = await fetch('/api/status');
+            const sj = await sr.json();
+            setFromStatus(sj);
+          } catch(e) {}
+        }, 5000);  // 5 seconds to give teacher time to see
+      } else if (r.status === 403) {
         setPanel('red', 'KIOSK SUSPENDED', j.message || 'Contact administrator to resume service.');
         beep(200, 300);
       } else if (r.status === 404) {
