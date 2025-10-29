@@ -98,10 +98,26 @@
     <p style="margin: 10px 0 0 0; color: #666; font-size: 12px;">All student data stored in memory only - no persistent external storage</p>
   </div>
 
+  <h3>Overdue Students (Auto-Ban)</h3>
+  <div style="background: #ffebee; border: 1px solid #f44336; border-radius: 4px; padding: 15px; margin-bottom: 20px;">
+    <h4 style="color: #c62828; margin: 0 0 10px 0;">⚠️ Currently Overdue Students</h4>
+    <p style="margin: 0 0 10px 0; color: #c62828; font-size: 14px;">Students who are currently overdue can be automatically banned. Overdue threshold: <strong>{{ settings.overdue_minutes }} minutes</strong></p>
+    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+      <button id="loadOverdueBtn" style="background: #ff9800; color: white;">Check Overdue Students</button>
+      <button id="autoBanOverdueBtn" style="background: #f44336; color: white;" disabled>Auto-Ban All Overdue</button>
+    </div>
+    <div id="overdueListContainer" style="display: none;">
+      <div style="margin: 10px 0; padding: 8px; background: white; border-radius: 4px;">
+        <div id="overdueList" style="padding: 10px;"></div>
+      </div>
+    </div>
+    <div id="overdueResult" style="margin-top: 10px; font-size: 14px;"></div>
+  </div>
+
   <h3>Restroom Ban Management</h3>
   <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 15px; margin-bottom: 20px;">
     <h4 style="color: #856404; margin: 0 0 10px 0;">🚫 Student Restroom Bans</h4>
-    <p style="margin: 0 0 10px 0; color: #856404; font-size: 14px;">Ban students from using the restroom. Banned students will see a red warning and hear a loud beep when they scan.</p>
+    <p style="margin: 0 0 10px 0; color: #856404; font-size: 14px;">Ban students from using the restroom. Banned students can still scan back in to end their current trip, but cannot start new trips. They will see a red warning when they try to scan out.</p>
     <button id="loadStudentsBtn" style="background: #007bff; color: white; margin-bottom: 10px;">Load Student List</button>
     <div id="studentListContainer" style="display: none;">
       <div style="margin: 10px 0; padding: 8px; background: white; border-radius: 4px;">
@@ -157,6 +173,133 @@ document.getElementById('override').onclick = async () => {
   const r = await fetch('/api/override_end', {method:'POST'});
   const j = await r.json();
   alert(j.ok ? 'Ended.' : (j.message || 'Error'));
+};
+
+// Overdue Student Management
+let overdueStudents = [];
+
+document.getElementById('loadOverdueBtn').onclick = async () => {
+  const btn = document.getElementById('loadOverdueBtn');
+  const autoBanBtn = document.getElementById('autoBanOverdueBtn');
+  const container = document.getElementById('overdueListContainer');
+  const resultDiv = document.getElementById('overdueResult');
+  
+  btn.disabled = true;
+  btn.textContent = 'Checking...';
+  resultDiv.textContent = '';
+  autoBanBtn.disabled = true;
+  
+  try {
+    const r = await fetch('/api/overdue_students');
+    const j = await r.json();
+    
+    if (j.ok) {
+      overdueStudents = j.students || [];
+      renderOverdueList();
+      container.style.display = 'block';
+      btn.textContent = `Found ${j.count} overdue student(s)`;
+      
+      if (j.count > 0) {
+        resultDiv.style.color = '#f44336';
+        resultDiv.textContent = `⚠️ ${j.count} student(s) are overdue (threshold: ${j.overdue_threshold_minutes} min)`;
+        autoBanBtn.disabled = false;
+      } else {
+        resultDiv.style.color = '#28a745';
+        resultDiv.textContent = `✓ No students are currently overdue`;
+      }
+    } else {
+      resultDiv.style.color = '#dc3545';
+      resultDiv.textContent = `❌ Failed: ${j.message}`;
+      btn.textContent = 'Check Overdue Students';
+    }
+  } catch (error) {
+    console.error('Load overdue students error:', error);
+    resultDiv.style.color = '#dc3545';
+    resultDiv.textContent = `❌ Error: ${error.message}`;
+    btn.textContent = 'Check Overdue Students';
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+function renderOverdueList() {
+  const listDiv = document.getElementById('overdueList');
+  
+  if (overdueStudents.length === 0) {
+    listDiv.innerHTML = '<p style="color: #28a745; text-align: center; font-weight: bold;">✓ No students are currently overdue</p>';
+    return;
+  }
+  
+  const notBannedCount = overdueStudents.filter(s => !s.banned).length;
+  
+  let html = '';
+  if (notBannedCount > 0) {
+    html += `<p style="color: #f44336; font-weight: bold; margin-bottom: 10px;">⚠️ ${notBannedCount} overdue student(s) not yet banned</p>`;
+  }
+  
+  overdueStudents.forEach(student => {
+    const bgColor = student.banned ? '#e8f5e9' : '#ffebee';
+    const textColor = student.banned ? '#2e7d32' : '#c62828';
+    const statusText = student.banned ? '✓ Already Banned' : `⚠️ ${student.duration_minutes} min overdue`;
+    html += `
+      <div style="padding: 10px; margin: 4px 0; background: ${bgColor}; border-radius: 4px; border: 1px solid ${student.banned ? '#81c784' : '#e57373'};">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="flex: 1;">
+            <span style="font-weight: bold; color: ${textColor};">${student.name}</span>
+            <span style="color: #666; font-size: 12px; margin-left: 8px;">(${student.student_id})</span>
+          </div>
+          <div style="text-align: right;">
+            <span style="color: ${textColor}; font-weight: bold; font-size: 14px;">${statusText}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+  
+  listDiv.innerHTML = html;
+}
+
+document.getElementById('autoBanOverdueBtn').onclick = async () => {
+  if (!confirm('Ban all overdue students from starting new restroom trips? They can still scan back in to end their current trip.')) {
+    return;
+  }
+  
+  const btn = document.getElementById('autoBanOverdueBtn');
+  const resultDiv = document.getElementById('overdueResult');
+  
+  btn.disabled = true;
+  btn.textContent = 'Banning...';
+  resultDiv.textContent = 'Processing auto-ban...';
+  resultDiv.style.color = '#007bff';
+  
+  try {
+    const r = await fetch('/api/auto_ban_overdue', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'}
+    });
+    const j = await r.json();
+    
+    if (j.ok) {
+      resultDiv.style.color = '#28a745';
+      resultDiv.textContent = `✓ ${j.message}`;
+      
+      // Refresh the overdue list
+      setTimeout(() => {
+        document.getElementById('loadOverdueBtn').click();
+      }, 1500);
+    } else {
+      resultDiv.style.color = '#dc3545';
+      resultDiv.textContent = `❌ ${j.message}`;
+      btn.disabled = false;
+      btn.textContent = 'Auto-Ban All Overdue';
+    }
+  } catch (error) {
+    console.error('Auto-ban error:', error);
+    resultDiv.style.color = '#dc3545';
+    resultDiv.textContent = `❌ Error: ${error.message}`;
+    btn.disabled = false;
+    btn.textContent = 'Auto-Ban All Overdue';
+  }
 };
 
 // Student Ban Management

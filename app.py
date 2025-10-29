@@ -269,6 +269,54 @@ def set_student_banned(student_id, banned_status):
             pass
         return False
 
+def get_overdue_students():
+    """Get list of students who are currently overdue."""
+    try:
+        settings = get_settings()
+        overdue_minutes = settings["overdue_minutes"]
+        overdue_seconds = overdue_minutes * 60
+        
+        open_sessions = get_open_sessions()
+        overdue_list = []
+        
+        for session_obj in open_sessions:
+            if session_obj.duration_seconds > overdue_seconds:
+                student_name = get_student_name(session_obj.student_id, "Student")
+                is_banned = is_student_banned(session_obj.student_id)
+                
+                overdue_list.append({
+                    'student_id': session_obj.student_id,
+                    'name': student_name,
+                    'duration_seconds': session_obj.duration_seconds,
+                    'duration_minutes': round(session_obj.duration_seconds / 60, 1),
+                    'start_ts': session_obj.start_ts.isoformat(),
+                    'banned': is_banned,
+                    'session_id': session_obj.id
+                })
+        
+        return overdue_list
+    except Exception as e:
+        print(f"DEBUG: Error getting overdue students: {e}")
+        return []
+
+def auto_ban_overdue_students():
+    """Automatically ban students who are currently overdue."""
+    try:
+        overdue_list = get_overdue_students()
+        banned_count = 0
+        
+        for student in overdue_list:
+            if not student['banned']:  # Only ban if not already banned
+                success = set_student_banned(student['student_id'], True)
+                if success:
+                    banned_count += 1
+                    print(f"DEBUG: Auto-banned {student['name']} ({student['student_id']}) for being overdue {student['duration_minutes']} minutes")
+        
+        return banned_count
+    except Exception as e:
+        print(f"DEBUG: Error auto-banning overdue students: {e}")
+        return 0
+
 # ---------- Utility ----------
 
 def now_utc():
@@ -519,10 +567,6 @@ def api_scan():
     if student_name == "Student":  # Default fallback means student not found
         return jsonify(ok=False, message=f"Unknown ID: {code} - Please upload roster first"), 404
     
-    # Check if student is banned from using restroom
-    if is_student_banned(code):
-        return jsonify(ok=False, action="banned", message="RESTROOM PRIVILEGES SUSPENDED - SEE TEACHER", name=student_name), 403
-    
     # Ensure memory roster is populated for cross-device access
     # This happens when a student scans successfully, ensuring display can access names
     memory_roster = get_memory_roster()
@@ -540,6 +584,7 @@ def api_scan():
     open_sessions = get_open_sessions()
 
     # If this student currently holds the pass, end their session
+    # Allow banned students to scan back in to end their active session
     for s in open_sessions:
         if s.student_id == code:
             s.end_ts = now_utc()
@@ -559,6 +604,11 @@ def api_scan():
             except Exception:
                 pass
             return jsonify(ok=True, action="ended", name=student_name)
+    
+    # Check if student is banned from starting NEW restroom trips
+    # (They can still end existing trips above)
+    if is_student_banned(code):
+        return jsonify(ok=False, action="banned", message="RESTROOM PRIVILEGES SUSPENDED - SEE TEACHER", name=student_name), 403
 
     # If capacity is full and someone else is out, deny
     if len(open_sessions) >= get_settings()["capacity"]:
@@ -833,6 +883,38 @@ def api_unban_student():
             return jsonify(ok=True, message=f"{student_name} unbanned from restroom", student_id=student_id)
         else:
             return jsonify(ok=False, message="Failed to unban student"), 500
+    except Exception as e:
+        return jsonify(ok=False, message=str(e)), 500
+
+@app.get("/api/overdue_students")
+@require_admin_auth_api
+def api_get_overdue_students():
+    """Get list of students who are currently overdue."""
+    try:
+        overdue_list = get_overdue_students()
+        settings = get_settings()
+        
+        return jsonify(
+            ok=True, 
+            students=overdue_list, 
+            count=len(overdue_list),
+            overdue_threshold_minutes=settings["overdue_minutes"]
+        )
+    except Exception as e:
+        return jsonify(ok=False, message=str(e)), 500
+
+@app.post("/api/auto_ban_overdue")
+@require_admin_auth_api
+def api_auto_ban_overdue():
+    """Automatically ban all students who are currently overdue."""
+    try:
+        banned_count = auto_ban_overdue_students()
+        
+        return jsonify(
+            ok=True, 
+            message=f"Auto-banned {banned_count} overdue student(s)",
+            banned_count=banned_count
+        )
     except Exception as e:
         return jsonify(ok=False, message=str(e)), 500
 
