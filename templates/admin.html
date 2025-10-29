@@ -98,13 +98,28 @@
     <p style="margin: 10px 0 0 0; color: #666; font-size: 12px;">All student data stored in memory only - no persistent external storage</p>
   </div>
 
-  <h3>Overdue Students (Auto-Ban)</h3>
+  <h3>Automatic Ban on Overdue</h3>
   <div style="background: #ffebee; border: 1px solid #f44336; border-radius: 4px; padding: 15px; margin-bottom: 20px;">
-    <h4 style="color: #c62828; margin: 0 0 10px 0;">⚠️ Currently Overdue Students</h4>
-    <p style="margin: 0 0 10px 0; color: #c62828; font-size: 14px;">Students who are currently overdue can be automatically banned. Overdue threshold: <strong>{{ settings.overdue_minutes }} minutes</strong></p>
+    <h4 style="color: #c62828; margin: 0 0 10px 0;">⚙️ Auto-Ban Settings</h4>
+    <p style="margin: 0 0 15px 0; color: #c62828; font-size: 14px;">Automatically ban students when they become overdue. Overdue threshold: <strong>{{ settings.overdue_minutes }} minutes</strong></p>
+    
+    <div style="background: white; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+      <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
+        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 16px; font-weight: bold;">
+          <input type="checkbox" id="autoBanToggle" {% if settings.auto_ban_overdue %}checked{% endif %} style="width: 20px; height: 20px; cursor: pointer;">
+          <span id="autoBanToggleLabel">{% if settings.auto_ban_overdue %}✅ Auto-Ban ENABLED{% else %}❌ Auto-Ban DISABLED{% endif %}</span>
+        </label>
+      </div>
+      <p style="margin: 0; font-size: 13px; color: #666;">
+        When enabled, students will be automatically banned when they exceed the overdue threshold. The system checks every second.
+      </p>
+      <div id="autoBanToggleResult" style="margin-top: 8px; font-size: 13px;"></div>
+    </div>
+
+    <h4 style="color: #c62828; margin: 15px 0 10px 0;">⚠️ Currently Overdue Students</h4>
     <div style="display: flex; gap: 10px; margin-bottom: 10px;">
       <button id="loadOverdueBtn" style="background: #ff9800; color: white;">Check Overdue Students</button>
-      <button id="autoBanOverdueBtn" style="background: #f44336; color: white;" disabled>Auto-Ban All Overdue</button>
+      <button id="manualBanOverdueBtn" style="background: #f44336; color: white;" disabled>Manually Ban All Overdue</button>
     </div>
     <div id="overdueListContainer" style="display: none;">
       <div style="margin: 10px 0; padding: 8px; background: white; border-radius: 4px;">
@@ -175,19 +190,67 @@ document.getElementById('override').onclick = async () => {
   alert(j.ok ? 'Ended.' : (j.message || 'Error'));
 };
 
+// Auto-Ban Toggle
+document.getElementById('autoBanToggle').onchange = async function() {
+  const checkbox = this;
+  const isEnabled = checkbox.checked;
+  const label = document.getElementById('autoBanToggleLabel');
+  const resultDiv = document.getElementById('autoBanToggleResult');
+  
+  // Optimistically update UI
+  label.textContent = isEnabled ? '✅ Auto-Ban ENABLED' : '❌ Auto-Ban DISABLED';
+  label.style.color = isEnabled ? '#2e7d32' : '#c62828';
+  resultDiv.textContent = 'Saving...';
+  resultDiv.style.color = '#007bff';
+  
+  try {
+    const r = await fetch('/api/settings', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({auto_ban_overdue: isEnabled})
+    });
+    const j = await r.json();
+    
+    if (j.ok) {
+      resultDiv.style.color = '#28a745';
+      resultDiv.textContent = isEnabled 
+        ? '✓ Auto-ban is now ACTIVE - students will be banned automatically when overdue' 
+        : '✓ Auto-ban is now DISABLED - manual banning only';
+      setTimeout(() => {
+        resultDiv.textContent = '';
+      }, 3000);
+    } else {
+      // Revert on error
+      checkbox.checked = !isEnabled;
+      label.textContent = !isEnabled ? '✅ Auto-Ban ENABLED' : '❌ Auto-Ban DISABLED';
+      label.style.color = !isEnabled ? '#2e7d32' : '#c62828';
+      resultDiv.style.color = '#dc3545';
+      resultDiv.textContent = `❌ Failed: ${j.message || 'Could not save setting'}`;
+    }
+  } catch (error) {
+    console.error('Auto-ban toggle error:', error);
+    // Revert on error
+    checkbox.checked = !isEnabled;
+    label.textContent = !isEnabled ? '✅ Auto-Ban ENABLED' : '❌ Auto-Ban DISABLED';
+    label.style.color = !isEnabled ? '#2e7d32' : '#c62828';
+    resultDiv.style.color = '#dc3545';
+    resultDiv.textContent = `❌ Error: ${error.message}`;
+  }
+};
+
 // Overdue Student Management
 let overdueStudents = [];
 
 document.getElementById('loadOverdueBtn').onclick = async () => {
   const btn = document.getElementById('loadOverdueBtn');
-  const autoBanBtn = document.getElementById('autoBanOverdueBtn');
+  const manualBanBtn = document.getElementById('manualBanOverdueBtn');
   const container = document.getElementById('overdueListContainer');
   const resultDiv = document.getElementById('overdueResult');
   
   btn.disabled = true;
   btn.textContent = 'Checking...';
   resultDiv.textContent = '';
-  autoBanBtn.disabled = true;
+  manualBanBtn.disabled = true;
   
   try {
     const r = await fetch('/api/overdue_students');
@@ -202,7 +265,7 @@ document.getElementById('loadOverdueBtn').onclick = async () => {
       if (j.count > 0) {
         resultDiv.style.color = '#f44336';
         resultDiv.textContent = `⚠️ ${j.count} student(s) are overdue (threshold: ${j.overdue_threshold_minutes} min)`;
-        autoBanBtn.disabled = false;
+        manualBanBtn.disabled = false;
       } else {
         resultDiv.style.color = '#28a745';
         resultDiv.textContent = `✓ No students are currently overdue`;
@@ -259,17 +322,17 @@ function renderOverdueList() {
   listDiv.innerHTML = html;
 }
 
-document.getElementById('autoBanOverdueBtn').onclick = async () => {
-  if (!confirm('Ban all overdue students from starting new restroom trips? They can still scan back in to end their current trip.')) {
+document.getElementById('manualBanOverdueBtn').onclick = async () => {
+  if (!confirm('Manually ban all currently overdue students from starting new restroom trips? They can still scan back in to end their current trip.')) {
     return;
   }
   
-  const btn = document.getElementById('autoBanOverdueBtn');
+  const btn = document.getElementById('manualBanOverdueBtn');
   const resultDiv = document.getElementById('overdueResult');
   
   btn.disabled = true;
   btn.textContent = 'Banning...';
-  resultDiv.textContent = 'Processing auto-ban...';
+  resultDiv.textContent = 'Processing manual ban...';
   resultDiv.style.color = '#007bff';
   
   try {
@@ -291,14 +354,14 @@ document.getElementById('autoBanOverdueBtn').onclick = async () => {
       resultDiv.style.color = '#dc3545';
       resultDiv.textContent = `❌ ${j.message}`;
       btn.disabled = false;
-      btn.textContent = 'Auto-Ban All Overdue';
+      btn.textContent = 'Manually Ban All Overdue';
     }
   } catch (error) {
-    console.error('Auto-ban error:', error);
+    console.error('Manual ban error:', error);
     resultDiv.style.color = '#dc3545';
     resultDiv.textContent = `❌ Error: ${error.message}`;
     btn.disabled = false;
-    btn.textContent = 'Auto-Ban All Overdue';
+    btn.textContent = 'Manually Ban All Overdue';
   }
 };
 

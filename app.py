@@ -61,6 +61,7 @@ class Settings(db.Model):
     capacity = db.Column(db.Integer, nullable=False, default=config.CAPACITY)
     overdue_minutes = db.Column(db.Integer, nullable=False, default=10)
     kiosk_suspended = db.Column(db.Boolean, nullable=False, default=False)
+    auto_ban_overdue = db.Column(db.Boolean, nullable=False, default=False)
 
 class StudentName(db.Model):
     """FERPA-compliant storage of student names only (no ID association)"""
@@ -107,7 +108,7 @@ def initialize_database_if_needed():
                 try:
                     print("Creating default settings record...")
                     s = Settings(id=1, room_name=config.ROOM_NAME, capacity=config.CAPACITY,
-                               overdue_minutes=getattr(config, "MAX_MINUTES", 10), kiosk_suspended=False)
+                               overdue_minutes=getattr(config, "MAX_MINUTES", 10), kiosk_suspended=False, auto_ban_overdue=False)
                     db.session.add(s)
                     db.session.commit()
                     print("Database initialized successfully with default settings")
@@ -304,18 +305,20 @@ def auto_ban_overdue_students():
     try:
         overdue_list = get_overdue_students()
         banned_count = 0
+        banned_students = []
         
         for student in overdue_list:
             if not student['banned']:  # Only ban if not already banned
                 success = set_student_banned(student['student_id'], True)
                 if success:
                     banned_count += 1
+                    banned_students.append(student['name'])
                     print(f"DEBUG: Auto-banned {student['name']} ({student['student_id']}) for being overdue {student['duration_minutes']} minutes")
         
-        return banned_count
+        return {'count': banned_count, 'students': banned_students}
     except Exception as e:
         print(f"DEBUG: Error auto-banning overdue students: {e}")
-        return 0
+        return {'count': 0, 'students': []}
 
 # ---------- Utility ----------
 
@@ -349,18 +352,23 @@ def get_settings():
     try:
         s = Settings.query.get(1)
         if not s:
-            return {"room_name": config.ROOM_NAME, "capacity": config.CAPACITY, "overdue_minutes": getattr(config, "MAX_MINUTES", 10), "kiosk_suspended": False}
+            return {"room_name": config.ROOM_NAME, "capacity": config.CAPACITY, "overdue_minutes": getattr(config, "MAX_MINUTES", 10), "kiosk_suspended": False, "auto_ban_overdue": False}
         
-        # Handle case where kiosk_suspended column might not exist yet (during migration)
+        # Handle case where columns might not exist yet (during migration)
         try:
             kiosk_suspended = s.kiosk_suspended
         except AttributeError:
             kiosk_suspended = False
         
-        return {"room_name": s.room_name, "capacity": s.capacity, "overdue_minutes": s.overdue_minutes, "kiosk_suspended": kiosk_suspended}
+        try:
+            auto_ban_overdue = s.auto_ban_overdue
+        except AttributeError:
+            auto_ban_overdue = False
+        
+        return {"room_name": s.room_name, "capacity": s.capacity, "overdue_minutes": s.overdue_minutes, "kiosk_suspended": kiosk_suspended, "auto_ban_overdue": auto_ban_overdue}
     except Exception:
         # If query fails (e.g., missing column), return defaults
-        return {"room_name": config.ROOM_NAME, "capacity": config.CAPACITY, "overdue_minutes": getattr(config, "MAX_MINUTES", 10), "kiosk_suspended": False}
+        return {"room_name": config.ROOM_NAME, "capacity": config.CAPACITY, "overdue_minutes": getattr(config, "MAX_MINUTES", 10), "kiosk_suspended": False, "auto_ban_overdue": False}
 
 @app.context_processor
 def inject_room_name():
@@ -639,28 +647,51 @@ def api_scan():
 def api_status():
     auto_end_expired()
     settings = get_settings()
+    
+    # Automatic ban check if enabled
+    if settings.get("auto_ban_overdue", False):
+        try:
+            result = auto_ban_overdue_students()
+            if result['count'] > 0:
+                print(f"AUTO-BAN: Banned {result['count']} overdue student(s): {', '.join(result['students'])}")
+        except Exception as e:
+            print(f"DEBUG: Error in auto-ban check: {e}")
+    
     s = get_current_holder()
     overdue_minutes = settings["overdue_minutes"]
     kiosk_suspended = settings["kiosk_suspended"]
+    auto_ban_overdue = settings.get("auto_ban_overdue", False)
+    
     if s:
         is_overdue = s.duration_seconds > overdue_minutes * 60
         
         # FERPA Compliance: Get name from session or memory roster
         student_name = get_student_name(s.student_id, "Student")
         
-        return jsonify(in_use=True, name=student_name, start=to_local(s.start_ts).isoformat(), elapsed=s.duration_seconds, overdue=is_overdue, overdue_minutes=overdue_minutes, kiosk_suspended=kiosk_suspended)
+        return jsonify(in_use=True, name=student_name, start=to_local(s.start_ts).isoformat(), elapsed=s.duration_seconds, overdue=is_overdue, overdue_minutes=overdue_minutes, kiosk_suspended=kiosk_suspended, auto_ban_overdue=auto_ban_overdue)
     else:
-        return jsonify(in_use=False, overdue_minutes=overdue_minutes, kiosk_suspended=kiosk_suspended)
+        return jsonify(in_use=False, overdue_minutes=overdue_minutes, kiosk_suspended=kiosk_suspended, auto_ban_overdue=auto_ban_overdue)
 
 @app.get("/events")
 def sse_events():
     def stream():
         last_payload = None
         while True:
-            s = get_current_holder()
             settings = get_settings()
+            
+            # Automatic ban check if enabled
+            if settings.get("auto_ban_overdue", False):
+                try:
+                    result = auto_ban_overdue_students()
+                    if result['count'] > 0:
+                        print(f"AUTO-BAN (SSE): Banned {result['count']} overdue student(s): {', '.join(result['students'])}")
+                except Exception as e:
+                    print(f"DEBUG: Error in SSE auto-ban check: {e}")
+            
+            s = get_current_holder()
             overdue_minutes = settings["overdue_minutes"]
             kiosk_suspended = settings["kiosk_suspended"]
+            auto_ban_overdue = settings.get("auto_ban_overdue", False)
             if s:
                 # FERPA Compliance: Get name from session or memory roster
                 student_name = get_student_name(s.student_id, "Student")
@@ -683,9 +714,10 @@ def sse_events():
                     "overdue": s.duration_seconds > overdue_minutes * 60,
                     "overdue_minutes": overdue_minutes,
                     "kiosk_suspended": kiosk_suspended,
+                    "auto_ban_overdue": auto_ban_overdue,
                 }
             else:
-                payload = {"in_use": False, "overdue_minutes": overdue_minutes, "kiosk_suspended": kiosk_suspended}
+                payload = {"in_use": False, "overdue_minutes": overdue_minutes, "kiosk_suspended": kiosk_suspended, "auto_ban_overdue": auto_ban_overdue}
             if payload != last_payload:
                 yield f"data: {json.dumps(payload)}\n\n"
                 last_payload = payload
@@ -906,14 +938,15 @@ def api_get_overdue_students():
 @app.post("/api/auto_ban_overdue")
 @require_admin_auth_api
 def api_auto_ban_overdue():
-    """Automatically ban all students who are currently overdue."""
+    """Manually trigger auto-ban for all students who are currently overdue."""
     try:
-        banned_count = auto_ban_overdue_students()
+        result = auto_ban_overdue_students()
         
         return jsonify(
             ok=True, 
-            message=f"Auto-banned {banned_count} overdue student(s)",
-            banned_count=banned_count
+            message=f"Manually banned {result['count']} overdue student(s)",
+            banned_count=result['count'],
+            students=result['students']
         )
     except Exception as e:
         return jsonify(ok=False, message=str(e)), 500
@@ -1110,7 +1143,7 @@ def init_db():
     """Initialize DB (students are now session-only, not database-stored)."""
     db.create_all()
     if not Settings.query.get(1):
-        db.session.add(Settings(id=1, room_name=config.ROOM_NAME, capacity=config.CAPACITY, overdue_minutes=getattr(config, "MAX_MINUTES", 10), kiosk_suspended=False))
+        db.session.add(Settings(id=1, room_name=config.ROOM_NAME, capacity=config.CAPACITY, overdue_minutes=getattr(config, "MAX_MINUTES", 10), kiosk_suspended=False, auto_ban_overdue=False))
         db.session.commit()
     # Note: Student roster is now uploaded via web interface to session only (FERPA compliant)
     print("Database initialized (students are session-only).")
@@ -1207,6 +1240,47 @@ def run_migrations():
             raise
     else:
         messages.append("banned column already exists")
+
+    # Migration 3: ensure Settings.auto_ban_overdue exists
+    auto_ban_overdue_exists = False
+    try:
+        res = db.session.execute(text(
+            """
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_name = 'settings' AND column_name = 'auto_ban_overdue'
+            """
+        ))
+        auto_ban_overdue_exists = res.scalar() is not None
+    except Exception as e:
+        messages.append(f"Warning: auto_ban_overdue column introspection failed: {e}; attempting ALTER TABLE…")
+
+    if not auto_ban_overdue_exists:
+        messages.append("Adding auto_ban_overdue column to settings table")
+
+        # Clear any failed transaction state before running DDL
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
+        try:
+            # Use engine.begin() so DDL is committed independently of the ORM session
+            with db.engine.begin() as conn:
+                conn.execute(text("ALTER TABLE settings ADD COLUMN IF NOT EXISTS auto_ban_overdue BOOLEAN DEFAULT FALSE"))
+                conn.execute(text("UPDATE settings SET auto_ban_overdue = FALSE WHERE auto_ban_overdue IS NULL"))
+                conn.execute(text("ALTER TABLE settings ALTER COLUMN auto_ban_overdue SET NOT NULL"))
+            messages.append("Added auto_ban_overdue column successfully")
+        except Exception as e:
+            # Make sure session is usable afterwards
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+            messages.append(f"Failed to add auto_ban_overdue column: {e}")
+            raise
+    else:
+        messages.append("auto_ban_overdue column already exists")
 
     return messages
 
@@ -1343,6 +1417,8 @@ def update_settings_api():
             pass
     if "kiosk_suspended" in data:
         s.kiosk_suspended = bool(data["kiosk_suspended"])
+    if "auto_ban_overdue" in data:
+        s.auto_ban_overdue = bool(data["auto_ban_overdue"])
     db.session.commit()
     return jsonify(ok=True, settings=get_settings())
 
