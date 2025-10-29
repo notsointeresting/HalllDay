@@ -101,13 +101,23 @@
   <h3>Automatic Ban on Overdue</h3>
   <div style="background: #ffebee; border: 1px solid #f44336; border-radius: 4px; padding: 15px; margin-bottom: 20px;">
     <h4 style="color: #c62828; margin: 0 0 10px 0;">⚙️ Auto-Ban Settings</h4>
+    
+    {% if not settings.get('auto_ban_overdue') and settings.get('auto_ban_overdue') is none %}
+    <div style="background: #fff3cd; border: 1px solid #ffc107; padding: 12px; margin-bottom: 15px; border-radius: 4px;">
+      <strong style="color: #856404;">⚠️ First Time Setup Required:</strong>
+      <p style="margin: 5px 0 0 0; color: #856404; font-size: 13px;">
+        Please run the database migration below to enable auto-ban feature. Scroll down to "Database" section and click "Run Database Migration".
+      </p>
+    </div>
+    {% endif %}
+    
     <p style="margin: 0 0 15px 0; color: #c62828; font-size: 14px;">Automatically ban students when they become overdue. Overdue threshold: <strong>{{ settings.overdue_minutes }} minutes</strong></p>
     
     <div style="background: white; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
       <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
         <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 16px; font-weight: bold;">
-          <input type="checkbox" id="autoBanToggle" {% if settings.auto_ban_overdue %}checked{% endif %} style="width: 20px; height: 20px; cursor: pointer;">
-          <span id="autoBanToggleLabel">{% if settings.auto_ban_overdue %}✅ Auto-Ban ENABLED{% else %}❌ Auto-Ban DISABLED{% endif %}</span>
+          <input type="checkbox" id="autoBanToggle" {% if settings.get('auto_ban_overdue') %}checked{% endif %} style="width: 20px; height: 20px; cursor: pointer;">
+          <span id="autoBanToggleLabel">{% if settings.get('auto_ban_overdue') %}✅ Auto-Ban ENABLED{% else %}❌ Auto-Ban DISABLED{% endif %}</span>
         </label>
       </div>
       <p style="margin: 0; font-size: 13px; color: #666;">
@@ -209,6 +219,13 @@ document.getElementById('autoBanToggle').onchange = async function() {
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({auto_ban_overdue: isEnabled})
     });
+    
+    // Check if response is actually JSON
+    const contentType = r.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new Error('Server returned non-JSON response. Please run database migration first.');
+    }
+    
     const j = await r.json();
     
     if (j.ok) {
