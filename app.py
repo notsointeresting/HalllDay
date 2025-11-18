@@ -842,6 +842,53 @@ def api_resume_kiosk():
         db.session.rollback()
         return jsonify(ok=False, message=str(e)), 500
 
+@app.post("/api/toggle_kiosk_suspend")
+def api_toggle_kiosk_suspend():
+    """Toggle kiosk suspension with passcode (for kiosk shortcut)."""
+    try:
+        payload = request.get_json(silent=True) or {}
+        passcode = payload.get('passcode', '').strip()
+        
+        # Verify passcode
+        if passcode != config.ADMIN_PASSCODE:
+            return jsonify(ok=False, message="Invalid passcode"), 401
+        
+        # Toggle suspension
+        s = Settings.query.get(1)
+        if not s:
+            s = Settings(id=1, kiosk_suspended=True)
+            db.session.add(s)
+            new_state = True
+        else:
+            s.kiosk_suspended = not s.kiosk_suspended
+            new_state = s.kiosk_suspended
+        
+        db.session.commit()
+        return jsonify(ok=True, suspended=new_state, message=f"Kiosk {'suspended' if new_state else 'resumed'}")
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(ok=False, message=str(e)), 500
+
+@app.post("/api/toggle_kiosk_suspend_quick")
+def api_toggle_kiosk_suspend_quick():
+    """Toggle kiosk suspension without passcode (for emergency kiosk shortcut)."""
+    try:
+        # Toggle suspension
+        s = Settings.query.get(1)
+        if not s:
+            s = Settings(id=1, kiosk_suspended=True)
+            db.session.add(s)
+            new_state = True
+        else:
+            s.kiosk_suspended = not s.kiosk_suspended
+            new_state = s.kiosk_suspended
+        
+        db.session.commit()
+        return jsonify(ok=True, suspended=new_state, message=f"Kiosk {'suspended' if new_state else 'resumed'}")
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(ok=False, message=str(e)), 500
+
 @app.get("/api/students")
 @require_admin_auth_api
 def api_get_students():

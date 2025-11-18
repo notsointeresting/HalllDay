@@ -1,9 +1,20 @@
-function setDisplay(inUse, name, elapsed, overdue) {
+function setDisplay(inUse, name, elapsed, overdue, kioskSuspended) {
   const panel = document.getElementById('displayPanel');
   panel.classList.remove('red','green','yellow');
   const icon = document.getElementById('displayIcon');
   const title = document.getElementById('displayTitle');
   const subtitle = document.getElementById('displaySubtitle');
+
+  // Check if kiosk is suspended first
+  if (kioskSuspended) {
+    panel.classList.add('red');
+    document.body.classList.remove('bg-green','bg-yellow');
+    document.body.classList.add('bg-red');
+    icon.textContent = '🚫';
+    title.textContent = 'KIOSK SUSPENDED';
+    subtitle.textContent = 'Contact administrator to resume service';
+    return;
+  }
 
   if (inUse) {
     panel.classList.add(overdue ? 'yellow' : 'red');
@@ -35,7 +46,7 @@ function startSSE() {
       es.onmessage = (evt) => {
         backoff = 1000;
         const j = JSON.parse(evt.data || '{}');
-        setDisplay(!!j.in_use, j.name || '', j.elapsed || 0, !!j.overdue);
+        setDisplay(!!j.in_use, j.name || '', j.elapsed || 0, !!j.overdue, !!j.kiosk_suspended);
       };
       es.onerror = () => {
         es.close();
@@ -69,7 +80,7 @@ if ('EventSource' in window) {
     try {
       const r = await fetch('/api/status');
       const j = await r.json();
-      setDisplay(j.in_use, j.name || '', j.elapsed || 0, !!j.overdue);
+      setDisplay(j.in_use, j.name || '', j.elapsed || 0, !!j.overdue, !!j.kiosk_suspended);
     } catch(e) {}
     setTimeout(poll, 1000);
   })();

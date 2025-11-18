@@ -31,6 +31,42 @@ function beep(freq=880, ms=120) {
 let denyTimeout;
 let resetTimeout;
 
+// Toggle kiosk suspension (no password required for quick access)
+async function toggleKioskSuspension() {
+  try {
+    const response = await fetch('/api/toggle_kiosk_suspend_quick', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'}
+    });
+    
+    const result = await response.json();
+    
+    if (response.ok && result.ok) {
+      // Show success message
+      const status = result.suspended ? 'SUSPENDED' : 'RESUMED';
+      setPanel(result.suspended ? 'red' : 'green', 
+               `Kiosk ${status}`, 
+               result.message || `Kiosk has been ${status.toLowerCase()}`);
+      beep(result.suspended ? 400 : 800, 200);
+      
+      // Refresh status after 2 seconds
+      setTimeout(async () => {
+        try {
+          const sr = await fetch('/api/status');
+          const sj = await sr.json();
+          setFromStatus(sj);
+        } catch(e) {}
+      }, 2000);
+    } else {
+      // Show error
+      alert(result.message || 'Failed to toggle kiosk suspension');
+    }
+  } catch(e) {
+    console.error('Error toggling kiosk suspension:', e);
+    alert('Network error - could not toggle kiosk suspension');
+  }
+}
+
 // Centralized code processing function used by both scanner and numpad
 function processCode(code) {
   if (!code) return;
@@ -116,6 +152,13 @@ function processCode(code) {
 
 // Handle both barcode scanner and manual numpad entry
 document.addEventListener('keydown', (e) => {
+  // Keyboard shortcut: Ctrl+Shift+S to toggle kiosk suspension
+  if (e.ctrlKey && e.shiftKey && e.key === 'S') {
+    e.preventDefault();
+    toggleKioskSuspension();
+    return;
+  }
+  
   if (e.key === 'Enter') {
     const code = buffer.trim();
     buffer = '';
