@@ -3,7 +3,7 @@ hidden.focus();
 
 let buffer = '';
 
-function setPanel(state, title, subtitle) {
+function setPanel(state, title, subtitle, icon) {
   const panel = document.getElementById('statusPanel');
   panel.classList.remove('red', 'yellow', 'green');
   panel.classList.add(state);
@@ -14,6 +14,17 @@ function setPanel(state, title, subtitle) {
   if (state === 'yellow') document.body.classList.add('bg-yellow');
   document.getElementById('statusTitle').textContent = title;
   document.getElementById('statusSubtitle').textContent = subtitle || '';
+  
+  // Update icon if provided, otherwise infer from state
+  const iconEl = panel.querySelector('.icon');
+  if (icon) {
+    iconEl.textContent = icon;
+  } else {
+    // Fallback defaults
+    if (state === 'green') iconEl.textContent = 'check_circle';
+    if (state === 'red') iconEl.textContent = 'do_not_disturb_on';
+    if (state === 'yellow') iconEl.textContent = 'hourglass_empty';
+  }
 }
 
 function beep(freq=880, ms=120) {
@@ -46,7 +57,8 @@ async function toggleKioskSuspension() {
       const status = result.suspended ? 'SUSPENDED' : 'RESUMED';
       setPanel(result.suspended ? 'red' : 'green', 
                `Kiosk ${status}`, 
-               result.message || `Kiosk has been ${status.toLowerCase()}`);
+               result.message || `Kiosk has been ${status.toLowerCase()}`,
+               result.suspended ? 'block' : 'check_circle');
       beep(result.suspended ? 400 : 800, 200);
       
       // Refresh status after 2 seconds
@@ -71,7 +83,7 @@ async function toggleKioskSuspension() {
 function processCode(code) {
   if (!code) return;
 
-  setPanel('yellow', 'Pass Recognized!', 'Processing...');
+  setPanel('yellow', 'Pass Recognized!', 'Processing...', 'hourglass_empty');
 
   fetch('/api/scan', {
     method: 'POST',
@@ -85,7 +97,7 @@ function processCode(code) {
       if (r.status === 403 && j.action === 'banned') {
         // BANNED STUDENT - Show scary red warning with loud beep
         clearTimeout(resetTimeout);
-        setPanel('red', '🚫 RESTROOM BANNED 🚫', j.message || 'RESTROOM PRIVILEGES SUSPENDED - SEE TEACHER');
+        setPanel('red', '🚫 RESTROOM BANNED 🚫', j.message || 'RESTROOM PRIVILEGES SUSPENDED - SEE TEACHER', 'block');
         // Super loud scary beep (low frequency, long duration)
         beep(150, 800);  // Very low pitch, very long duration
         setTimeout(() => beep(150, 800), 900);  // Double beep for emphasis
@@ -99,12 +111,12 @@ function processCode(code) {
           } catch(e) {}
         }, 5000);  // 5 seconds to give teacher time to see
       } else if (r.status === 403) {
-        setPanel('red', 'KIOSK SUSPENDED', j.message || 'Contact administrator to resume service.');
+        setPanel('red', 'KIOSK SUSPENDED', j.message || 'Contact administrator to resume service.', 'block');
         beep(200, 300);
       } else if (r.status === 404) {
         // Unknown student ID
         clearTimeout(resetTimeout);
-        setPanel('yellow', 'Student not recognized', (j.message || 'Please try again.')); 
+        setPanel('yellow', 'Student not recognized', (j.message || 'Please try again.'), 'help'); 
         beep(220, 220);
         resetTimeout = setTimeout(async () => {
           try {
@@ -115,7 +127,7 @@ function processCode(code) {
         }, 3500);
       } else {
         clearTimeout(resetTimeout);
-        setPanel('yellow', 'Service issue', j.message || `Status ${r.status}`);
+        setPanel('yellow', 'Service issue', j.message || `Status ${r.status}`, 'warning');
         resetTimeout = setTimeout(async () => {
           try {
             const sr = await fetch('/api/status');
@@ -128,25 +140,25 @@ function processCode(code) {
     }
     if (!j.ok && j.action === 'denied') {
       clearTimeout(denyTimeout);
-      setPanel('red', 'IN USE', j.message);
+      setPanel('red', 'IN USE', j.message, 'timer');
       denyTimeout = setTimeout(() => {
-        setPanel('red', 'IN USE', 'Please wait until the pass is returned.');
+        setPanel('red', 'IN USE', 'Please wait until the pass is returned.', 'timer');
       }, 2500);
       beep(200, 200);
       return;
     }
     if (j.ok && j.action === 'started') {
-      setPanel('red', 'IN USE', `${j.name} is out. Scan to return.`);
+      setPanel('red', 'IN USE', `${j.name} is out. Scan to return.`, 'timer');
       beep(700, 100);
     } else if (j.ok && j.action === 'ended') {
-      setPanel('green', 'Available', `${j.name} returned.`);
+      setPanel('green', 'Available', `${j.name} returned.`, 'check_circle');
       beep(1000, 120);
     } else {
-      setPanel('yellow', 'Check Scanner', j.message || 'Unknown response');
+      setPanel('yellow', 'Check Scanner', j.message || 'Unknown response', 'help');
     }
   }).catch(e => {
     console.error('network error', e);
-    setPanel('yellow', 'Network issue', 'Try again.');
+    setPanel('yellow', 'Network issue', 'Try again.', 'wifi_off');
   });
 }
 
@@ -178,7 +190,7 @@ setInterval(() => hidden.focus(), 3000);
 // Subscribe to status via SSE to mirror display behavior (full-bleed colors + elapsed/overdue)
 function setFromStatus(j){
   if (j.kiosk_suspended) {
-    setPanel('red', 'KIOSK SUSPENDED', 'Contact administrator to resume service.');
+    setPanel('red', 'KIOSK SUSPENDED', 'Contact administrator to resume service.', 'block');
     return;
   }
   
@@ -186,12 +198,12 @@ function setFromStatus(j){
     const mins = Math.floor((j.elapsed||0)/60);
     const secs = (j.elapsed||0)%60;
     if (j.overdue) {
-      setPanel('yellow', 'OVERDUE', `${j.name} • ${mins}:${secs.toString().padStart(2,'0')}`);
+      setPanel('yellow', 'OVERDUE', `${j.name} • ${mins}:${secs.toString().padStart(2,'0')}`, 'alarm');
     } else {
-      setPanel('red', 'IN USE', `${j.name} • ${mins}:${secs.toString().padStart(2,'0')}`);
+      setPanel('red', 'IN USE', `${j.name} • ${mins}:${secs.toString().padStart(2,'0')}`, 'timer');
     }
   } else {
-    setPanel('green', 'Available', 'Scan your badge or type your student ID and press Enter');
+    setPanel('green', 'Available', 'Scan your badge or type your student ID and press Enter', 'check_circle');
   }
 }
 

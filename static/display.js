@@ -1,6 +1,6 @@
 function setDisplay(inUse, name, elapsed, overdue, kioskSuspended) {
   const panel = document.getElementById('displayPanel');
-  panel.classList.remove('red','green','yellow');
+  panel.classList.remove('red', 'green', 'yellow');
   const icon = document.getElementById('displayIcon');
   const title = document.getElementById('displayTitle');
   const subtitle = document.getElementById('displaySubtitle');
@@ -8,9 +8,9 @@ function setDisplay(inUse, name, elapsed, overdue, kioskSuspended) {
   // Check if kiosk is suspended first
   if (kioskSuspended) {
     panel.classList.add('red');
-    document.body.classList.remove('bg-green','bg-yellow');
+    document.body.classList.remove('bg-green', 'bg-yellow');
     document.body.classList.add('bg-red');
-    icon.textContent = '🚫';
+    icon.textContent = 'block';
     title.textContent = 'KIOSK SUSPENDED';
     subtitle.textContent = 'Contact administrator to resume service';
     return;
@@ -18,18 +18,18 @@ function setDisplay(inUse, name, elapsed, overdue, kioskSuspended) {
 
   if (inUse) {
     panel.classList.add(overdue ? 'yellow' : 'red');
-    document.body.classList.remove('bg-green','bg-red','bg-yellow');
+    document.body.classList.remove('bg-green', 'bg-red', 'bg-yellow');
     document.body.classList.add(overdue ? 'bg-yellow' : 'bg-red');
-    icon.textContent = overdue ? '⏰' : '⛔';
+    icon.textContent = overdue ? 'alarm' : 'timer';
     title.textContent = overdue ? 'OVERDUE' : 'IN USE';
-    const mins = Math.floor((elapsed||0)/60);
-    const secs = (elapsed||0)%60;
-    subtitle.textContent = `${name} • ${mins}:${secs.toString().padStart(2,'0')}`;
+    const mins = Math.floor((elapsed || 0) / 60);
+    const secs = (elapsed || 0) % 60;
+    subtitle.textContent = `${name} • ${mins}:${secs.toString().padStart(2, '0')}`;
   } else {
     panel.classList.add('green');
-    document.body.classList.remove('bg-red','bg-yellow');
+    document.body.classList.remove('bg-red', 'bg-yellow');
     document.body.classList.add('bg-green');
-    icon.textContent = '✔';
+    icon.textContent = 'check_circle';
     title.textContent = 'Available';
     subtitle.textContent = 'Scan to check out';
   }
@@ -54,7 +54,7 @@ function startSSE() {
         setTimeout(connect, backoff);
         backoff = Math.min(maxBackoff, backoff * 2);
       };
-    } catch(e) {
+    } catch (e) {
       showOffline();
       setTimeout(connect, backoff);
       backoff = Math.min(maxBackoff, backoff * 2);
@@ -63,8 +63,8 @@ function startSSE() {
 
   function showOffline() {
     const panel = document.getElementById('displayPanel');
-    panel.classList.remove('red','green'); panel.classList.add('yellow');
-    document.getElementById('displayIcon').textContent = '⚠';
+    panel.classList.remove('red', 'green'); panel.classList.add('yellow');
+    document.getElementById('displayIcon').textContent = 'wifi_off';
     document.getElementById('displayTitle').textContent = 'Offline';
     document.getElementById('displaySubtitle').textContent = 'Trying to reconnect...';
   }
@@ -76,12 +76,12 @@ if ('EventSource' in window) {
   startSSE();
 } else {
   // fallback to polling
-  (async function poll(){
+  (async function poll() {
     try {
       const r = await fetch('/api/status');
       const j = await r.json();
       setDisplay(j.in_use, j.name || '', j.elapsed || 0, !!j.overdue, !!j.kiosk_suspended);
-    } catch(e) {}
+    } catch (e) { }
     setTimeout(poll, 1000);
   })();
 }

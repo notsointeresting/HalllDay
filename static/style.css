@@ -1,70 +1,217 @@
 :root {
-  --green: #00ff00;
-  --red: #ff0000;
-  --yellow: #ffdd00;
-  --bg: #101114;
-  --text: #f7f7f7;
+  /* Material 3 Color Tokens */
+  /* Green / Available */
+  --md-sys-color-primary-green: #006e1c;
+  --md-sys-color-on-primary-green: #ffffff;
+  --md-sys-color-primary-container-green: #94f990;
+  --md-sys-color-on-primary-container-green: #002204;
+  --md-sys-color-surface-green: #f5fbf0;
+
+  /* Red / In Use / Banned */
+  --md-sys-color-primary-red: #ba1a1a;
+  --md-sys-color-on-primary-red: #ffffff;
+  --md-sys-color-primary-container-red: #ffdad6;
+  --md-sys-color-on-primary-container-red: #410002;
+  --md-sys-color-surface-red: #fffbff;
+
+  /* Yellow / Processing / Overdue */
+  --md-sys-color-primary-yellow: #725c00;
+  --md-sys-color-on-primary-yellow: #ffffff;
+  --md-sys-color-primary-container-yellow: #ffe085;
+  --md-sys-color-on-primary-container-yellow: #231b00;
+  --md-sys-color-surface-yellow: #fffbf3;
+
+  /* Neutral / Dark Backgrounds */
+  --md-sys-color-scrim: #000000;
+  --surface-card: #ffffff;
+
+  /* State Colors (Full Screen Backgrounds) */
+  --bg-green: #2e7d32;
+  /* Deep Green */
+  --bg-red: #c62828;
+  /* Deep Red */
+  --bg-yellow: #f9a825;
+  /* Deep Amber */
+  --bg-default: #121212;
 }
-* { box-sizing: border-box; }
+
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-}
-header { padding: 8px 16px; border-bottom: 1px solid #2a2b2f; }
-h1 { font-size: 18px; margin: 0; opacity: 0.85; }
-
-.panel {
-  margin: 24px auto;
-  width: min(960px, 92vw);
-  border-radius: 16px;
-  padding: 48px 24px;
-  text-align: center;
-  background: #1a1b1f;
-  border: 2px solid #2a2b2f;
-  min-height: 40vh;
+  font-family: 'Roboto', sans-serif;
+  background-color: var(--bg-default);
+  color: #1c1b1f;
+  transition: background-color 0.6s cubic-bezier(0.4, 0.0, 0.2, 1);
+  min-height: 100vh;
   display: flex;
-  gap: 8px;
   flex-direction: column;
+}
+
+/* Full screen background states */
+body.bg-green {
+  background-color: var(--bg-green);
+}
+
+body.bg-red {
+  background-color: var(--bg-red);
+}
+
+body.bg-yellow {
+  background-color: var(--bg-yellow);
+}
+
+header {
+  padding: 16px 24px;
+  color: rgba(255, 255, 255, 0.9);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 10;
+}
+
+h1 {
+  font-size: 22px;
+  font-weight: 500;
+  margin: 0;
+  letter-spacing: 0.15px;
+}
+
+main {
+  flex: 1;
+  display: flex;
   align-items: center;
   justify-content: center;
-}
-.panel.full-bleed { width: 100vw; min-height: calc(100vh - 60px); border-radius: 0; margin: 0; border: none; }
-.panel.green { border-color: #00ff00; background: #00aa00; }
-.panel.red { border-color: #ff0000; background: #cc0000; }
-.panel.yellow { border-color: #ffdd00; background: #ff9900; animation: pulse 1.2s infinite; }
-
-/* Body-wide background swaps for maximum visibility */
-body.bg-green { background: #00aa00; }
-body.bg-red { background: #cc0000; }
-body.bg-yellow { background: #ff9900; }
-
-.icon { font-size: 72px; line-height: 1; opacity: 0.9; }
-#statusTitle, #displayTitle { font-size: 72px; margin: 8px 0 4px; font-weight: bold; }
-#statusSubtitle, #displaySubtitle { font-size: 36px; opacity: 0.9; font-weight: 600; }
-
-@keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(255, 221, 0, 0.7); }
-  70% { box-shadow: 0 0 0 12px rgba(255, 221, 0, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(255, 221, 0, 0); }
+  padding: 24px;
 }
 
+/* The Floating Card */
+.panel {
+  background: var(--surface-card);
+  border-radius: 28px;
+  padding: 48px;
+  width: min(600px, 90vw);
+  text-align: center;
+  box-shadow: 0 4px 8px 3px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* State-specific text styling inside the card */
+.panel.green {
+  color: var(--md-sys-color-primary-green);
+}
+
+.panel.red {
+  color: var(--md-sys-color-primary-red);
+}
+
+.panel.yellow {
+  color: var(--md-sys-color-primary-yellow);
+}
+
+/* Material Symbols */
+.icon {
+  font-family: 'Material Symbols Rounded';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 96px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+
+  margin-bottom: 8px;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Pulse animation for processing/yellow state */
+.panel.yellow .icon {
+  animation: spin-pulse 2s infinite;
+}
+
+@keyframes spin-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+#statusTitle,
+#displayTitle {
+  font-size: 48px;
+  /* Large but contained */
+  font-weight: 400;
+  margin: 0;
+  line-height: 1.2;
+}
+
+#statusSubtitle,
+#displaySubtitle {
+  font-size: 24px;
+  font-weight: 400;
+  opacity: 0.8;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Input hidden but functional */
 #hiddenInput {
   position: fixed;
   opacity: 0;
   pointer-events: none;
-  height: 0; 
-  width: 0;
   left: -9999px;
-  top: -9999px;
-  border: none;
-  background: transparent;
-  outline: none;
-  z-index: -1;
 }
 
-.helper { text-align: center; opacity: 0.6; font-size: 14px; }
-.admin { width: min(900px, 92vw); margin: 16px auto; }
-.students { columns: 2; gap: 24px; }
-.students li { list-style: none; padding: 2px 0; opacity: 0.9; }
+.helper {
+  position: absolute;
+  bottom: 24px;
+  width: 100%;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+}
+
+/* Admin styles */
+.admin {
+  background: #fff;
+  color: #000;
+  padding: 32px;
+  border-radius: 16px;
+  width: min(900px, 92vw);
+  margin: 32px auto;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.students {
+  columns: 2;
+  gap: 24px;
+}
+
+.students li {
+  list-style: none;
+  padding: 4px 0;
+  border-bottom: 1px solid #eee;
+}
