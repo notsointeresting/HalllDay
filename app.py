@@ -138,8 +138,15 @@ def initialize_database_if_needed():
             try:
                 test_count = Session.query.count()
                 print(f"Database test successful - found {test_count} sessions")
+                
+                # Run migrations to ensure schema is up to date
+                print("Running database migrations...")
+                msgs = run_migrations()
+                for msg in msgs:
+                    print(f"Migration: {msg}")
+                    
             except Exception as e:
-                print(f"ERROR: Database test query failed: {e}")
+                print(f"ERROR: Database test/migration failed: {e}")
                 raise
             
     except Exception as e:
