@@ -16,6 +16,8 @@ import sheets_logger
 import threading
 import requests
 from urllib.parse import urljoin
+from cryptography.fernet import Fernet
+import base64
 
 app = Flask(__name__)
 
@@ -28,11 +30,22 @@ app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=8)  # Admin sessions 
 db = SQLAlchemy(app)
 TZ = ZoneInfo(config.TIMEZONE)
 
+# Encryption Key Setup
+# We derive a Fernet key from the SECRET_KEY to ensure it's deterministic but secure
+# If SECRET_KEY is changed, the database will need to be cleared/re-uploaded
+def _get_encryption_key():
+    # Pad or truncate SECRET_KEY to 32 bytes for base64 encoding
+    key_material = app.config["SECRET_KEY"].encode()
+    # Use SHA256 to get 32 bytes
+    key_32 = hashlib.sha256(key_material).digest()
+    return base64.urlsafe_b64encode(key_32)
+
+cipher_suite = Fernet(_get_encryption_key())
+
 # FERPA-Compliant Memory Cache for Student Roster
-# This is not persistent storage - roster expires automatically
+# Kept for performance, but DB is now the persistent source of truth
 _memory_roster = {}
-_roster_expiry = None
-ROSTER_EXPIRY_HOURS = 24  # Roster expires after 24 hours for FERPA compliance
+
 
 # ---------- Models ----------
 
@@ -67,6 +80,7 @@ class StudentName(db.Model):
     """FERPA-compliant storage of student names only (no ID association)"""
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name_hash = db.Column(db.String, nullable=False, unique=True)  # Hash of student_id for lookup
+    encrypted_id = db.Column(db.String, nullable=True)   # Encrypted ID for admin retrieval
     display_name = db.Column(db.String, nullable=False)  # Actual name to display
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
     banned = db.Column(db.Boolean, nullable=False, default=False)  # Restroom ban flag
@@ -139,45 +153,25 @@ initialize_database_if_needed()
 
 # ---------- FERPA-Compliant Roster Utilities ----------
 
-def get_memory_roster():
-    """Get student roster from memory cache, checking expiry for FERPA compliance."""
-    global _memory_roster, _roster_expiry
-    
-    if _roster_expiry is None or datetime.now(timezone.utc) > _roster_expiry:
-        # Roster expired or never set - clear it for FERPA compliance
-        _memory_roster = {}
-        _roster_expiry = None
-        return {}
-    
-    return _memory_roster
-
-def set_memory_roster(roster_dict):
-    """Set student roster in memory cache with automatic expiry for FERPA compliance."""
-    global _memory_roster, _roster_expiry
-    
-    _memory_roster = roster_dict.copy()
-    _roster_expiry = datetime.now(timezone.utc) + timedelta(hours=ROSTER_EXPIRY_HOURS)
-
-def clear_memory_roster():
-    """Clear student roster from memory cache."""
-    global _memory_roster, _roster_expiry
-    
     _memory_roster = {}
-    _roster_expiry = None
 
 def _hash_student_id(student_id):
     """Create a hash of student ID for FERPA-compliant lookup"""
     return hashlib.sha256(f"student_{student_id}".encode()).hexdigest()[:16]
 
 def store_student_name_db(student_id, name):
-    """Store student name in database using hash for FERPA compliance"""
+    """Store student name in database using hash for lookup and encryption for retrieval"""
     try:
         name_hash = _hash_student_id(student_id)
+        # Encrypt the ID
+        encrypted_id = cipher_suite.encrypt(student_id.encode()).decode()
+        
         existing = StudentName.query.filter_by(name_hash=name_hash).first()
         if existing:
             existing.display_name = name
+            existing.encrypted_id = encrypted_id
         else:
-            student_name = StudentName(name_hash=name_hash, display_name=name)
+            student_name = StudentName(name_hash=name_hash, display_name=name, encrypted_id=encrypted_id)
             db.session.add(student_name)
         db.session.commit()
     except Exception as e:
@@ -207,40 +201,21 @@ def clear_all_student_names_db():
         db.session.rollback()
 
 def get_student_name(student_id, fallback="Student"):
-    """Get student name from session, memory, or database for FERPA compliance."""
-    # First try session roster (for admin session)
-    session_roster = session.get('student_roster', {})
-    name = session_roster.get(student_id)
-    if name:
-        return name
-    
-    # Then try memory roster (for display/kiosk from different sessions)
+    """Get student name from memory or database."""
+    # Try memory roster first (fastest)
     memory_roster = get_memory_roster()
     name = memory_roster.get(student_id)
     if name:
         return name
     
-    # Try database lookup (FERPA-compliant hashed lookup)
+    # Try database lookup (hashed lookup)
     name = get_student_name_db(student_id)
     if name:
+        # Cache it back to memory
+        memory_roster[student_id] = name
         return name
     
-    # If memory roster is empty but session roster has data, repopulate memory roster
-    # This handles server restarts where memory is lost but session persists
-    if len(memory_roster) == 0 and len(session_roster) > 0:
-        print(f"DEBUG: Repopulating memory roster from session ({len(session_roster)} students)")
-        set_memory_roster(session_roster)
-        # Try again with the repopulated memory roster
-        memory_roster = get_memory_roster()
-        name = memory_roster.get(student_id)
-        if name:
-            return name
-    
-    # Debug logging (remove in production)
-    if student_id and not name:
-        print(f"DEBUG: Student {student_id} not found. Session: {len(session_roster)}, Memory: {len(memory_roster)}, DB lookup attempted")
-    
-    return name or fallback
+    return fallback
 
 def is_student_banned(student_id):
     """Check if a student is banned from using the restroom."""
@@ -438,22 +413,9 @@ def admin():
     open_count = Session.query.filter_by(end_ts=None).count()
     settings = get_settings()
     
-    # FERPA Compliance: Get session-based and memory roster counts
-    session_roster = session.get('student_roster', {})
-    session_roster_count = len(session_roster)
-    memory_roster = get_memory_roster()
-    memory_roster_count = len(memory_roster)
-    
-    # Calculate memory roster expiry info
-    global _roster_expiry
-    memory_expires_in_hours = None
-    if _roster_expiry:
-        now = datetime.now(timezone.utc)
-        if _roster_expiry > now:
-            remaining = _roster_expiry - now
-            memory_expires_in_hours = round(remaining.total_seconds() / 3600, 1)
-        else:
-            memory_expires_in_hours = 0
+    # Roster counts
+    memory_roster_count = len(get_memory_roster())
+    db_roster_count = StudentName.query.count()
     
     # Sheets status/link for admin chip
     try:
@@ -472,9 +434,9 @@ def admin():
         settings=settings,
         sheets_status=sheets_status,
         sheets_link=sheets_link,
-        session_roster_count=session_roster_count,  # For FERPA-compliant display
+        sheets_link=sheets_link,
+        db_roster_count=db_roster_count,
         memory_roster_count=memory_roster_count,
-        memory_expires_in_hours=memory_expires_in_hours,
     )
 
 # ---------- Keep-alive (Render) ----------
@@ -892,19 +854,28 @@ def api_toggle_kiosk_suspend_quick():
 @app.get("/api/students")
 @require_admin_auth_api
 def api_get_students():
-    """Get list of all students with their ban status."""
+    """Get list of all students with their ban status from the database."""
     try:
-        # Get students from session roster and their ban status from database
-        session_roster = session.get('student_roster', {})
+        # Get all students from database
+        student_records = StudentName.query.all()
         students = []
         
-        for student_id, name in session_roster.items():
-            banned = is_student_banned(student_id)
-            students.append({
-                'id': student_id,
-                'name': name,
-                'banned': banned
-            })
+        for record in student_records:
+            # Decrypt ID if available
+            student_id = None
+            if record.encrypted_id:
+                try:
+                    student_id = cipher_suite.decrypt(record.encrypted_id.encode()).decode()
+                except Exception:
+                    # If decryption fails (e.g. key changed), skip or show placeholder
+                    student_id = f"ERR_{record.id}"
+            
+            if student_id:
+                students.append({
+                    'id': student_id,
+                    'name': record.display_name,
+                    'banned': record.banned
+                })
         
         # Sort alphabetically by name
         students.sort(key=lambda x: x['name'].lower())
@@ -1003,7 +974,7 @@ def api_auto_ban_overdue():
 @app.post("/api/upload_session_roster")
 @require_admin_auth_api
 def api_upload_session_roster():
-    """FERPA-compliant: Upload student roster to session only (not database)"""
+    """Upload student roster to database (encrypted) for persistent access."""
     try:
         if "file" not in request.files:
             return jsonify(ok=False, message="No file uploaded"), 400
@@ -1015,9 +986,14 @@ def api_upload_session_roster():
         text = f.stream.read().decode("utf-8", errors="ignore")
         reader = csv.reader(io.StringIO(text))
         
-        # Store roster in session only - FERPA compliant (no database interactions)
         student_roster = {}
         count = 0
+        
+        # Clear existing memory roster to force refresh
+        clear_memory_roster()
+        
+        # We don't clear the DB first - we upsert/add. 
+        # If user wants to clear, they should use the clear endpoint first.
         
         for row in reader:
             if not row or len(row) < 2:
@@ -1027,23 +1003,16 @@ def api_upload_session_roster():
                 continue
             student_roster[sid] = name
             count += 1
+            
+            # Store in DB (encrypted)
+            store_student_name_db(sid, name)
         
-        # Store roster in session, memory, and database for FERPA compliance
-        session['student_roster'] = student_roster
-        session.permanent = True
-        
-        # Also store in memory cache so display can access it (expires automatically)
+        # Populate memory cache for immediate performance
         set_memory_roster(student_roster)
         
-        # Store in database using hashed IDs for cross-session access
-        for student_id, name in student_roster.items():
-            store_student_name_db(student_id, name)
-        
-        # Debug logging (remove in production)
-        print(f"DEBUG: Roster uploaded - {count} students stored in session, memory, and database")
-        print(f"DEBUG: Memory roster now contains {len(get_memory_roster())} students")
+        print(f"DEBUG: Roster uploaded - {count} students stored in database (encrypted)")
             
-        return jsonify(ok=True, imported=count, message=f"Roster uploaded (FERPA compliant - hashed storage, expires in {ROSTER_EXPIRY_HOURS} hours)")
+        return jsonify(ok=True, imported=count, message=f"Roster uploaded successfully ({count} students). Data is encrypted and persistent.")
         
     except Exception as e:
         return jsonify(ok=False, message=f"Upload failed: {str(e)}"), 500
@@ -1117,11 +1086,10 @@ def api_debug_roster():
 @app.post("/api/clear_session_roster")
 @require_admin_auth_api
 def api_clear_session_roster():
-    """Clear session, memory, and database roster for FERPA compliance"""
-    session.pop('student_roster', None)
+    """Clear memory and database roster."""
     clear_memory_roster()
     clear_all_student_names_db()
-    return jsonify(ok=True, message="All rosters cleared (session, memory, and database)")
+    return jsonify(ok=True, message="All rosters cleared from database and memory")
 
 
 
@@ -1328,6 +1296,40 @@ def run_migrations():
             raise
     else:
         messages.append("auto_ban_overdue column already exists")
+
+    # Migration 4: ensure StudentName.encrypted_id exists
+    encrypted_id_exists = False
+    try:
+        res = db.session.execute(text(
+            """
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_name = 'student_name' AND column_name = 'encrypted_id'
+            """
+        ))
+        encrypted_id_exists = res.scalar() is not None
+    except Exception as e:
+        messages.append(f"Warning: encrypted_id column introspection failed: {e}; attempting ALTER TABLE…")
+
+    if not encrypted_id_exists:
+        messages.append("Adding encrypted_id column to student_name table")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        try:
+            with db.engine.begin() as conn:
+                conn.execute(text("ALTER TABLE student_name ADD COLUMN IF NOT EXISTS encrypted_id VARCHAR"))
+            messages.append("Added encrypted_id column successfully")
+        except Exception as e:
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+            messages.append(f"Failed to add encrypted_id column: {e}")
+            raise
+    else:
+        messages.append("encrypted_id column already exists")
 
     return messages
 
