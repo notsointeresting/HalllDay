@@ -426,31 +426,34 @@ def admin():
     open_count = Session.query.filter_by(end_ts=None).count()
     settings = get_settings()
     
-    # Roster counts
-    memory_roster_count = len(get_memory_roster())
-    db_roster_count = StudentName.query.count()
-    
-    # Sheets status/link for admin chip
     try:
-        sheets_status = sheets_logger.get_status()
-    except Exception:
-        sheets_status = "off"
-    sheets_link = None
-    if sheets_logger.sheets_enabled():
-        sid = os.getenv("GOOGLE_SHEETS_LOG_ID")
-        if sid:
-            sheets_link = f"https://docs.google.com/spreadsheets/d/{sid}/edit#gid=0"
-    return render_template(
-        "admin.html",
-        total=total,
-        open_count=open_count,
-        settings=settings,
-        sheets_status=sheets_status,
-        sheets_link=sheets_link,
-
-        db_roster_count=db_roster_count,
-        memory_roster_count=memory_roster_count,
-    )
+        # Roster counts
+        memory_roster_count = len(get_memory_roster())
+        db_roster_count = StudentName.query.count()
+        
+        # Sheets status/link for admin chip
+        try:
+            sheets_status = sheets_logger.get_status()
+        except Exception:
+            sheets_status = "off"
+        sheets_link = None
+        if sheets_logger.sheets_enabled():
+            sid = os.getenv("GOOGLE_SHEETS_LOG_ID")
+            if sid:
+                sheets_link = f"https://docs.google.com/spreadsheets/d/{sid}/edit#gid=0"
+        return render_template(
+            "admin.html",
+            total=total,
+            open_count=open_count,
+            settings=settings,
+            sheets_status=sheets_status,
+            sheets_link=sheets_link,
+            db_roster_count=db_roster_count,
+            memory_roster_count=memory_roster_count,
+        )
+    except Exception as e:
+        import traceback
+        return f"Admin Page Error: {str(e)} <br><pre>{traceback.format_exc()}</pre>", 500
 
 # ---------- Keep-alive (Render) ----------
 _keepalive_started = False
