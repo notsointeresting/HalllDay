@@ -153,6 +153,19 @@ initialize_database_if_needed()
 
 # ---------- FERPA-Compliant Roster Utilities ----------
 
+def get_memory_roster():
+    """Get student roster from memory cache."""
+    global _memory_roster
+    return _memory_roster
+
+def set_memory_roster(roster_dict):
+    """Set student roster in memory cache."""
+    global _memory_roster
+    _memory_roster = roster_dict.copy()
+
+def clear_memory_roster():
+    """Clear student roster from memory cache."""
+    global _memory_roster
     _memory_roster = {}
 
 def _hash_student_id(student_id):
