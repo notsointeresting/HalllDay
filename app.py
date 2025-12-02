@@ -156,8 +156,7 @@ def initialize_database_if_needed():
         print(f"Full traceback: {traceback.format_exc()}")
         # Don't re-raise - let the app try to start anyway
 
-# Run automatic initialization
-initialize_database_if_needed()
+
 
 # ---------- FERPA-Compliant Roster Utilities ----------
 
@@ -1494,3 +1493,6 @@ if __name__ == "__main__":
     with app.app_context():
         db.create_all()
     app.run(host="0.0.0.0", port=5001, debug=True)
+
+# Run automatic initialization (must be after all functions are defined)
+initialize_database_if_needed()
