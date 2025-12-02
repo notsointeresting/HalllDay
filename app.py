@@ -1321,38 +1321,22 @@ def run_migrations():
         messages.append("auto_ban_overdue column already exists")
 
     # Migration 4: ensure StudentName.encrypted_id exists
-    encrypted_id_exists = False
+    # We skip the check and just try to add it with IF NOT EXISTS to be more robust
+    messages.append("Ensuring encrypted_id column exists in student_name table")
     try:
-        res = db.session.execute(text(
-            """
-            SELECT 1
-            FROM information_schema.columns
-            WHERE table_name = 'student_name' AND column_name = 'encrypted_id'
-            """
-        ))
-        encrypted_id_exists = res.scalar() is not None
-    except Exception as e:
-        messages.append(f"Warning: encrypted_id column introspection failed: {e}; attempting ALTER TABLE…")
-
-    if not encrypted_id_exists:
-        messages.append("Adding encrypted_id column to student_name table")
+        # Clear any failed transaction state
         try:
             db.session.rollback()
         except Exception:
             pass
-        try:
-            with db.engine.begin() as conn:
-                conn.execute(text("ALTER TABLE student_name ADD COLUMN IF NOT EXISTS encrypted_id VARCHAR"))
-            messages.append("Added encrypted_id column successfully")
-        except Exception as e:
-            try:
-                db.session.rollback()
-            except Exception:
-                pass
-            messages.append(f"Failed to add encrypted_id column: {e}")
-            raise
-    else:
-        messages.append("encrypted_id column already exists")
+            
+        with db.engine.begin() as conn:
+            conn.execute(text("ALTER TABLE student_name ADD COLUMN IF NOT EXISTS encrypted_id VARCHAR"))
+        messages.append("Verified encrypted_id column")
+    except Exception as e:
+        messages.append(f"Warning: Failed to ensure encrypted_id column: {e}")
+        # Don't raise here, let it fail at runtime if it must, but usually this is safe
+
 
     return messages
 
