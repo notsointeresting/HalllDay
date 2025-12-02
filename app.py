@@ -1,5 +1,6 @@
 import csv
 import io
+import sys
 import os
 import json
 import time
@@ -1321,21 +1322,32 @@ def run_migrations():
         messages.append("auto_ban_overdue column already exists")
 
     # Migration 4: ensure StudentName.encrypted_id exists
-    # We skip the check and just try to add it with IF NOT EXISTS to be more robust
-    messages.append("Ensuring encrypted_id column exists in student_name table")
+    # Migration 4: ensure StudentName.encrypted_id exists
+    print("Migration 4: Checking encrypted_id column...", file=sys.stderr)
     try:
-        # Clear any failed transaction state
-        try:
-            db.session.rollback()
-        except Exception:
-            pass
-            
-        with db.engine.begin() as conn:
-            conn.execute(text("ALTER TABLE student_name ADD COLUMN IF NOT EXISTS encrypted_id VARCHAR"))
-        messages.append("Verified encrypted_id column")
+        # Use a raw connection and force commit
+        with db.engine.connect() as conn:
+            # Check if column exists first to avoid unnecessary DDL
+            res = conn.execute(text(
+                "SELECT column_name FROM information_schema.columns WHERE table_name='student_name' AND column_name='encrypted_id'"
+            ))
+            if res.scalar():
+                print("Migration 4: encrypted_id column already exists.", file=sys.stderr)
+                messages.append("encrypted_id column already exists")
+            else:
+                print("Migration 4: Adding encrypted_id column...", file=sys.stderr)
+                # Force autocommit isolation level for DDL if needed, or just execute
+                conn.execute(text("ALTER TABLE student_name ADD COLUMN IF NOT EXISTS encrypted_id VARCHAR"))
+                conn.commit()
+                print("Migration 4: Successfully added encrypted_id column.", file=sys.stderr)
+                messages.append("Added encrypted_id column successfully")
+                
     except Exception as e:
-        messages.append(f"Warning: Failed to ensure encrypted_id column: {e}")
-        # Don't raise here, let it fail at runtime if it must, but usually this is safe
+        err_msg = f"CRITICAL MIGRATION FAILURE: Failed to add encrypted_id column: {e}"
+        print(err_msg, file=sys.stderr)
+        messages.append(err_msg)
+        # We must raise here because the app cannot function without this column
+        raise e
 
 
     return messages
