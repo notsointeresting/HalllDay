@@ -447,7 +447,7 @@ def admin():
         settings=settings,
         sheets_status=sheets_status,
         sheets_link=sheets_link,
-        sheets_link=sheets_link,
+
         db_roster_count=db_roster_count,
         memory_roster_count=memory_roster_count,
     )
