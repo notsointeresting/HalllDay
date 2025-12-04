@@ -7,6 +7,8 @@ import time
 import hashlib
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
+from typing import Dict, Optional, List, Any, Tuple
+from functools import wraps
 
 from flask import Flask, jsonify, render_template, request, redirect, url_for, send_file, Response, stream_with_context, session, flash
 from flask_sqlalchemy import SQLAlchemy
@@ -19,6 +21,11 @@ import requests
 from urllib.parse import urljoin
 from cryptography.fernet import Fernet
 import base64
+
+# Import services
+from services.roster import RosterService
+from services.ban import BanService
+from services.session import SessionService
 
 app = Flask(__name__)
 
@@ -86,6 +93,20 @@ class StudentName(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
     banned = db.Column(db.Boolean, nullable=False, default=False)  # Restroom ban flag
 
+# ---------- Service Initialization ----------
+# Initialize services after models are defined
+roster_service: Optional[RosterService] = None
+ban_service: Optional[BanService] = None
+session_service: Optional[SessionService] = None
+
+def initialize_services():
+    """Initialize service layer after app context is available"""
+    global roster_service, ban_service, session_service
+    roster_service = RosterService(db, cipher_suite, StudentName)
+    ban_service = BanService(db, StudentName, roster_service)
+    session_service = SessionService(db, Session)
+    print("Services initialized successfully")
+
 # Create tables after models are defined (works under Gunicorn too)
 STATIC_VERSION = os.getenv("STATIC_VERSION", str(int(time.time())))
 
@@ -101,6 +122,9 @@ def initialize_database_if_needed():
             print("Creating database tables...")
             db.create_all()
             print("Tables created successfully")
+            
+            # Initialize services
+            initialize_services()
             
             # Check if Settings table exists and has data
             settings_exists = False
@@ -158,28 +182,43 @@ def initialize_database_if_needed():
 
 
 
+# ---------- Error Handling Utilities ----------
+
+def handle_db_errors(f):
+    """Decorator to handle database errors consistently."""
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except Exception as e:
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+            return jsonify(ok=False, message=str(e)), 500
+    return wrapper
+
 # ---------- FERPA-Compliant Roster Utilities ----------
 
-def get_memory_roster():
+def get_memory_roster() -> Dict[str, str]:
     """Get student roster from memory cache."""
-    global _memory_roster
-    return _memory_roster
+    return roster_service.get_memory_roster() if roster_service else {}
 
-def set_memory_roster(roster_dict):
+def set_memory_roster(roster_dict: Dict[str, str]) -> None:
     """Set student roster in memory cache."""
-    global _memory_roster
-    _memory_roster = roster_dict.copy()
+    if roster_service:
+        roster_service.set_memory_roster(roster_dict)
 
-def clear_memory_roster():
+def clear_memory_roster() -> None:
     """Clear student roster from memory cache."""
-    global _memory_roster
-    _memory_roster = {}
+    if roster_service:
+        roster_service.clear_memory_roster()
 
-def _hash_student_id(student_id):
+def _hash_student_id(student_id: str) -> str:
     """Create a hash of student ID for FERPA-compliant lookup"""
     return hashlib.sha256(f"student_{student_id}".encode()).hexdigest()[:16]
 
-def store_student_name_db(student_id, name):
+def store_student_name_db(student_id: str, name: str) -> None:
     """Store student name in database using hash for lookup and encryption for retrieval"""
     try:
         name_hash = _hash_student_id(student_id)
@@ -201,7 +240,7 @@ def store_student_name_db(student_id, name):
         except Exception:
             pass
 
-def get_student_name_db(student_id):
+def get_student_name_db(student_id: str) -> Optional[str]:
     """Get student name from database using hash lookup"""
     try:
         name_hash = _hash_student_id(student_id)
@@ -220,97 +259,38 @@ def clear_all_student_names_db():
         print(f"DEBUG: Error clearing student names: {e}")
         db.session.rollback()
 
-def get_student_name(student_id, fallback="Student"):
+def get_student_name(student_id: str, fallback: str = "Student") -> str:
     """Get student name from memory or database."""
-    # Try memory roster first (fastest)
-    memory_roster = get_memory_roster()
-    name = memory_roster.get(student_id)
-    if name:
-        return name
-    
-    # Try database lookup (hashed lookup)
-    name = get_student_name_db(student_id)
-    if name:
-        # Cache it back to memory
-        memory_roster[student_id] = name
-        return name
-    
-    return fallback
+    return roster_service.get_student_name(student_id, fallback) if roster_service else fallback
 
-def is_student_banned(student_id):
+def is_student_banned(student_id: str) -> bool:
     """Check if a student is banned from using the restroom."""
-    try:
-        name_hash = _hash_student_id(student_id)
-        student_name = StudentName.query.filter_by(name_hash=name_hash).first()
-        return student_name.banned if student_name else False
-    except Exception as e:
-        print(f"DEBUG: Error checking ban status for {student_id}: {e}")
-        return False
+    return ban_service.is_student_banned(student_id) if ban_service else False
 
-def set_student_banned(student_id, banned_status):
+def set_student_banned(student_id: str, banned_status: bool) -> bool:
     """Ban or unban a student from using the restroom."""
-    try:
-        name_hash = _hash_student_id(student_id)
-        student_name = StudentName.query.filter_by(name_hash=name_hash).first()
-        if student_name:
-            student_name.banned = banned_status
-            db.session.commit()
-            return True
-        return False
-    except Exception as e:
-        print(f"DEBUG: Error setting ban status for {student_id}: {e}")
-        try:
-            db.session.rollback()
-        except Exception:
-            pass
-        return False
+    return ban_service.set_student_banned(student_id, banned_status) if ban_service else False
 
-def get_overdue_students():
+def get_overdue_students() -> List[Dict[str, Any]]:
     """Get list of students who are currently overdue."""
+    if not ban_service or not session_service:
+        return []
     try:
         settings = get_settings()
-        overdue_minutes = settings["overdue_minutes"]
-        overdue_seconds = overdue_minutes * 60
-        
-        open_sessions = get_open_sessions()
-        overdue_list = []
-        
-        for session_obj in open_sessions:
-            if session_obj.duration_seconds > overdue_seconds:
-                student_name = get_student_name(session_obj.student_id, "Student")
-                is_banned = is_student_banned(session_obj.student_id)
-                
-                overdue_list.append({
-                    'student_id': session_obj.student_id,
-                    'name': student_name,
-                    'duration_seconds': session_obj.duration_seconds,
-                    'duration_minutes': round(session_obj.duration_seconds / 60, 1),
-                    'start_ts': session_obj.start_ts.isoformat(),
-                    'banned': is_banned,
-                    'session_id': session_obj.id
-                })
-        
-        return overdue_list
+        open_sessions = session_service.get_open_sessions()
+        return ban_service.get_overdue_students(open_sessions, settings["overdue_minutes"])
     except Exception as e:
         print(f"DEBUG: Error getting overdue students: {e}")
         return []
 
-def auto_ban_overdue_students():
+def auto_ban_overdue_students() -> Dict[str, Any]:
     """Automatically ban students who are currently overdue."""
+    if not ban_service or not session_service:
+        return {'count': 0, 'students': []}
     try:
-        overdue_list = get_overdue_students()
-        banned_count = 0
-        banned_students = []
-        
-        for student in overdue_list:
-            if not student['banned']:  # Only ban if not already banned
-                success = set_student_banned(student['student_id'], True)
-                if success:
-                    banned_count += 1
-                    banned_students.append(student['name'])
-                    print(f"DEBUG: Auto-banned {student['name']} ({student['student_id']}) for being overdue {student['duration_minutes']} minutes")
-        
-        return {'count': banned_count, 'students': banned_students}
+        settings = get_settings()
+        open_sessions = session_service.get_open_sessions()
+        return ban_service.auto_ban_overdue_students(open_sessions, settings["overdue_minutes"])
     except Exception as e:
         print(f"DEBUG: Error auto-banning overdue students: {e}")
         return {'count': 0, 'students': []}
@@ -324,20 +304,12 @@ def to_local(dt_utc):
     return dt_utc.astimezone(TZ)
 
 def get_open_sessions():
-    try:
-        return Session.query.filter_by(end_ts=None).order_by(Session.start_ts.asc()).all()
-    except Exception as e:
-        # Handle database transaction errors
-        print(f"DEBUG: Database error in get_open_sessions, rolling back: {e}")
-        db.session.rollback()
-        try:
-            return Session.query.filter_by(end_ts=None).order_by(Session.start_ts.asc()).all()
-        except Exception:
-            return []
+    """Get all currently open sessions"""
+    return session_service.get_open_sessions() if session_service else []
 
 def get_current_holder():
-    open_sessions = get_open_sessions()
-    return open_sessions[0] if open_sessions else None
+    """Get the first student currently holding the pass"""
+    return session_service.get_current_holder() if session_service else None
 
 def auto_end_expired():
     # No-op: we no longer auto-end. Overdue is indicated in UI and CSV export.
@@ -577,9 +549,20 @@ def api_scan():
     open_sessions = get_open_sessions()
 
     # If this student currently holds the pass, end their session
-    # Allow banned students to scan back in to end their active session
+    # Check if auto-ban is enabled and student is overdue BEFORE ending session
     for s in open_sessions:
         if s.student_id == code:
+            # Check if student is overdue and auto-ban is enabled
+            settings = get_settings()
+            if settings.get("auto_ban_overdue", False):
+                overdue_seconds = settings["overdue_minutes"] * 60
+                if s.duration_seconds > overdue_seconds:
+                    # Auto-ban this student for being overdue
+                    if not is_student_banned(code):
+                        set_student_banned(code, True)
+                        print(f"AUTO-BAN ON SCAN-BACK: {student_name} ({code}) was overdue {round(s.duration_seconds / 60, 1)} minutes")
+            
+            # End the session
             s.end_ts = now_utc()
             s.ended_by = "kiosk_scan"
             db.session.commit()
@@ -633,15 +616,6 @@ def api_status():
     auto_end_expired()
     settings = get_settings()
     
-    # Automatic ban check if enabled
-    if settings.get("auto_ban_overdue", False):
-        try:
-            result = auto_ban_overdue_students()
-            if result['count'] > 0:
-                print(f"AUTO-BAN: Banned {result['count']} overdue student(s): {', '.join(result['students'])}")
-        except Exception as e:
-            print(f"DEBUG: Error in auto-ban check: {e}")
-    
     s = get_current_holder()
     overdue_minutes = settings["overdue_minutes"]
     kiosk_suspended = settings["kiosk_suspended"]
@@ -663,15 +637,6 @@ def sse_events():
         last_payload = None
         while True:
             settings = get_settings()
-            
-            # Automatic ban check if enabled
-            if settings.get("auto_ban_overdue", False):
-                try:
-                    result = auto_ban_overdue_students()
-                    if result['count'] > 0:
-                        print(f"AUTO-BAN (SSE): Banned {result['count']} overdue student(s): {', '.join(result['students'])}")
-                except Exception as e:
-                    print(f"DEBUG: Error in SSE auto-ban check: {e}")
             
             s = get_current_holder()
             overdue_minutes = settings["overdue_minutes"]
@@ -876,121 +841,111 @@ def api_toggle_kiosk_suspend_quick():
 
 @app.get("/api/students")
 @require_admin_auth_api
+@handle_db_errors
 def api_get_students():
     """Get list of all students with their ban status from the database."""
-    try:
-        # Get all students from database
-        student_records = StudentName.query.all()
-        students = []
+    # Get all students from database
+    student_records = StudentName.query.all()
+    students = []
+    
+    for record in student_records:
+        # Decrypt ID if available
+        student_id = None
+        if record.encrypted_id:
+            try:
+                student_id = cipher_suite.decrypt(record.encrypted_id.encode()).decode()
+            except Exception:
+                # If decryption fails (e.g. key changed), skip or show placeholder
+                student_id = f"ERR_{record.id}"
         
-        for record in student_records:
-            # Decrypt ID if available
-            student_id = None
-            if record.encrypted_id:
-                try:
-                    student_id = cipher_suite.decrypt(record.encrypted_id.encode()).decode()
-                except Exception:
-                    # If decryption fails (e.g. key changed), skip or show placeholder
-                    student_id = f"ERR_{record.id}"
-            
-            if student_id:
-                students.append({
-                    'id': student_id,
-                    'name': record.display_name,
-                    'banned': record.banned
-                })
-        
-        # Sort alphabetically by name
-        students.sort(key=lambda x: x['name'].lower())
-        
-        return jsonify(ok=True, students=students, count=len(students))
-    except Exception as e:
-        return jsonify(ok=False, message=str(e)), 500
+        if student_id:
+            students.append({
+                'id': student_id,
+                'name': record.display_name,
+                'banned': record.banned
+            })
+    
+    # Sort alphabetically by name
+    students.sort(key=lambda x: x['name'].lower())
+    
+    return jsonify(ok=True, students=students, count=len(students))
 
 @app.post("/api/ban_student")
 @require_admin_auth_api
+@handle_db_errors
 def api_ban_student():
     """Ban a student from using the restroom."""
-    try:
-        payload = request.get_json(silent=True) or {}
-        student_id = payload.get('student_id', '').strip()
-        
-        if not student_id:
-            return jsonify(ok=False, message="No student ID provided"), 400
-        
-        # Get student name to confirm they exist
-        student_name = get_student_name(student_id)
-        if student_name == "Student":
-            return jsonify(ok=False, message="Student not found in roster"), 404
-        
-        # Set ban status
-        success = set_student_banned(student_id, True)
-        
-        if success:
-            return jsonify(ok=True, message=f"{student_name} banned from restroom", student_id=student_id)
-        else:
-            return jsonify(ok=False, message="Failed to ban student"), 500
-    except Exception as e:
-        return jsonify(ok=False, message=str(e)), 500
+    payload = request.get_json(silent=True) or {}
+    student_id = payload.get('student_id', '').strip()
+    
+    if not student_id:
+        return jsonify(ok=False, message="No student ID provided"), 400
+    
+    # Get student name to confirm they exist
+    student_name = get_student_name(student_id)
+    if student_name == "Student":
+        return jsonify(ok=False, message="Student not found in roster"), 404
+    
+    # Set ban status
+    success = set_student_banned(student_id, True)
+    
+    if success:
+        return jsonify(ok=True, message=f"{student_name} banned from restroom", student_id=student_id)
+    else:
+        return jsonify(ok=False, message="Failed to ban student"), 500
 
 @app.post("/api/unban_student")
 @require_admin_auth_api
+@handle_db_errors
 def api_unban_student():
     """Unban a student from using the restroom."""
-    try:
-        payload = request.get_json(silent=True) or {}
-        student_id = payload.get('student_id', '').strip()
-        
-        if not student_id:
-            return jsonify(ok=False, message="No student ID provided"), 400
-        
-        # Get student name to confirm they exist
-        student_name = get_student_name(student_id)
-        if student_name == "Student":
-            return jsonify(ok=False, message="Student not found in roster"), 404
-        
-        # Remove ban status
-        success = set_student_banned(student_id, False)
-        
-        if success:
-            return jsonify(ok=True, message=f"{student_name} unbanned from restroom", student_id=student_id)
-        else:
-            return jsonify(ok=False, message="Failed to unban student"), 500
-    except Exception as e:
-        return jsonify(ok=False, message=str(e)), 500
+    payload = request.get_json(silent=True) or {}
+    student_id = payload.get('student_id', '').strip()
+    
+    if not student_id:
+        return jsonify(ok=False, message="No student ID provided"), 400
+    
+    # Get student name to confirm they exist
+    student_name = get_student_name(student_id)
+    if student_name == "Student":
+        return jsonify(ok=False, message="Student not found in roster"), 404
+    
+    # Remove ban status
+    success = set_student_banned(student_id, False)
+    
+    if success:
+        return jsonify(ok=True, message=f"{student_name} unbanned from restroom", student_id=student_id)
+    else:
+        return jsonify(ok=False, message="Failed to unban student"), 500
 
 @app.get("/api/overdue_students")
 @require_admin_auth_api
+@handle_db_errors
 def api_get_overdue_students():
     """Get list of students who are currently overdue."""
-    try:
-        overdue_list = get_overdue_students()
-        settings = get_settings()
-        
-        return jsonify(
-            ok=True, 
-            students=overdue_list, 
-            count=len(overdue_list),
-            overdue_threshold_minutes=settings["overdue_minutes"]
-        )
-    except Exception as e:
-        return jsonify(ok=False, message=str(e)), 500
+    overdue_list = get_overdue_students()
+    settings = get_settings()
+    
+    return jsonify(
+        ok=True, 
+        students=overdue_list, 
+        count=len(overdue_list),
+        overdue_threshold_minutes=settings["overdue_minutes"]
+    )
 
 @app.post("/api/auto_ban_overdue")
 @require_admin_auth_api
+@handle_db_errors
 def api_auto_ban_overdue():
     """Manually trigger auto-ban for all students who are currently overdue."""
-    try:
-        result = auto_ban_overdue_students()
-        
-        return jsonify(
-            ok=True, 
-            message=f"Manually banned {result['count']} overdue student(s)",
-            banned_count=result['count'],
-            students=result['students']
-        )
-    except Exception as e:
-        return jsonify(ok=False, message=str(e)), 500
+    result = auto_ban_overdue_students()
+    
+    return jsonify(
+        ok=True, 
+        message=f"Manually banned {result['count']} overdue student(s)",
+        banned_count=result['count'],
+        students=result['students']
+    )
 
 
 
@@ -1057,31 +1012,18 @@ def api_get_session_roster():
 @require_admin_auth_api
 def api_get_memory_roster_status():
     """Get memory roster status for admin display"""
-    global _roster_expiry
     memory_roster = get_memory_roster()
     
     status = {
         'count': len(memory_roster),
         'active': len(memory_roster) > 0,
-        'expiry': _roster_expiry.isoformat() if _roster_expiry else None,
-        'expires_in_hours': None
     }
-    
-    if _roster_expiry:
-        now = datetime.now(timezone.utc)
-        if _roster_expiry > now:
-            remaining = _roster_expiry - now
-            status['expires_in_hours'] = round(remaining.total_seconds() / 3600, 1)
-        else:
-            status['expires_in_hours'] = 0
     
     return jsonify(ok=True, **status)
 
 @app.get("/api/debug_roster")
 def api_debug_roster():
     """Debug endpoint to check roster status (no auth required for testing)"""
-    global _roster_expiry, _memory_roster
-    
     # Get current session holder
     s = get_current_holder()
     student_id = s.student_id if s else None
@@ -1097,8 +1039,6 @@ def api_debug_roster():
         'current_student_id': student_id,
         'session_roster_count': len(session_roster),
         'memory_roster_count': len(memory_roster),
-        'memory_roster_expired': _roster_expiry is None or datetime.now(timezone.utc) > _roster_expiry if _roster_expiry else True,
-        'expiry_time': _roster_expiry.isoformat() if _roster_expiry else None,
         'test_student_name': test_name,
         'memory_roster_sample': dict(list(memory_roster.items())[:3]) if memory_roster else {},
         'session_roster_sample': dict(list(session_roster.items())[:3]) if session_roster else {}
