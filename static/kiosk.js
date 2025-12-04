@@ -151,6 +151,14 @@ function processCode(code) {
     } else if (j.ok && j.action === 'ended') {
       setPanel('green', 'Returned', `${j.name} is back`, 'check_circle');
       beep(1000, 120);
+      // Auto-reset to idle after 5 seconds
+      resetTimeout = setTimeout(async () => {
+        try {
+          const sr = await fetch('/api/status');
+          const sj = await sr.json();
+          setFromStatus(sj);
+        } catch (e) { }
+      }, 5000);
     } else {
       setPanel('yellow', 'Check Scanner', j.message || 'Unknown response', 'help');
     }
