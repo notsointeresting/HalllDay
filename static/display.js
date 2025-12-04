@@ -11,8 +11,8 @@ function setDisplay(inUse, name, elapsed, overdue, kioskSuspended) {
     document.body.classList.remove('bg-green', 'bg-yellow');
     document.body.classList.add('bg-red');
     icon.textContent = 'block';
-    title.textContent = 'KIOSK SUSPENDED';
-    subtitle.textContent = 'Contact administrator to resume service';
+    title.textContent = 'Suspended';
+    subtitle.textContent = 'Ask Admin';
     return;
   }
 
@@ -21,7 +21,7 @@ function setDisplay(inUse, name, elapsed, overdue, kioskSuspended) {
     document.body.classList.remove('bg-green', 'bg-red', 'bg-yellow');
     document.body.classList.add(overdue ? 'bg-yellow' : 'bg-red');
     icon.textContent = overdue ? 'alarm' : 'timer';
-    title.textContent = overdue ? 'OVERDUE' : 'IN USE';
+    title.textContent = overdue ? 'Overdue' : 'In Use';
     const mins = Math.floor((elapsed || 0) / 60);
     const secs = (elapsed || 0) % 60;
     subtitle.textContent = `${name} • ${mins}:${secs.toString().padStart(2, '0')}`;

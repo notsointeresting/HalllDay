@@ -1,38 +1,36 @@
 :root {
-  /* Material 3 Color Tokens */
-  /* Green / Available */
-  --md-sys-color-primary-green: #006e1c;
-  --md-sys-color-on-primary-green: #ffffff;
-  --md-sys-color-primary-container-green: #94f990;
-  --md-sys-color-on-primary-container-green: #002204;
-  --md-sys-color-surface-green: #f5fbf0;
+  /* 
+   * Material 3 Expressive Color Tokens 
+   * High contrast, vibrant, fun.
+   */
 
-  /* Red / In Use / Banned */
-  --md-sys-color-primary-red: #ba1a1a;
-  --md-sys-color-on-primary-red: #ffffff;
-  --md-sys-color-primary-container-red: #ffdad6;
-  --md-sys-color-on-primary-container-red: #410002;
-  --md-sys-color-surface-red: #fffbff;
+  /* Green / Available - Friendly, inviting */
+  --color-green-primary: #2e7d32;
+  /* Deep vibrant green */
+  --color-green-container: #b8f397;
+  /* Bright lime-ish green */
+  --color-green-on-container: #002105;
+  --bg-green: #e6f5e1;
+  /* Very pale green background */
 
-  /* Yellow / Processing / Overdue */
-  --md-sys-color-primary-yellow: #725c00;
-  --md-sys-color-on-primary-yellow: #ffffff;
-  --md-sys-color-primary-container-yellow: #ffe085;
-  --md-sys-color-on-primary-container-yellow: #231b00;
-  --md-sys-color-surface-yellow: #fffbf3;
+  /* Red / In Use / Banned - Urgent but not scary (unless banned) */
+  --color-red-primary: #c62828;
+  --color-red-container: #ffdad6;
+  --color-red-on-container: #410002;
+  --bg-red: #fceeee;
 
-  /* Neutral / Dark Backgrounds */
-  --md-sys-color-scrim: #000000;
-  --surface-card: #ffffff;
+  /* Yellow / Overdue / Processing - Attention grabbing */
+  --color-yellow-primary: #f9a825;
+  --color-yellow-container: #ffe082;
+  --color-yellow-on-container: #261900;
+  --bg-yellow: #fff8e1;
 
-  /* State Colors (Full Screen Backgrounds) */
-  --bg-green: #2e7d32;
-  /* Deep Green */
-  --bg-red: #c62828;
-  /* Deep Red */
-  --bg-yellow: #f9a825;
-  /* Deep Amber */
-  --bg-default: #121212;
+  /* Neutral */
+  --color-surface: #ffffff;
+  --color-on-surface: #1c1b1f;
+
+  /* Typography */
+  --font-family: 'Outfit', sans-serif;
 }
 
 * {
@@ -41,16 +39,19 @@
 
 body {
   margin: 0;
-  font-family: 'Roboto', sans-serif;
-  background-color: var(--bg-default);
-  color: #1c1b1f;
-  transition: background-color 0.6s cubic-bezier(0.4, 0.0, 0.2, 1);
+  font-family: var(--font-family);
+  background-color: var(--bg-green);
+  /* Default start */
+  color: var(--color-on-surface);
+  transition: background-color 0.8s cubic-bezier(0.2, 0.0, 0, 1);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  /* Prevent scrollbars during animations */
 }
 
-/* Full screen background states */
+/* Background States */
 body.bg-green {
   background-color: var(--bg-green);
 }
@@ -64,20 +65,21 @@ body.bg-yellow {
 }
 
 header {
-  padding: 16px 24px;
-  color: rgba(255, 255, 255, 0.9);
+  padding: 24px 32px;
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   z-index: 10;
+  opacity: 0.6;
 }
 
 h1 {
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 500;
   margin: 0;
-  letter-spacing: 0.15px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
 }
 
 main {
@@ -86,98 +88,120 @@ main {
   align-items: center;
   justify-content: center;
   padding: 24px;
+  position: relative;
 }
 
-/* The Floating Card */
-.panel {
-  background: var(--surface-card);
-  border-radius: 28px;
-  padding: 48px;
+/* 
+ * Expressive Container 
+ * This replaces the old "card". It's a large colored shape.
+ */
+.expressive-container {
   width: min(600px, 90vw);
-  text-align: center;
-  box-shadow: 0 4px 8px 3px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.3);
+  height: min(600px, 90vw);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  justify-content: center;
+  text-align: center;
+  padding: 48px;
+  transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  z-index: 1;
+
+  /* Default Shape: Squircle-ish */
+  border-radius: 48px;
 }
 
-/* State-specific text styling inside the card */
-.panel.green {
-  color: var(--md-sys-color-primary-green);
+/* State Styles for the Container */
+
+/* GREEN: Scalloped Circle / Flower-like */
+.expressive-container.green {
+  background-color: var(--color-green-container);
+  color: var(--color-green-on-container);
+  /* Complex border radius to make a wobbly circle */
+  border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+  animation: breathe 6s ease-in-out infinite;
 }
 
-.panel.red {
-  color: var(--md-sys-color-primary-red);
+/* RED: Pill / Rounded Rectangle */
+.expressive-container.red {
+  background-color: var(--color-red-container);
+  color: var(--color-red-on-container);
+  border-radius: 120px;
+  /* Pill shape */
+  width: min(500px, 85vw);
+  /* Slightly narrower */
+  height: min(700px, 85vh);
+  /* Taller */
 }
 
-.panel.yellow {
-  color: var(--md-sys-color-primary-yellow);
+/* YELLOW: Starburst / Jagged */
+.expressive-container.yellow {
+  background-color: var(--color-yellow-container);
+  color: var(--color-yellow-on-container);
+  border-radius: 20px;
+  /* Using clip-path for a starburst effect would be cool, but border-radius is safer for text flow. 
+     Let's stick to a "tense" shape. */
+  border-radius: 45% 55% 40% 60% / 55% 40% 60% 45%;
+  animation: pulse-alert 1s infinite;
 }
 
-/* Material Symbols */
+/* Typography inside container */
+.status-title {
+  font-size: clamp(3rem, 8vw, 5rem);
+  font-weight: 700;
+  line-height: 1;
+  margin: 0 0 16px 0;
+  letter-spacing: -0.02em;
+}
+
+.status-subtitle {
+  font-size: clamp(1.2rem, 3vw, 1.5rem);
+  font-weight: 400;
+  opacity: 0.8;
+  margin: 0;
+  max-width: 80%;
+  line-height: 1.4;
+}
+
+/* Iconography */
 .icon {
   font-family: 'Material Symbols Rounded';
-  font-weight: normal;
-  font-style: normal;
   font-size: 96px;
-  line-height: 1;
-  letter-spacing: normal;
-  text-transform: none;
-  display: inline-block;
-  white-space: nowrap;
-  word-wrap: normal;
-  direction: ltr;
-  -webkit-font-feature-settings: 'liga';
-  font-feature-settings: 'liga';
-  -webkit-font-smoothing: antialiased;
-
-  margin-bottom: 8px;
-  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  margin-bottom: 24px;
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 48;
 }
 
-/* Pulse animation for processing/yellow state */
-.panel.yellow .icon {
-  animation: spin-pulse 2s infinite;
-}
+/* Animations */
+@keyframes breathe {
 
-@keyframes spin-pulse {
-  0% {
+  0%,
+  100% {
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
     transform: scale(1);
-    opacity: 1;
   }
 
   50% {
-    transform: scale(1.1);
-    opacity: 0.8;
+    border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes pulse-alert {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.03);
   }
 
   100% {
     transform: scale(1);
-    opacity: 1;
   }
 }
 
-#statusTitle,
-#displayTitle {
-  font-size: 48px;
-  /* Large but contained */
-  font-weight: 400;
-  margin: 0;
-  line-height: 1.2;
-}
-
-#statusSubtitle,
-#displaySubtitle {
-  font-size: 24px;
-  font-weight: 400;
-  opacity: 0.8;
-  margin: 0;
-  line-height: 1.4;
-}
-
-/* Input hidden but functional */
+/* Input hidden */
 #hiddenInput {
   position: fixed;
   opacity: 0;
@@ -190,19 +214,19 @@ main {
   bottom: 24px;
   width: 100%;
   text-align: center;
-  color: rgba(255, 255, 255, 0.7);
+  opacity: 0.5;
   font-size: 14px;
 }
 
-/* Admin styles */
+/* Admin Panel - Keep it clean but use new font */
 .admin {
   background: #fff;
   color: #000;
   padding: 32px;
-  border-radius: 16px;
+  border-radius: 24px;
   width: min(900px, 92vw);
   margin: 32px auto;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
 .students {
@@ -212,6 +236,7 @@ main {
 
 .students li {
   list-style: none;
-  padding: 4px 0;
+  padding: 8px 0;
   border-bottom: 1px solid #eee;
+  font-size: 16px;
 }

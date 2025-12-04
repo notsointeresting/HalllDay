@@ -8,13 +8,13 @@ function setPanel(state, title, subtitle, icon) {
   panel.classList.remove('red', 'yellow', 'green');
   panel.classList.add(state);
   // swap body bg for visibility
-  document.body.classList.remove('bg-green','bg-red','bg-yellow');
+  document.body.classList.remove('bg-green', 'bg-red', 'bg-yellow');
   if (state === 'green') document.body.classList.add('bg-green');
   if (state === 'red') document.body.classList.add('bg-red');
   if (state === 'yellow') document.body.classList.add('bg-yellow');
   document.getElementById('statusTitle').textContent = title;
   document.getElementById('statusSubtitle').textContent = subtitle || '';
-  
+
   // Update icon if provided, otherwise infer from state
   const iconEl = panel.querySelector('.icon');
   if (icon) {
@@ -27,7 +27,7 @@ function setPanel(state, title, subtitle, icon) {
   }
 }
 
-function beep(freq=880, ms=120) {
+function beep(freq = 880, ms = 120) {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const o = ctx.createOscillator();
@@ -35,8 +35,8 @@ function beep(freq=880, ms=120) {
     o.connect(g); g.connect(ctx.destination);
     o.frequency.value = freq; o.type = 'sine';
     o.start();
-    setTimeout(()=>{o.stop(); ctx.close();}, ms);
-  } catch {}
+    setTimeout(() => { o.stop(); ctx.close(); }, ms);
+  } catch { }
 }
 
 let denyTimeout;
@@ -47,33 +47,33 @@ async function toggleKioskSuspension() {
   try {
     const response = await fetch('/api/toggle_kiosk_suspend_quick', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'}
+      headers: { 'Content-Type': 'application/json' }
     });
-    
+
     const result = await response.json();
-    
+
     if (response.ok && result.ok) {
       // Show success message
       const status = result.suspended ? 'SUSPENDED' : 'RESUMED';
-      setPanel(result.suspended ? 'red' : 'green', 
-               `Kiosk ${status}`, 
-               result.message || `Kiosk has been ${status.toLowerCase()}`,
-               result.suspended ? 'block' : 'check_circle');
+      setPanel(result.suspended ? 'red' : 'green',
+        result.suspended ? 'Suspended' : 'Resumed',
+        result.message || `Kiosk is ${status.toLowerCase()}`,
+        result.suspended ? 'block' : 'check_circle');
       beep(result.suspended ? 400 : 800, 200);
-      
+
       // Refresh status after 2 seconds
       setTimeout(async () => {
         try {
           const sr = await fetch('/api/status');
           const sj = await sr.json();
           setFromStatus(sj);
-        } catch(e) {}
+        } catch (e) { }
       }, 2000);
     } else {
       // Show error
       alert(result.message || 'Failed to toggle kiosk suspension');
     }
-  } catch(e) {
+  } catch (e) {
     console.error('Error toggling kiosk suspension:', e);
     alert('Network error - could not toggle kiosk suspension');
   }
@@ -83,21 +83,21 @@ async function toggleKioskSuspension() {
 function processCode(code) {
   if (!code) return;
 
-  setPanel('yellow', 'Pass Recognized!', 'Processing...', 'hourglass_empty');
+  setPanel('yellow', 'Processing', 'Checking pass...', 'hourglass_empty');
 
   fetch('/api/scan', {
     method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({code})
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code })
   }).then(async r => {
     let j = {};
-    try { j = await r.json(); } catch(e) {}
+    try { j = await r.json(); } catch (e) { }
     if (!r.ok) {
       console.error('scan error', r.status, j);
       if (r.status === 403 && j.action === 'banned') {
         // BANNED STUDENT - Show scary red warning with loud beep
         clearTimeout(resetTimeout);
-        setPanel('red', '🚫 RESTROOM BANNED 🚫', j.message || 'RESTROOM PRIVILEGES SUSPENDED - SEE TEACHER', 'block');
+        setPanel('red', 'BANNED', j.message || 'See Teacher', 'block');
         // Super loud scary beep (low frequency, long duration)
         beep(150, 800);  // Very low pitch, very long duration
         setTimeout(() => beep(150, 800), 900);  // Double beep for emphasis
@@ -108,22 +108,22 @@ function processCode(code) {
             const sr = await fetch('/api/status');
             const sj = await sr.json();
             setFromStatus(sj);
-          } catch(e) {}
+          } catch (e) { }
         }, 5000);  // 5 seconds to give teacher time to see
       } else if (r.status === 403) {
-        setPanel('red', 'KIOSK SUSPENDED', j.message || 'Contact administrator to resume service.', 'block');
+        setPanel('red', 'Suspended', j.message || 'Ask Admin', 'block');
         beep(200, 300);
       } else if (r.status === 404) {
         // Unknown student ID
         clearTimeout(resetTimeout);
-        setPanel('yellow', 'Student not recognized', (j.message || 'Please try again.'), 'help'); 
+        setPanel('yellow', 'Not Found', (j.message || 'Try again'), 'help');
         beep(220, 220);
         resetTimeout = setTimeout(async () => {
           try {
             const sr = await fetch('/api/status');
             const sj = await sr.json();
             setFromStatus(sj);
-          } catch(e) {}
+          } catch (e) { }
         }, 3500);
       } else {
         clearTimeout(resetTimeout);
@@ -133,25 +133,23 @@ function processCode(code) {
             const sr = await fetch('/api/status');
             const sj = await sr.json();
             setFromStatus(sj);
-          } catch(e) {}
+          } catch (e) { }
         }, 3500);
       }
       return;
     }
     if (!j.ok && j.action === 'denied') {
       clearTimeout(denyTimeout);
-      setPanel('red', 'IN USE', j.message, 'timer');
-      denyTimeout = setTimeout(() => {
-        setPanel('red', 'IN USE', 'Please wait until the pass is returned.', 'timer');
-      }, 2500);
+      setPanel('red', 'In Use', 'Wait for return', 'timer');
+
       beep(200, 200);
       return;
     }
     if (j.ok && j.action === 'started') {
-      setPanel('red', 'IN USE', `${j.name} is out. Scan to return.`, 'timer');
+      setPanel('red', 'In Use', `${j.name} is out`, 'timer');
       beep(700, 100);
     } else if (j.ok && j.action === 'ended') {
-      setPanel('green', 'Available', `${j.name} returned.`, 'check_circle');
+      setPanel('green', 'Returned', `${j.name} is back`, 'check_circle');
       beep(1000, 120);
     } else {
       setPanel('yellow', 'Check Scanner', j.message || 'Unknown response', 'help');
@@ -170,7 +168,7 @@ document.addEventListener('keydown', (e) => {
     toggleKioskSuspension();
     return;
   }
-  
+
   if (e.key === 'Enter') {
     const code = buffer.trim();
     buffer = '';
@@ -188,41 +186,41 @@ document.addEventListener('keydown', (e) => {
 setInterval(() => hidden.focus(), 3000);
 
 // Subscribe to status via SSE to mirror display behavior (full-bleed colors + elapsed/overdue)
-function setFromStatus(j){
+function setFromStatus(j) {
   if (j.kiosk_suspended) {
-    setPanel('red', 'KIOSK SUSPENDED', 'Contact administrator to resume service.', 'block');
+    setPanel('red', 'Suspended', 'Ask Admin', 'block');
     return;
   }
-  
+
   if (j.in_use) {
-    const mins = Math.floor((j.elapsed||0)/60);
-    const secs = (j.elapsed||0)%60;
+    const mins = Math.floor((j.elapsed || 0) / 60);
+    const secs = (j.elapsed || 0) % 60;
     if (j.overdue) {
-      setPanel('yellow', 'OVERDUE', `${j.name} • ${mins}:${secs.toString().padStart(2,'0')}`, 'alarm');
+      setPanel('yellow', 'Overdue', `${j.name} • ${mins}:${secs.toString().padStart(2, '0')}`, 'alarm');
     } else {
-      setPanel('red', 'IN USE', `${j.name} • ${mins}:${secs.toString().padStart(2,'0')}`, 'timer');
+      setPanel('red', 'In Use', `${j.name} • ${mins}:${secs.toString().padStart(2, '0')}`, 'timer');
     }
   } else {
-    setPanel('green', 'Available', 'Scan your badge or type your student ID and press Enter', 'check_circle');
+    setPanel('green', 'Scan Badge', 'Ready for next student', 'check_circle');
   }
 }
 
 if ('EventSource' in window) {
-  try{
+  try {
     const es = new EventSource('/events');
-    es.onmessage = (evt)=>{
-      const j = JSON.parse(evt.data||'{}');
+    es.onmessage = (evt) => {
+      const j = JSON.parse(evt.data || '{}');
       setFromStatus(j);
     };
-  }catch(e){/* no-op */}
+  } catch (e) {/* no-op */ }
 } else {
   // fallback polling
-  (async function poll(){
+  (async function poll() {
     try {
       const r = await fetch('/api/status');
       const j = await r.json();
       setFromStatus(j);
-    } catch(e) {}
+    } catch (e) { }
     setTimeout(poll, 1000);
   })();
 }

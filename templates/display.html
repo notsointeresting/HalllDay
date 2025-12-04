@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="panel full-bleed" id="displayPanel">
+<div class="expressive-container green" id="displayPanel">
   <div class="icon" id="displayIcon">check_circle</div>
-  <h2 id="displayTitle">Available</h2>
-  <p id="displaySubtitle">Scan to check out</p>
-</section>
+  <h2 id="displayTitle" class="status-title">Available</h2>
+  <p id="displaySubtitle" class="status-subtitle">Scan to check out</p>
+</div>
 <script src="{{ url_for('static', filename='display.js') }}?v={{ static_version }}"></script>
 {% endblock %}
