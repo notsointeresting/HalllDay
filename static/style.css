@@ -10,20 +10,22 @@
   --color-green-container: #b8f397;
   /* Bright lime-ish green */
   --color-green-on-container: #002105;
-  --bg-green: #e6f5e1;
-  /* Very pale green background */
+  --bg-green: #81c784;
+  /* Much more visible green */
 
   /* Red / In Use / Banned - Urgent but not scary (unless banned) */
   --color-red-primary: #c62828;
   --color-red-container: #ffdad6;
   --color-red-on-container: #410002;
-  --bg-red: #fceeee;
+  --bg-red: #e57373;
+  /* Much more visible red */
 
   /* Yellow / Overdue / Processing - Attention grabbing */
   --color-yellow-primary: #f9a825;
   --color-yellow-container: #ffe082;
   --color-yellow-on-container: #261900;
-  --bg-yellow: #fff8e1;
+  --bg-yellow: #fff176;
+  /* Much more visible yellow */
 
   /* Neutral */
   --color-surface: #ffffff;
@@ -47,8 +49,8 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  /* Prevent scrollbars during animations */
+  overflow-x: hidden;
+  /* Prevent horizontal scrollbars during animations, allow vertical */
 }
 
 /* Background States */
@@ -156,12 +158,13 @@ main {
 }
 
 .status-subtitle {
-  font-size: clamp(1.2rem, 3vw, 1.5rem);
-  font-weight: 400;
-  opacity: 0.8;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  /* Significantly larger */
+  font-weight: 500;
+  opacity: 0.9;
   margin: 0;
-  max-width: 80%;
-  line-height: 1.4;
+  max-width: 90%;
+  line-height: 1.2;
 }
 
 /* Iconography */
