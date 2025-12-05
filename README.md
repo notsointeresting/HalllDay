@@ -1,236 +1,82 @@
-# Hall Pass Tracker
+# HalllDay - Hall Pass Tracker
 
-A simple Flask web application that allows students to scan their ID badges to check hall passes in and out. Features a kiosk interface for scanning, a display screen for status monitoring, and an admin panel for management.
+A modern, FERPA-compliant digital hall pass system designed for classrooms. Built with Flask and Material 3 Expressive Design, it prioritizes student data privacy and engaging user interactions.
 
-## Features
+## Key Features
 
-- **Kiosk Interface**: Students scan their ID to check passes in/out
-- **Display Screen**: Shows current status (available/in use/overdue) 
-- **Admin Panel**: Manage students, view analytics, suspend/resume kiosk
-- **CSV Export**: Download daily session logs
-- **Real-time Updates**: Live status updates via Server-Sent Events
-- **Configurable**: Set room name, capacity, overdue thresholds
+- **Smart Scanning**: Fast check-in/out via barcode scanner or numpad.
+- **Privacy First (FERPA)**: Student IDs are hashed for lookup and encrypted at rest. No PII is exposed in plain text.
+- **Material 3 Design**: Beautiful, responsive interface with expressive animations and color-coded states (Available, In Use, Overdue).
+- **Real-time Sync**: Instant status updates across Kiosk and Display screens via Server-Sent Events (SSE).
+- **Google Sheets Integration**: Automatic logging of sessions to Google Sheets for external auditing.
+- **Auto-Ban**: Configurable automatic banning of students who exceed time limits.
 
-## Quick Start (Local Development)
+## Quick Start (Local)
 
-```bash
-# Clone and setup
-git clone <your-repo-url>
-cd hallpass-tracker
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+1.  **Clone and Setup**:
+    ```bash
+    git clone <your-repo-url>
+    cd HalllDay
+    python -m venv .venv
+    source .venv/bin/activate  # Windows: .venv\Scripts\activate
+    pip install -r requirements.txt
+    ```
 
-# Initialize database and import sample students
-flask --app app.py init-db
+2.  **Initialize Database**:
+    ```bash
+    flask --app app.py init-db
+    ```
 
-# Run development server
-flask --app app.py run --debug
-```
+3.  **Run Development Server**:
+    ```bash
+    flask --app app.py run --debug
+    ```
 
-**Access the application:**
-- `http://localhost:5000/kiosk` - Scanning interface for students
-- `http://localhost:5000/display` - Status display for monitors/projectors  
-- `http://localhost:5000/admin` - Admin management panel (requires passcode)
+4.  **Access the App**:
+    -   **Kiosk**: `http://localhost:5000/kiosk` (Student facing)
+    -   **Display**: `http://localhost:5000/display` (Classroom facing)
+    -   **Admin**: `http://localhost:5000/admin` (Teacher control)
 
 ## Configuration
 
-The app uses environment variables for configuration. Set these in your deployment environment:
+Configure the application using environment variables.
 
 | Variable | Description | Default |
-|----------|-------------|---------|
-| `DATABASE_URL` | Database connection string | `sqlite:///instance/hallpass.db` |
-| `HALLPASS_SECRET_KEY` | Flask secret key (change in production!) | `change-me-in-production` |
-| `HALLPASS_ADMIN_PASSCODE` | Admin panel access passcode | `admin123` |
-| `HALLPASS_ROOM_NAME` | Display name for the room/location | `Hall Pass` |
-| `HALLPASS_CAPACITY` | Max students out simultaneously | `1` |
-| `HALLPASS_MAX_MINUTES` | Minutes before marking overdue | `12` |
-| `HALLPASS_TIMEZONE` | Timezone for displays and exports | `America/Chicago` |
+| :--- | :--- | :--- |
+| `HALLPASS_SECRET_KEY` | **CRITICAL**: Used for encryption. Change in production. | `change-me-in-production` |
+| `HALLPASS_ADMIN_PASSCODE` | Passcode for the admin panel. | `admin123` |
+| `HALLPASS_ROOM_NAME` | Name displayed on the screen. | `Hall Pass` |
+| `HALLPASS_CAPACITY` | Max students allowed out at once. | `1` |
+| `HALLPASS_MAX_MINUTES` | Threshold for "Overdue" status (minutes). | `12` |
+| `DATABASE_URL` | Database connection string. | `sqlite:///instance/hallpass.db` |
+| `GOOGLE_SHEETS_LOG_ID` | (Optional) Sheet ID for logging sessions. | `None` |
+| `GOOGLE_APPLICATION_CREDENTIALS_JSON` | (Optional) JSON content of Google Service Account. | `None` |
 
-## Cloud Deployment
+## Deployment
 
 ### Render.com (Recommended)
+1.  Fork this repo.
+2.  Create a **Web Service** on Render (Python 3).
+3.  **Build Command**: `pip install -r requirements.txt`
+4.  **Start Command**: `gunicorn app:app`
+5.  Set your Environment Variables in the dashboard.
+6.  Add a **PostgreSQL** database (optional but recommended for persistence).
 
-1. **Fork this repository** to your GitHub account
+## Admin Manual
 
-2. **Create a new Web Service** on Render:
-   - Connect your GitHub repository
-   - Choose "Python" as the environment
-   - Build command: `pip install -r requirements.txt`
-   - Start command: `gunicorn app:app`
+### Roster Management
+Upload a CSV file (`id, name`) in the Admin Panel. 
+-   **Security**: Names are **encrypted** before being stored in the database.
+-   **Lookup**: Student IDs are **hashed** to allow private lookups without storing plain IDs.
 
-3. **Set Environment Variables** in Render dashboard:
-   ```
-   HALLPASS_SECRET_KEY=your-secret-key-here-make-it-long-and-random
-   HALLPASS_ROOM_NAME=Your Room Name Here
-   HALLPASS_CAPACITY=1
-   HALLPASS_MAX_MINUTES=10
-   HALLPASS_TIMEZONE=America/New_York
-   ```
+### Kiosk Control
+-   **Suspend**: Temporarily disable the kiosk (e.g., during tests).
+-   **Override**: Manually end a session if a student forgets to scan back in.
+-   **Bans**: Manually ban specific students from using the pass (viewable in Admin panel).
 
-4. **Add PostgreSQL Database** (recommended for production):
-   - Add a PostgreSQL add-on in Render
-   - The `DATABASE_URL` will be automatically set
-
-5. **Initialize Database**: After first deploy, run in Render shell:
-   ```bash
-   flask --app app.py init-db
-   ```
-
-   **For existing deployments** (if you get database column errors), run:
-   ```bash
-   flask --app app.py migrate
-   ```
-
-### Railway
-
-1. **Deploy from GitHub**:
-   - Connect your repository
-   - Railway will auto-detect Python and deploy
-
-2. **Set Environment Variables**:
-   ```
-   HALLPASS_SECRET_KEY=your-secret-key
-   HALLPASS_ROOM_NAME=Your Room Name
-   ```
-
-3. **Add PostgreSQL**: Add PostgreSQL service, `DATABASE_URL` will be set automatically
-
-### Heroku
-
-1. **Create Heroku app**:
-   ```bash
-   heroku create your-app-name
-   heroku addons:create heroku-postgresql:mini
-   ```
-
-2. **Set config vars**:
-   ```bash
-   heroku config:set HALLPASS_SECRET_KEY=your-secret-key
-   heroku config:set HALLPASS_ROOM_NAME="Your Room Name"
-   ```
-
-3. **Deploy**:
-   ```bash
-   git push heroku main
-   heroku run flask --app app.py init-db
-   ```
-
-   **For existing deployments**, run:
-   ```bash
-   heroku run flask --app app.py migrate
-   ```
-
-### Generic Linux VPS
-
-1. **Install dependencies**:
-   ```bash
-   sudo apt update
-   sudo apt install python3 python3-pip python3-venv nginx
-   ```
-
-2. **Setup application**:
-   ```bash
-   git clone <your-repo>
-   cd hallpass-tracker
-   python3 -m venv venv
-   source venv/bin/activate
-   pip install -r requirements.txt
-   ```
-
-3. **Set environment variables** in `/etc/environment` or `.bashrc`:
-   ```bash
-   export HALLPASS_SECRET_KEY="your-secret-key"
-   export HALLPASS_ROOM_NAME="Your Room Name"
-   export DATABASE_URL="sqlite:////path/to/your/app/instance/hallpass.db"
-   ```
-
-4. **Initialize database**:
-   ```bash
-   flask --app app.py init-db
-   ```
-
-   **For existing deployments**:
-   ```bash
-   flask --app app.py migrate
-   ```
-
-5. **Setup systemd service** (`/etc/systemd/system/hallpass.service`):
-   ```ini
-   [Unit]
-   Description=Hall Pass Tracker
-   After=network.target
-
-   [Service]
-   User=www-data
-   WorkingDirectory=/path/to/hallpass-tracker
-   Environment=PATH=/path/to/hallpass-tracker/venv/bin
-   ExecStart=/path/to/hallpass-tracker/venv/bin/gunicorn --bind 127.0.0.1:8000 app:app
-   Restart=always
-
-   [Install]
-   WantedBy=multi-user.target
-   ```
-
-6. **Configure Nginx** as reverse proxy:
-   ```nginx
-   server {
-       listen 80;
-       server_name your-domain.com;
-       
-       location / {
-           proxy_pass http://127.0.0.1:8000;
-           proxy_set_header Host $host;
-           proxy_set_header X-Real-IP $remote_addr;
-       }
-   }
-   ```
-
-## Student Roster Management
-
-Upload a CSV file with two columns: `id,name`
-- The `id` should match what your barcode scanner outputs
-- Most barcode scanners automatically send an "Enter" key after scanning
-
-Example CSV:
-```csv
-123456,John Smith
-789012,Jane Doe
-345678,Bob Johnson
-```
-
-## Usage Notes
-
-- **Barcode Scanners**: Most USB barcode scanners work as keyboard input devices
-- **Capacity**: Can be set higher than 1 to allow multiple students out simultaneously  
-- **Suspension**: Admins can suspend the kiosk to prevent new checkouts
-- **Real-time**: Status updates automatically across all connected displays
-- **Mobile Friendly**: All interfaces work on tablets and mobile devices
-
-## Troubleshooting
-
-### Database Column Errors
-
-If you see errors like `column settings.kiosk_suspended does not exist` during deployment, this means you're upgrading from an older version. Run the migration command:
-
-**Render/Heroku/Railway:**
-```bash
-flask --app app.py migrate
-```
-
-**Local development:**
-```bash
-source .venv/bin/activate  # or .venv\Scripts\activate on Windows
-flask --app app.py migrate
-```
-
-### Common Issues
-
-- **Barcode scanner not working**: Ensure the scanner is in "keyboard emulation" mode
-- **Time zone issues**: Set the `HALLPASS_TIMEZONE` environment variable to your local timezone
-- **Database connection errors**: Check your `DATABASE_URL` environment variable
-- **Permission errors on Linux**: Ensure proper file permissions for the database file
-
-## Support
-
-This application is designed to run on any modern Python hosting platform. The SQLite database works great for small to medium schools, but PostgreSQL is recommended for larger deployments or high availability requirements.
+### Google Sheets Logging
+To enable remote logging:
+1.  Create a Google Service Account and download the JSON key.
+2.  Share your Google Sheet with the Service Account email.
+3.  Set `GOOGLE_SHEETS_LOG_ID` to your Sheet ID.
+4.  Set `GOOGLE_APPLICATION_CREDENTIALS_JSON` to the *content* of your JSON key file.
