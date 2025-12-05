@@ -151,6 +151,38 @@ main {
   animation: pulse-alert 1s infinite;
 }
 
+/* PROCESSING: Subtle Gradient Morph */
+.expressive-container.processing {
+  background: linear-gradient(135deg, var(--color-surface), var(--color-green-container));
+  background-size: 200% 200%;
+  color: var(--color-on-surface);
+  border-radius: 50%;
+  /* Circle-ish */
+  width: min(300px, 50vw);
+  /* Smaller */
+  min-height: min(300px, 50vw);
+  animation: gradient-flow 2s ease infinite, breathe-fast 1s ease-in-out infinite;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+
+.expressive-container.processing .status-title {
+  display: none;
+  /* Hide title */
+}
+
+.expressive-container.processing .status-subtitle {
+  font-size: 1.5rem;
+  /* Smaller text */
+  opacity: 0.7;
+}
+
+.expressive-container.processing .icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  animation: spin 1.5s linear infinite;
+}
+
+
 /* Typography inside container */
 .status-title {
   font-size: clamp(3rem, 8vw, 5rem);
@@ -207,6 +239,38 @@ main {
 
   100% {
     transform: scale(1);
+  }
+}
+
+@keyframes gradient-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes breathe-fast {
+
+  0%,
+  100% {
+    transform: scale(0.95);
+  }
+
+  50% {
+    transform: scale(1.0);
+  }
+}
+
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
   }
 }
 

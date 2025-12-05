@@ -27,17 +27,85 @@ function setPanel(state, title, subtitle, icon) {
   }
 }
 
-function beep(freq = 880, ms = 120) {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.connect(g); g.connect(ctx.destination);
-    o.frequency.value = freq; o.type = 'sine';
-    o.start();
-    setTimeout(() => { o.stop(); ctx.close(); }, ms);
-  } catch { }
-}
+// Sound System using Web Audio API for expressive, non-fatiguing sounds
+const SoundSystem = {
+  ctx: null,
+
+  init() {
+    if (!this.ctx) {
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+  },
+
+  // Play a tone with ADSR envelope
+  playTone(freq, type, duration, startTime = 0, volume = 0.1) {
+    this.init();
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, this.ctx.currentTime + startTime);
+
+    gain.gain.setValueAtTime(0, this.ctx.currentTime + startTime);
+    gain.gain.linearRampToValueAtTime(volume, this.ctx.currentTime + startTime + 0.05); // Attack
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + startTime + duration); // Decay
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(this.ctx.currentTime + startTime);
+    osc.stop(this.ctx.currentTime + startTime + duration);
+  },
+
+  // Happy, rising major scale chime (For "Go", "Success")
+  playSuccessOut() {
+    this.playTone(523.25, 'sine', 0.6, 0.0); // C5
+    this.playTone(659.25, 'sine', 0.6, 0.1); // E5
+    this.playTone(783.99, 'sine', 0.8, 0.2); // G5
+  },
+
+  // Grounding, resolving chime (For "Return", "Back")
+  playSuccessIn() {
+    this.playTone(783.99, 'sine', 0.5, 0.0); // G5
+    this.playTone(659.25, 'sine', 0.5, 0.1); // E5
+    this.playTone(523.25, 'sine', 0.8, 0.2); // C5
+  },
+
+  // Softer warning chord (For errors, unknown ID)
+  playError() {
+    this.init();
+    // Play a diminished triad for uncertainty/error
+    this.playTone(300, 'triangle', 0.4, 0.0, 0.15);
+    this.playTone(350, 'triangle', 0.4, 0.05, 0.15); // Dissonant
+  },
+
+  // Severe warning (Banned)
+  playAlert() {
+    this.init();
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(100, this.ctx.currentTime + 0.5); // Slide down
+
+    gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.8);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.8);
+  },
+
+  // Subtle interaction sound
+  playProcessing() {
+    this.playTone(800, 'sine', 0.1, 0, 0.05);
+  }
+};
+
 
 let denyTimeout;
 let resetTimeout;
@@ -59,7 +127,9 @@ async function toggleKioskSuspension() {
         result.suspended ? 'Suspended' : 'Resumed',
         result.message || `Kiosk is ${status.toLowerCase()}`,
         result.suspended ? 'block' : 'check_circle');
-      beep(result.suspended ? 400 : 800, 200);
+
+      if (result.suspended) SoundSystem.playError();
+      else SoundSystem.playSuccessIn(); // Sounds like "system restored"
 
       // Refresh status after 2 seconds
       setTimeout(async () => {
@@ -83,7 +153,17 @@ async function toggleKioskSuspension() {
 function processCode(code) {
   if (!code) return;
 
-  setPanel('yellow', 'Processing', 'Checking pass...', 'hourglass_empty');
+  // New Processing State: "processing" class instead of yellow
+  const panel = document.getElementById('statusPanel');
+  panel.className = 'expressive-container processing';
+
+  // Minimal text for processing
+  document.getElementById('statusTitle').textContent = '';
+  document.getElementById('statusSubtitle').textContent = 'Scanning...';
+  // Use a spinner or hourglass
+  panel.querySelector('.icon').textContent = 'hourglass_top';
+
+  SoundSystem.playProcessing();
 
   fetch('/api/scan', {
     method: 'POST',
@@ -95,13 +175,13 @@ function processCode(code) {
     if (!r.ok) {
       console.error('scan error', r.status, j);
       if (r.status === 403 && j.action === 'banned') {
-        // BANNED STUDENT - Show scary red warning with loud beep
+        // BANNED STUDENT - Show scary red warning
         clearTimeout(resetTimeout);
         setPanel('red', 'BANNED', j.message || 'See Teacher', 'block');
-        // Super loud scary beep (low frequency, long duration)
-        beep(150, 800);  // Very low pitch, very long duration
-        setTimeout(() => beep(150, 800), 900);  // Double beep for emphasis
-        setTimeout(() => beep(150, 800), 1800);  // Triple beep!
+
+        SoundSystem.playAlert();
+        setTimeout(() => SoundSystem.playAlert(), 600);
+
         // Hold message for longer so teacher can see
         resetTimeout = setTimeout(async () => {
           try {
@@ -109,15 +189,15 @@ function processCode(code) {
             const sj = await sr.json();
             setFromStatus(sj);
           } catch (e) { }
-        }, 5000);  // 5 seconds to give teacher time to see
+        }, 5000);
       } else if (r.status === 403) {
         setPanel('red', 'Suspended', j.message || 'Ask Admin', 'block');
-        beep(200, 300);
+        SoundSystem.playError();
       } else if (r.status === 404) {
         // Unknown student ID
         clearTimeout(resetTimeout);
         setPanel('yellow', 'Not Found', (j.message || 'Try again'), 'help');
-        beep(220, 220);
+        SoundSystem.playError();
         resetTimeout = setTimeout(async () => {
           try {
             const sr = await fetch('/api/status');
@@ -128,6 +208,7 @@ function processCode(code) {
       } else {
         clearTimeout(resetTimeout);
         setPanel('yellow', 'Service issue', j.message || `Status ${r.status}`, 'warning');
+        SoundSystem.playError();
         resetTimeout = setTimeout(async () => {
           try {
             const sr = await fetch('/api/status');
@@ -141,16 +222,15 @@ function processCode(code) {
     if (!j.ok && j.action === 'denied') {
       clearTimeout(denyTimeout);
       setPanel('red', 'In Use', 'Wait for return', 'timer');
-
-      beep(200, 200);
+      SoundSystem.playError();
       return;
     }
     if (j.ok && j.action === 'started') {
       setPanel('red', 'In Use', `${j.name} is out`, 'timer');
-      beep(700, 100);
+      SoundSystem.playSuccessOut();
     } else if (j.ok && j.action === 'ended') {
       setPanel('green', 'Returned', `${j.name} is back`, 'check_circle');
-      beep(1000, 120);
+      SoundSystem.playSuccessIn();
       // Auto-reset to idle after 5 seconds
       resetTimeout = setTimeout(async () => {
         try {
@@ -161,10 +241,12 @@ function processCode(code) {
       }, 5000);
     } else {
       setPanel('yellow', 'Check Scanner', j.message || 'Unknown response', 'help');
+      SoundSystem.playError();
     }
   }).catch(e => {
     console.error('network error', e);
     setPanel('yellow', 'Network issue', 'Try again.', 'wifi_off');
+    SoundSystem.playError();
   });
 }
 
