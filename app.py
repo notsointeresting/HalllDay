@@ -642,7 +642,8 @@ def api_stats_week():
     per_student = {}
     for r in rows:
         sid = r.student_id
-        name = r.student.name
+        # Prefer roster name over Student table name (fixes Anonymous entries)
+        name = get_student_name(sid, r.student.name)
         if sid not in per_student:
             per_student[sid] = {"name": name, "count": 0, "overdue": 0}
         per_student[sid]["count"] += 1
@@ -885,8 +886,14 @@ def api_upload_session_roster():
         
         # Populate memory cache for immediate performance
         set_memory_roster(student_roster)
+        
+        # Update any Anonymous students with real names from the roster
+        updated_count = roster_service.update_anonymous_students(Student)
             
-        return jsonify(ok=True, imported=count, message=f"Roster uploaded successfully ({count} students).")
+        msg = f"Roster uploaded successfully ({count} students)."
+        if updated_count > 0:
+            msg += f" Updated {updated_count} previously anonymous entries."
+        return jsonify(ok=True, imported=count, updated_anonymous=updated_count, message=msg)
         
     except Exception as e:
         return jsonify(ok=False, message=f"Upload failed: {str(e)}"), 500
