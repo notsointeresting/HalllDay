@@ -2,11 +2,20 @@
 
 This document tracks the planned development phases for HalllDay, moving from version 1.9 to 2.0.
 
+---
+
+## Current Focus
+
+**Status:** Phase 1, Goal 2 — Stats Page & "Anonymous" Students  
+**Note:** While implementing Goal 2, keep an eye toward laying the groundwork for Phase 2 (2.0) architecture, but do not begin full 2.0 implementation yet.
+
+---
+
 ## Phase 1: Version 1.9 - Material 3 UI & Improved Stats
 
 **Goal:** Enhance the visual identity using Material 3 Expressive UI and improve data fidelity in statistics.
 
-### 1. Material 3 Expressive UI
+### 1. Material 3 Expressive UI ✅ COMPLETE
 Use the assets and guidelines in `design_system/` to overhaul the frontend.
 - [x] **Design System Integration**:
     - Update `style.css` to define CSS variables for Material 3 colors (primary, secondary, tertiary, surface, error, etc.) based on the provided design kit.
@@ -23,7 +32,7 @@ Use the assets and guidelines in `design_system/` to overhaul the frontend.
     - Add entrance animations for text and icons.
     - Increase contrast and saturation for better visibility from a distance.
 
-### 2. Stats Page & "Anonymous" Students
+### 2. Stats Page & "Anonymous" Students 🔄 IN PROGRESS
 **Goal:** Remove "Anonymous" student entries from stats and prioritize actual student data.
 
 - [ ] **Current Behavior Analysis**:
@@ -37,6 +46,8 @@ Use the assets and guidelines in `design_system/` to overhaul the frontend.
     - **Display**: Ensure the Stats API (`/api/stats/week`) prefers the Roster Service name (if available) over the fallback `Student` table name if they differ.
 
 ## Phase 2: Version 2.0 - Multi-User & Refactoring
+
+> ⏳ **Not yet in active development.** Keep these goals in mind as groundwork when implementing Phase 1 features, but do not begin full implementation.
 
 **Goal:** Transform HalllDay from a single-classroom tool into a multi-user platform.
 
