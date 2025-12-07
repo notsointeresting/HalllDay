@@ -77,7 +77,11 @@ Use the assets and guidelines in `design_system/` to overhaul the frontend.
     - **Refactor**: Roster lookups must be scoped to the `User`. (e.g., Student ID "123" for Teacher A might be "John", but "123" for Teacher B might be "Jane").
 
 ### 4. Preparation Steps for 2.0
-- [x] Create a `User` model.
+- [ ] Create a `User` model.
 - [ ] Refactor `Settings` to link to `User`.
 - [ ] Refactor `Session` queries to filter by current user.
 - [ ] Implement `flask-dance` or `authlib` for Google Auth.
+- [ ] **Refactor Note**: Review `update_anonymous_students()` in `services/roster.py` — may be legacy code to remove since stats API now does roster lookups directly.
+- [ ] Remove legacy developer tools from admin page that will not be used in 2.0 by teachers (migration, etc)
+- Still need an "admin" page for teachers to manage their classes, and an "admin" page for the HalllDay developer to manage the app. Need to determine the best route for this. 
+- [ ] Remove legacy login logic from the Admin page.
