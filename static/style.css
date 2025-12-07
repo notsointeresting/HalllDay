@@ -154,14 +154,16 @@ main {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
+  /* Base transform, JS adds scale/rotate */
   z-index: 0;
-
-  /* Subtle breathing animation for all states */
-  animation: float-shape 6s ease-in-out infinite alternate;
+  transform-origin: center;
+  /* Animations handled by JS Spring Physics now */
 }
 
 .background-shape path {
-  transition: d 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), fill 0.6s ease;
+  /* No CSS transition for d - handled by JS or instant swap with elastic recoil */
+  transition: fill 0.3s ease;
+  /* Color can still be CSS interpolated or JS */
 }
 
 .content-container {
@@ -175,6 +177,8 @@ main {
   width: 100%;
   max-width: 800px;
   padding: 24px;
+  gap: 24px;
+  /* Ensure spacing between elements */
 }
 
 /* --- STATES (Colors handled via JS/SVG fill) --- */
@@ -185,74 +189,43 @@ main {
   font-family: 'Outfit', sans-serif;
   font-size: clamp(3rem, 8vw, 7rem);
   /* Larger, bolder */
-  line-height: 1;
-  margin: 0 0 16px 0;
+  line-height: 1.1;
+  margin: 0;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--md-sys-color-on-primary-container);
   /* Default, overridden by JS if needed */
   text-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 
-  animation: text-slide-up 0.6s cubic-bezier(0.2, 0, 0, 1) backwards;
+  max-width: 90%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .status-subtitle {
   font-family: 'Outfit', sans-serif;
-  font-size: clamp(1.5rem, 4vw, 3.5rem);
-  line-height: 1.1;
+  font-size: clamp(1.5rem, 5vw, 4rem);
+  line-height: 1.2;
   margin: 0;
   font-weight: 600;
   color: var(--md-sys-color-on-primary-container);
   opacity: 0.9;
 
-  animation: text-slide-up 0.6s cubic-bezier(0.2, 0, 0, 1) 0.1s backwards;
+  max-width: 85%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 /* Iconography */
 .icon {
   font-family: 'Material Symbols Rounded';
-  font-size: clamp(80px, 18vw, 180px);
-  margin-bottom: 24px;
+  font-size: clamp(64px, 15vw, 160px);
+  margin: 0;
   font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 48;
   color: var(--md-sys-color-on-primary-container);
-
-  animation: icon-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
 }
 
-/* Animations */
-@keyframes text-slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(30px) scale(0.95);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes icon-pop {
-  from {
-    opacity: 0;
-    transform: scale(0.3) rotate(-10deg);
-  }
-
-  to {
-    opacity: 1;
-    transform: scale(1) rotate(0deg);
-  }
-}
-
-@keyframes float-shape {
-  0% {
-    transform: translate(-50%, -50%) scale(1) rotate(0deg);
-  }
-
-  100% {
-    transform: translate(-50%, -50%) scale(1.05) rotate(3deg);
-  }
-}
+/* Animations moved to JS or removed */
 
 @keyframes pulse-shape {
   0% {
