@@ -1,33 +1,58 @@
 const hidden = document.getElementById('hiddenInput');
 hidden.focus();
 
+// SVG Paths
+const PATH_COOKIE = "M230.389 50.473C293.109 23.2328 356.767 86.8908 329.527 149.611L325.023 159.981C316.707 179.13 316.707 200.87 325.023 220.019L329.527 230.389C356.767 293.109 293.109 356.767 230.389 329.527L220.019 325.023C200.87 316.707 179.13 316.707 159.981 325.023L149.611 329.527C86.8908 356.767 23.2328 293.109 50.473 230.389L54.9768 220.019C63.2934 200.87 63.2934 179.13 54.9768 159.981L50.473 149.611C23.2328 86.8908 86.8908 23.2328 149.611 50.473L159.981 54.9768C179.13 63.2934 200.87 63.2934 220.019 54.9768L230.389 50.473Z";
+const PATH_BURST = "M187.293 26.6421C188.056 25.2785 188.437 24.5966 188.902 24.3108C189.575 23.8964 190.425 23.8964 191.098 24.3108C191.563 24.5966 191.944 25.2785 192.707 26.6421L218.917 73.4925C219.386 74.3306 219.62 74.7497 219.937 75.0046C220.396 75.3737 220.989 75.5326 221.571 75.4425C221.973 75.3802 222.386 75.1345 223.211 74.6431L269.335 47.1743C270.677 46.3748 271.348 45.9751 271.893 45.9598C272.684 45.9377 273.42 46.3624 273.796 47.0581C274.055 47.5379 274.045 48.3191 274.023 49.8814L273.296 103.56C273.283 104.52 273.277 105 273.424 105.38C273.637 105.929 274.071 106.363 274.62 106.576C275 106.723 275.48 106.717 276.44 106.704L330.119 105.977C331.681 105.955 332.462 105.945 332.942 106.204C333.638 106.58 334.062 107.316 334.04 108.107C334.025 108.652 333.625 109.323 332.826 110.665L305.357 156.789C304.865 157.614 304.62 158.027 304.557 158.429C304.467 159.011 304.62 159.604 304.995 160.063C305.25 160.38 305.669 160.614 306.508 161.083L353.358 187.293C354.722 188.056 355.403 188.437 355.689 188.902C356.104 189.575 356.104 190.425 355.689 191.098C355.403 191.563 354.722 191.944 353.358 192.707L306.508 218.917C305.669 219.386 305.25 219.62 304.995 219.937C304.62 220.396 304.467 220.989 304.557 221.571C304.62 221.973 304.865 222.386 305.357 223.211L332.826 269.335C333.625 270.677 334.025 271.348 334.04 271.893C334.062 272.684 333.638 273.42 332.942 273.796C332.462 274.055 331.681 274.045 330.119 274.023L276.44 273.296C275.48 273.283 275 273.277 274.62 273.424C274.071 273.637 273.637 274.071 273.424 274.62C273.277 275 273.283 275.48 273.296 276.44L274.023 330.119C274.045 331.681 274.055 332.462 273.796 332.942C273.42 333.638 272.684 334.062 271.893 334.04C271.348 334.025 270.677 333.625 269.335 332.826L223.211 305.357C222.386 304.865 221.973 304.62 221.571 304.557C220.989 304.467 220.396 304.626 219.937 304.995C219.62 305.25 219.386 305.669 218.917 306.508L192.707 353.358C191.944 354.722 191.563 355.403 191.098 355.689C190.425 356.104 189.575 356.104 188.902 355.689C188.437 355.403 188.056 354.722 187.293 353.358L161.083 306.508C160.614 305.669 160.38 305.25 160.063 304.995C159.604 304.626 159.011 304.467 158.429 304.557C158.027 304.62 157.614 304.865 156.789 305.357L110.665 332.826C109.323 333.625 108.652 334.025 108.107 334.04C107.316 334.062 106.58 333.638 106.204 332.942C105.945 332.462 105.955 331.681 105.977 330.119L106.704 276.44C106.717 275.48 106.723 275 106.576 274.62C106.363 274.071 105.929 273.637 105.38 273.424C105 273.277 104.52 273.283 103.56 273.296L49.8814 274.023C48.3191 274.045 47.5379 274.055 47.0581 273.796C46.3624 273.42 45.9377 272.684 45.9598 271.893C45.9751 271.348 46.3748 270.677 47.1743 269.335L74.6431 223.211C75.1345 222.386 75.3802 221.973 75.4425 221.571C75.5326 220.989 75.3737 220.396 75.0046 219.937C74.7497 219.62 74.3306 219.386 73.4925 218.917L26.6421 192.707C25.2785 191.944 24.5966 191.563 24.3108 191.098C23.8964 190.425 23.8964 189.575 24.3108 188.902C24.5966 188.437 25.2785 188.056 26.6421 187.293L73.4925 161.083C74.3306 160.614 74.7497 160.38 75.0046 160.063C75.3737 159.604 75.5326 159.011 75.4425 158.429C75.3802 158.027 75.1345 157.614 74.6431 156.789L47.1743 110.665C46.3748 109.323 45.9751 108.652 45.9598 108.107C45.9377 107.316 46.3624 106.58 47.0581 106.204C47.5379 105.945 48.3191 105.955 49.8814 105.977L103.56 106.704C104.52 106.717 105 106.723 105.38 106.576C105.929 106.363 106.363 105.929 106.576 105.38C106.723 105.38 106.717 104.52 106.704 103.56L105.977 49.8814C105.955 48.3191 105.945 47.5379 106.204 47.0581C106.58 46.3624 107.316 45.9377 108.107 45.9598C108.652 45.9751 109.323 46.3748 110.665 47.1743L156.789 74.6431C157.614 75.1345 158.027 75.3802 158.429 75.4425C159.011 75.5326 159.604 75.3737 160.063 75.0046C160.38 74.7497 160.614 74.3306 161.083 73.4925L187.293 26.6421Z";
+
 let buffer = '';
 
 function setPanel(state, title, subtitle, icon) {
-  const panel = document.getElementById('statusPanel');
-  panel.classList.remove('red', 'yellow', 'green', 'processing');
-  panel.classList.add(state);
-  // swap body bg for visibility
+  // Update Body Background
   document.body.classList.remove('bg-green', 'bg-red', 'bg-yellow');
   if (state === 'green') document.body.classList.add('bg-green');
   if (state === 'red') document.body.classList.add('bg-red');
   if (state === 'yellow') document.body.classList.add('bg-yellow');
+
+  // Update SVG Shape
+  const pathEl = document.getElementById('blob-path');
+  let targetPath = PATH_COOKIE;
+  let targetColor = 'var(--color-green-container)';
+
+  if (state === 'red') {
+    targetPath = PATH_BURST;
+    targetColor = 'var(--color-red-container)';
+  } else if (state === 'yellow') {
+    targetPath = PATH_COOKIE; // Yellow uses cookie shape but yellow color
+    targetColor = 'var(--color-yellow-container)';
+  } else if (state === 'processing') {
+    targetPath = PATH_COOKIE;
+    targetColor = 'var(--md-sys-color-surface-variant)';
+  }
+
+  // Set SVG Props
+  pathEl.setAttribute('d', targetPath);
+  pathEl.style.fill = targetColor;
+
+  // Update Text
   document.getElementById('statusTitle').textContent = title;
   document.getElementById('statusSubtitle').textContent = subtitle || '';
 
-  // Update icon if provided, otherwise infer from state
-  const iconEl = panel.querySelector('.icon');
+  // Update Icon
+  const iconEl = document.querySelector('.icon');
+  iconEl.classList.remove('processing-spin'); // reset spin
+
   if (icon) {
     iconEl.textContent = icon;
   } else {
-    // Fallback defaults
+    // defaults
     if (state === 'green') iconEl.textContent = 'check_circle';
     if (state === 'red') iconEl.textContent = 'do_not_disturb_on';
     if (state === 'yellow') iconEl.textContent = 'hourglass_empty';
   }
 }
 
-// Sound System using Web Audio API for expressive, non-fatiguing sounds
+// Sound System (Unchanged)
 const SoundSystem = {
   ctx: null,
 
@@ -40,7 +65,6 @@ const SoundSystem = {
     }
   },
 
-  // Play a tone with ADSR envelope
   playTone(freq, type, duration, startTime = 0, volume = 0.1) {
     this.init();
     const osc = this.ctx.createOscillator();
@@ -60,36 +84,31 @@ const SoundSystem = {
     osc.stop(this.ctx.currentTime + startTime + duration);
   },
 
-  // Happy, rising major scale chime (For "Go", "Success")
   playSuccessOut() {
     this.playTone(523.25, 'sine', 0.6, 0.0); // C5
     this.playTone(659.25, 'sine', 0.6, 0.1); // E5
     this.playTone(783.99, 'sine', 0.8, 0.2); // G5
   },
 
-  // Grounding, resolving chime (For "Return", "Back")
   playSuccessIn() {
     this.playTone(783.99, 'sine', 0.5, 0.0); // G5
     this.playTone(659.25, 'sine', 0.5, 0.1); // E5
     this.playTone(523.25, 'sine', 0.8, 0.2); // C5
   },
 
-  // Softer warning chord (For errors, unknown ID)
   playError() {
     this.init();
-    // Play a diminished triad for uncertainty/error
     this.playTone(300, 'triangle', 0.4, 0.0, 0.15);
-    this.playTone(350, 'triangle', 0.4, 0.05, 0.15); // Dissonant
+    this.playTone(350, 'triangle', 0.4, 0.05, 0.15);
   },
 
-  // Severe warning (Banned)
   playAlert() {
     this.init();
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
     osc.type = 'sawtooth';
     osc.frequency.setValueAtTime(150, this.ctx.currentTime);
-    osc.frequency.linearRampToValueAtTime(100, this.ctx.currentTime + 0.5); // Slide down
+    osc.frequency.linearRampToValueAtTime(100, this.ctx.currentTime + 0.5);
 
     gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.8);
@@ -100,7 +119,6 @@ const SoundSystem = {
     osc.stop(this.ctx.currentTime + 0.8);
   },
 
-  // Subtle interaction sound
   playProcessing() {
     this.playTone(800, 'sine', 0.1, 0, 0.05);
   }
@@ -110,7 +128,6 @@ const SoundSystem = {
 let denyTimeout;
 let resetTimeout;
 
-// Toggle kiosk suspension (no password required for quick access)
 async function toggleKioskSuspension() {
   try {
     const response = await fetch('/api/toggle_kiosk_suspend_quick', {
@@ -121,7 +138,6 @@ async function toggleKioskSuspension() {
     const result = await response.json();
 
     if (response.ok && result.ok) {
-      // Show success message
       const status = result.suspended ? 'SUSPENDED' : 'RESUMED';
       setPanel(result.suspended ? 'red' : 'green',
         result.suspended ? 'Suspended' : 'Resumed',
@@ -129,9 +145,8 @@ async function toggleKioskSuspension() {
         result.suspended ? 'block' : 'check_circle');
 
       if (result.suspended) SoundSystem.playError();
-      else SoundSystem.playSuccessIn(); // Sounds like "system restored"
+      else SoundSystem.playSuccessIn();
 
-      // Refresh status after 2 seconds
       setTimeout(async () => {
         try {
           const sr = await fetch('/api/status');
@@ -140,7 +155,6 @@ async function toggleKioskSuspension() {
         } catch (e) { }
       }, 2000);
     } else {
-      // Show error
       alert(result.message || 'Failed to toggle kiosk suspension');
     }
   } catch (e) {
@@ -149,20 +163,12 @@ async function toggleKioskSuspension() {
   }
 }
 
-// Centralized code processing function used by both scanner and numpad
 function processCode(code) {
   if (!code) return;
 
-  // New Processing State: "processing" class instead of yellow
-  const panel = document.getElementById('statusPanel');
-  panel.className = 'expressive-container processing';
-
-  // Minimal text for processing
-  document.getElementById('statusTitle').textContent = '';
-  document.getElementById('statusSubtitle').textContent = 'Scanning...';
-  // Use a spinner or hourglass
-  panel.querySelector('.icon').textContent = 'hourglass_top';
-
+  // Processing state
+  setPanel('processing', '', 'Scanning...', 'hourglass_top');
+  document.querySelector('.icon').classList.add('processing-spin');
   SoundSystem.playProcessing();
 
   fetch('/api/scan', {
@@ -175,47 +181,24 @@ function processCode(code) {
     if (!r.ok) {
       console.error('scan error', r.status, j);
       if (r.status === 403 && j.action === 'banned') {
-        // BANNED STUDENT - Show scary red warning
         clearTimeout(resetTimeout);
         setPanel('red', 'BANNED', j.message || 'See Teacher', 'block');
-
         SoundSystem.playAlert();
         setTimeout(() => SoundSystem.playAlert(), 600);
-
-        // Hold message for longer so teacher can see
-        resetTimeout = setTimeout(async () => {
-          try {
-            const sr = await fetch('/api/status');
-            const sj = await sr.json();
-            setFromStatus(sj);
-          } catch (e) { }
-        }, 5000);
+        resetTimeout = setTimeout(fetchStatus, 5000);
       } else if (r.status === 403) {
         setPanel('red', 'Suspended', j.message || 'Ask Admin', 'block');
         SoundSystem.playError();
       } else if (r.status === 404) {
-        // Unknown student ID
         clearTimeout(resetTimeout);
         setPanel('yellow', 'Not Found', (j.message || 'Try again'), 'help');
         SoundSystem.playError();
-        resetTimeout = setTimeout(async () => {
-          try {
-            const sr = await fetch('/api/status');
-            const sj = await sr.json();
-            setFromStatus(sj);
-          } catch (e) { }
-        }, 3500);
+        resetTimeout = setTimeout(fetchStatus, 3500);
       } else {
         clearTimeout(resetTimeout);
         setPanel('yellow', 'Service issue', j.message || `Status ${r.status}`, 'warning');
         SoundSystem.playError();
-        resetTimeout = setTimeout(async () => {
-          try {
-            const sr = await fetch('/api/status');
-            const sj = await sr.json();
-            setFromStatus(sj);
-          } catch (e) { }
-        }, 3500);
+        resetTimeout = setTimeout(fetchStatus, 3500);
       }
       return;
     }
@@ -226,19 +209,15 @@ function processCode(code) {
       return;
     }
     if (j.ok && j.action === 'started') {
-      setPanel('red', 'In Use', `${j.name} is out`, 'timer');
+      setPanel('red', 'In Use', `${j.name} is out`, 'timer'); // Scanned out -> show red (away)
+      // Actually, user wanted "star" for scanned out. Red usually uses Burst/Star already.
+      // But user said: "transition from like the squircle shape into the star shape".
+      // If "In Use" is red, it's star.
       SoundSystem.playSuccessOut();
     } else if (j.ok && j.action === 'ended') {
       setPanel('green', 'Returned', `${j.name} is back`, 'check_circle');
       SoundSystem.playSuccessIn();
-      // Auto-reset to idle after 5 seconds
-      resetTimeout = setTimeout(async () => {
-        try {
-          const sr = await fetch('/api/status');
-          const sj = await sr.json();
-          setFromStatus(sj);
-        } catch (e) { }
-      }, 5000);
+      resetTimeout = setTimeout(fetchStatus, 5000);
     } else {
       setPanel('yellow', 'Check Scanner', j.message || 'Unknown response', 'help');
       SoundSystem.playError();
@@ -250,9 +229,15 @@ function processCode(code) {
   });
 }
 
-// Handle both barcode scanner and manual numpad entry
+async function fetchStatus() {
+  try {
+    const sr = await fetch('/api/status');
+    const sj = await sr.json();
+    setFromStatus(sj);
+  } catch (e) { }
+}
+
 document.addEventListener('keydown', (e) => {
-  // Keyboard shortcut: Ctrl+Shift+S to toggle kiosk suspension
   if (e.ctrlKey && e.shiftKey && e.key === 'S') {
     e.preventDefault();
     toggleKioskSuspension();
@@ -264,18 +249,14 @@ document.addEventListener('keydown', (e) => {
     buffer = '';
     if (code) processCode(code);
   } else if (e.key.length === 1) {
-    // Accumulate any single character (digits, letters, etc.)
     buffer += e.key;
   } else if (e.key === 'Backspace') {
-    // Allow corrections
     buffer = buffer.slice(0, -1);
   }
 });
 
-// Keep focus and show friendly hint if idle
 setInterval(() => hidden.focus(), 3000);
 
-// Subscribe to status via SSE to mirror display behavior (full-bleed colors + elapsed/overdue)
 function setFromStatus(j) {
   if (j.kiosk_suspended) {
     setPanel('red', 'Suspended', 'Ask Admin', 'block');
@@ -304,13 +285,8 @@ if ('EventSource' in window) {
     };
   } catch (e) {/* no-op */ }
 } else {
-  // fallback polling
   (async function poll() {
-    try {
-      const r = await fetch('/api/status');
-      const j = await r.json();
-      setFromStatus(j);
-    } catch (e) { }
+    await fetchStatus();
     setTimeout(poll, 1000);
   })();
 }
