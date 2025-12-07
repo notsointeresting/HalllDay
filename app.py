@@ -53,20 +53,9 @@ cipher_suite = Fernet(_get_encryption_key())
 
 # ---------- Models ----------
 
-class User(db.Model):
-    """User account for multi-tenancy (Teacher/Classroom owner)"""
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    google_id = db.Column(db.String, unique=True, nullable=True)  # Google OAuth sub
-    email = db.Column(db.String, unique=True, nullable=False)
-    display_name = db.Column(db.String, nullable=False)
-    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    
-    # Relationships (defined after other models exist)
-
 class Student(db.Model):
     id = db.Column(db.String, primary_key=True)          # barcode value or student id
     name = db.Column(db.String, nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)  # v2.0 multi-tenancy
 
 class Session(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -75,7 +64,6 @@ class Session(db.Model):
     end_ts = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
     ended_by = db.Column(db.String, nullable=True)       # "kiosk_scan", "override", "auto"
     room = db.Column(db.String, nullable=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)  # v2.0 multi-tenancy
 
     student = db.relationship("Student")
 
@@ -91,7 +79,6 @@ class Settings(db.Model):
     overdue_minutes = db.Column(db.Integer, nullable=False, default=10)
     kiosk_suspended = db.Column(db.Boolean, nullable=False, default=False)
     auto_ban_overdue = db.Column(db.Boolean, nullable=False, default=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # v2.0 multi-tenancy
 
 class StudentName(db.Model):
     """FERPA-compliant storage of student names only (no ID association)"""
@@ -101,7 +88,6 @@ class StudentName(db.Model):
     display_name = db.Column(db.String, nullable=False)  # Actual name to display
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
     banned = db.Column(db.Boolean, nullable=False, default=False)  # Restroom ban flag
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)  # v2.0 multi-tenancy
 
 # ---------- Service Initialization ----------
 # Initialize services after models are defined
@@ -1149,31 +1135,6 @@ def run_migrations():
     except Exception as e:
         messages.append(f"Failed to add encrypted_id column: {e}")
         raise e
-
-    # Migration 5: v2.0 Multi-tenancy - Create User table and add user_id columns
-    try:
-        with db.engine.begin() as conn:
-            # Create User table if not exists
-            conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS user (
-                    id SERIAL PRIMARY KEY,
-                    google_id VARCHAR UNIQUE,
-                    email VARCHAR UNIQUE NOT NULL,
-                    display_name VARCHAR NOT NULL,
-                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-                )
-            """))
-            
-            # Add user_id columns to existing tables (nullable for backward compatibility)
-            for table in ['student', 'session', 'settings', 'student_name']:
-                try:
-                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES \"user\"(id)"))
-                except Exception:
-                    pass  # Column may already exist
-                    
-        messages.append("v2.0 migration: User table and user_id columns ready")
-    except Exception as e:
-        messages.append(f"v2.0 migration note: {e}")
 
 
     return messages

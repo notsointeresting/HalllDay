@@ -32,7 +32,7 @@ Use the assets and guidelines in `design_system/` to overhaul the frontend.
     - Add entrance animations for text and icons.
     - Increase contrast and saturation for better visibility from a distance.
 
-### 2. Stats Page & "Anonymous" Students ✅ COMPLETE
+### 2. Stats Page & "Anonymous" Students 🔄 IN PROGRESS
 **Goal:** Remove "Anonymous" student entries from stats and prioritize actual student data.
 
 - [ ] **Current Behavior Analysis**:
@@ -77,7 +77,7 @@ Use the assets and guidelines in `design_system/` to overhaul the frontend.
     - **Refactor**: Roster lookups must be scoped to the `User`. (e.g., Student ID "123" for Teacher A might be "John", but "123" for Teacher B might be "Jane").
 
 ### 4. Preparation Steps for 2.0
-- [x] Create a `User` model.
+- [ ] Create a `User` model.
 - [ ] Refactor `Settings` to link to `User`.
 - [ ] Refactor `Session` queries to filter by current user.
 - [ ] Implement `flask-dance` or `authlib` for Google Auth.
