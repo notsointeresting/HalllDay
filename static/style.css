@@ -187,8 +187,8 @@ main {
 /* Typography - Material 3 Expressive */
 .status-title {
   font-family: 'Outfit', sans-serif;
-  font-size: clamp(3rem, 8vw, 7rem);
-  /* Larger, bolder */
+  font-size: clamp(2rem, 10vmin, 6rem);
+  /* vmin = responsive to BOTH width AND height */
   line-height: 1.1;
   margin: 0;
   font-weight: 800;
@@ -204,7 +204,8 @@ main {
 
 .status-subtitle {
   font-family: 'Outfit', sans-serif;
-  font-size: clamp(1.5rem, 5vw, 4rem);
+  font-size: clamp(1rem, 5vmin, 3rem);
+  /* vmin = responsive to BOTH width AND height */
   line-height: 1.2;
   margin: 0;
   font-weight: 600;
@@ -219,8 +220,8 @@ main {
 /* Iconography */
 .icon {
   font-family: 'Material Symbols Rounded';
-  font-size: clamp(64px, 12vw, 140px);
-  /* Slightly smaller to fit better */
+  font-size: clamp(48px, 12vmin, 120px);
+  /* vmin = responsive to BOTH width AND height */
   margin: 0 0 16px 0;
   /* Explicit bottom margin as backup */
   font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 48;
