@@ -1,38 +1,78 @@
 :root {
   /* 
-   * Material 3 Expressive Color Tokens 
-   * High contrast, vibrant, fun.
+   * Material 3 Color Tokens (Green Theme Source #2e7d32)
+   * Generated approximation for Expressive UI
    */
+  
+  /* Primary */
+  --md-sys-color-primary: #006e1c;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: #b6f2b0;
+  --md-sys-color-on-primary-container: #002204;
 
-  /* Green / Available - Friendly, inviting */
-  --color-green-primary: #2e7d32;
-  /* Deep vibrant green */
-  --color-green-container: #b8f397;
-  /* Bright lime-ish green */
-  --color-green-on-container: #002105;
-  --bg-green: #81c784;
-  /* Much more visible green */
+  /* Secondary */
+  --md-sys-color-secondary: #52634f;
+  --md-sys-color-on-secondary: #ffffff;
+  --md-sys-color-secondary-container: #d5e8cf;
+  --md-sys-color-on-secondary-container: #101f10;
 
-  /* Red / In Use / Banned - Urgent but not scary (unless banned) */
-  --color-red-primary: #c62828;
-  --color-red-container: #ffdad6;
-  --color-red-on-container: #410002;
-  --bg-red: #e57373;
-  /* Much more visible red */
+  /* Tertiary */
+  --md-sys-color-tertiary: #38656a;
+  --md-sys-color-on-tertiary: #ffffff;
+  --md-sys-color-tertiary-container: #bcebf0;
+  --md-sys-color-on-tertiary-container: #002023;
 
-  /* Yellow / Overdue / Processing - Attention grabbing */
-  --color-yellow-primary: #f9a825;
-  --color-yellow-container: #ffe082;
-  --color-yellow-on-container: #261900;
-  --bg-yellow: #fff176;
-  /* Much more visible yellow */
+  /* Error */
+  --md-sys-color-error: #ba1a1a;
+  --md-sys-color-on-error: #ffffff;
+  --md-sys-color-error-container: #ffdad6;
+  --md-sys-color-on-error-container: #410002;
 
-  /* Neutral */
-  --color-surface: #ffffff;
-  --color-on-surface: #1c1b1f;
+  /* Surface & Background */
+  --md-sys-color-background: #f7fbf1;
+  --md-sys-color-on-background: #181d18;
+  --md-sys-color-surface: #f7fbf1;
+  --md-sys-color-on-surface: #181d18;
+  --md-sys-color-surface-variant: #dee5d8;
+  --md-sys-color-on-surface-variant: #424940;
+  --md-sys-color-outline: #72796f;
+  
+  /* Custom Status Colors mapped to M3 roles or extensions */
+  --color-green-primary: var(--md-sys-color-primary);
+  --color-green-container: var(--md-sys-color-primary-container);
+  --color-green-on-container: var(--md-sys-color-on-primary-container);
+  
+  --color-red-primary: var(--md-sys-color-error);
+  --color-red-container: var(--md-sys-color-error-container);
+  --color-red-on-container: var(--md-sys-color-on-error-container);
 
-  /* Typography */
-  --font-family: 'Outfit', sans-serif;
+  /* Yellow / Warning */
+  --color-yellow-primary: #7d5700;
+  --color-yellow-container: #ffdea7;
+  --color-yellow-on-container: #271900;
+
+  /* Typography - Material 3 Typescale */
+  --md-sys-typescale-display-large: 400 57px/64px 'Outfit', sans-serif;
+  --md-sys-typescale-display-medium: 400 45px/52px 'Outfit', sans-serif;
+  --md-sys-typescale-display-small: 400 36px/44px 'Outfit', sans-serif;
+
+  --md-sys-typescale-headline-large: 400 32px/40px 'Outfit', sans-serif;
+  --md-sys-typescale-headline-medium: 400 28px/36px 'Outfit', sans-serif;
+  --md-sys-typescale-headline-small: 400 24px/32px 'Outfit', sans-serif;
+
+  --md-sys-typescale-title-large: 400 22px/28px 'Outfit', sans-serif;
+  --md-sys-typescale-title-medium: 500 16px/24px 'Outfit', sans-serif;
+  --md-sys-typescale-title-small: 500 14px/20px 'Outfit', sans-serif;
+
+  --md-sys-typescale-label-large: 500 14px/20px 'Outfit', sans-serif;
+  --md-sys-typescale-label-medium: 500 12px/16px 'Outfit', sans-serif;
+  --md-sys-typescale-label-small: 500 11px/16px 'Outfit', sans-serif;
+
+  --md-sys-typescale-body-large: 400 16px/24px 'Outfit', sans-serif;
+  --md-sys-typescale-body-medium: 400 14px/20px 'Outfit', sans-serif;
+  --md-sys-typescale-body-small: 400 12px/16px 'Outfit', sans-serif;
+
+  /* Shape Paths (referenced by URL in usage, but can be variables if needed) */
 }
 
 * {
@@ -41,47 +81,42 @@
 
 body {
   margin: 0;
-  font-family: var(--font-family);
-  background-color: var(--bg-green);
-  /* Default start */
-  color: var(--color-on-surface);
-  transition: background-color 0.8s cubic-bezier(0.2, 0.0, 0, 1);
+  font: var(--md-sys-typescale-body-large);
+  background-color: var(--md-sys-color-background);
+  color: var(--md-sys-color-on-background);
+  transition: background-color 0.4s cubic-bezier(0.2, 0, 0, 1);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
-  /* Prevent horizontal scrollbars during animations, allow vertical */
 }
 
-/* Background States */
+/* Background State Overrides - Muted versions for full body bg */
 body.bg-green {
-  background-color: var(--bg-green);
+  background-color: #f0fdf4; /* Very light green surface */
 }
-
 body.bg-red {
-  background-color: var(--bg-red);
+  background-color: #fff8f6; /* Very light red surface */
 }
-
 body.bg-yellow {
-  background-color: var(--bg-yellow);
+  background-color: #fffdf0; /* Very light yellow surface */
 }
 
 header {
-  padding: 24px 32px;
+  padding: 16px 24px;
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   z-index: 10;
-  opacity: 0.6;
 }
 
 h1 {
-  font-size: 18px;
-  font-weight: 500;
+  font: var(--md-sys-typescale-title-medium);
+  color: var(--md-sys-color-on-surface-variant);
   margin: 0;
   text-transform: uppercase;
-  letter-spacing: 2px;
+  letter-spacing: 1px;
 }
 
 main {
@@ -94,184 +129,148 @@ main {
 }
 
 /* 
- * Expressive Container 
- * This replaces the old "card". It's a large colored shape.
+ * Expressive Surface (The Shape)
+ * M3 Expressive uses shapes for containers.
  */
 .expressive-container {
+  position: relative;
   width: min(600px, 90vw);
-  min-height: min(600px, 90vw);
-  /* Allow growth */
+  height: min(600px, 90vw); /* Aspect ratio roughly 1:1 usually, but allows content flow */
+  min-height: 400px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 64px;
-  /* More padding to prevent overlap */
-  transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
-  /* Slower, smoother transition */
-  position: relative;
+  padding: 48px;
+  color: var(--md-sys-color-on-primary-container);
+  
+  /* The "Shape" is a background pseudo-element to allow masking */
   z-index: 1;
-
-  /* Default Shape: Squircle-ish */
-  border-radius: 48px;
 }
 
-/* State Styles for the Container */
+/* The colored shape layer */
+.expressive-container::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-color: var(--md-sys-color-primary-container);
+  transition: background-color 0.6s cubic-bezier(0.2, 0, 0, 1), transform 10s ease-in-out;
+  
+  /* Masking for the Shape */
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: 100% 100%;
+  
+  /* Default Shape: 4-sided cookie */
+  mask-image: url('shapes/cookie4.svg');
+  -webkit-mask-image: url('shapes/cookie4.svg');
 
-/* GREEN: Scalloped Circle / Flower-like */
-.expressive-container.green {
+  /* Animation: Subtle Breathe/Move */
+  animation: float-shape 6s ease-in-out infinite alternate;
+}
+
+/* --- STATES --- */
+
+/* GREEN: Standard State */
+.expressive-container.green::before {
   background-color: var(--color-green-container);
+  mask-image: url('shapes/cookie4.svg');
+  -webkit-mask-image: url('shapes/cookie4.svg');
+  animation: float-shape 8s ease-in-out infinite alternate;
+}
+
+.expressive-container.green {
   color: var(--color-green-on-container);
-  /* Complex border radius to make a wobbly circle */
-  border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
-  animation: breathe 6s ease-in-out infinite;
 }
 
-/* RED: Pill / Rounded Rectangle */
-.expressive-container.red {
+/* RED: Alert/Banned */
+.expressive-container.red::before {
   background-color: var(--color-red-container);
+  mask-image: url('shapes/burst.svg'); /* Burst for alert/banned */
+  -webkit-mask-image: url('shapes/burst.svg');
+  animation: pulse-shape 2s ease-in-out infinite;
+}
+
+.expressive-container.red {
   color: var(--color-red-on-container);
-  border-radius: 120px;
-  /* Pill shape */
-  width: min(500px, 85vw);
-  /* Slightly narrower */
-  min-height: min(700px, 85vh);
-  /* Allow growth */
 }
 
-/* YELLOW: Starburst / Jagged */
-.expressive-container.yellow {
+/* YELLOW: Warning/Overdue */
+.expressive-container.yellow::before {
   background-color: var(--color-yellow-container);
+  mask-image: url('shapes/cookie6.svg'); /* 6-sided for slight tension/difference */
+  -webkit-mask-image: url('shapes/cookie6.svg');
+  animation: wobble-shape 4s ease-in-out infinite;
+}
+
+.expressive-container.yellow {
   color: var(--color-yellow-on-container);
-  border-radius: 20px;
-  /* Using clip-path for a starburst effect would be cool, but border-radius is safer for text flow. 
-     Let's stick to a "tense" shape. */
-  border-radius: 45% 55% 40% 60% / 55% 40% 60% 45%;
-  animation: pulse-alert 1s infinite;
 }
 
-/* PROCESSING: Subtle Gradient Morph */
-.expressive-container.processing {
-  background: linear-gradient(135deg, var(--color-surface), var(--color-green-container));
-  background-size: 200% 200%;
-  color: var(--color-on-surface);
-  border-radius: 50%;
-  /* Circle-ish */
-  width: min(300px, 50vw);
-  /* Smaller */
-  min-height: min(300px, 50vw);
-  animation: gradient-flow 2s ease infinite, breathe-fast 1s ease-in-out infinite;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+/* PROCESSING */
+.expressive-container.processing::before {
+  background: linear-gradient(135deg, var(--md-sys-color-surface-variant), var(--md-sys-color-primary-container));
+  mask-image: url('shapes/cookie4.svg');
+  -webkit-mask-image: url('shapes/cookie4.svg');
+  animation: spin-slow 20s linear infinite;
 }
-
-.expressive-container.processing .status-title {
-  display: none;
-  /* Hide title */
-}
-
-.expressive-container.processing .status-subtitle {
-  font-size: 1.5rem;
-  /* Smaller text */
-  opacity: 0.7;
-}
-
-.expressive-container.processing .icon {
-  font-size: 64px;
-  margin-bottom: 16px;
-  animation: spin 1.5s linear infinite;
-}
-
 
 /* Typography inside container */
 .status-title {
-  font-size: clamp(3rem, 8vw, 5rem);
-  font-weight: 700;
-  line-height: 1;
+  font: var(--md-sys-typescale-display-medium);
   margin: 0 0 16px 0;
-  letter-spacing: -0.02em;
   word-break: break-word;
-  /* Prevent overflow */
 }
 
 .status-subtitle {
-  font-size: clamp(2rem, 5vw, 3.5rem);
-  /* Significantly larger */
-  font-weight: 500;
+  font: var(--md-sys-typescale-headline-small);
   opacity: 0.9;
   margin: 0;
-  max-width: 100%;
-  /* Allow full width */
-  line-height: 1.2;
   word-break: break-word;
-  /* Prevent overflow */
 }
 
 /* Iconography */
 .icon {
   font-family: 'Material Symbols Rounded';
-  font-size: 96px;
+  font-size: 84px;
   margin-bottom: 24px;
   font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 48;
 }
 
 /* Animations */
-@keyframes breathe {
-
-  0%,
-  100% {
-    transform: scale(1);
-  }
-
-  50% {
-    transform: scale(1.03);
-  }
+@keyframes float-shape {
+  0% { transform: scale(0.95) rotate(-2deg); }
+  100% { transform: scale(1.02) rotate(2deg); }
 }
 
-@keyframes pulse-alert {
-  0% {
-    transform: scale(1);
-  }
-
-  50% {
-    transform: scale(1.03);
-  }
-
-  100% {
-    transform: scale(1);
-  }
+@keyframes pulse-shape {
+  0% { transform: scale(0.95); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(0.95); }
 }
 
-@keyframes gradient-flow {
-  0% {
-    background-position: 0% 50%;
-  }
-
-  50% {
-    background-position: 100% 50%;
-  }
-
-  100% {
-    background-position: 0% 50%;
-  }
+@keyframes wobble-shape {
+  0% { transform: rotate(-3deg) scale(0.98); }
+  50% { transform: rotate(3deg) scale(1.02); }
+  100% { transform: rotate(-3deg) scale(0.98); }
 }
 
-@keyframes breathe-fast {
-
-  0%,
-  100% {
-    transform: scale(0.95);
-  }
-
-  50% {
-    transform: scale(1.0);
-  }
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 @keyframes spin {
-  100% {
-    transform: rotate(360deg);
-  }
+  100% { transform: rotate(360deg); }
+}
+
+.expressive-container.processing .icon {
+  animation: spin 1.5s linear infinite;
 }
 
 /* Input hidden */
@@ -282,13 +281,110 @@ main {
   left: -9999px;
 }
 
-/* Admin Panel */
+/* --- ADMIN PANEL --- */
 .admin {
-  background: #fff;
-  color: #000;
-  padding: 32px;
-  border-radius: 24px;
+  background: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-surface);
+  padding: 40px;
+  border-radius: 28px; /* M3 Extra Large */
   width: min(900px, 92vw);
   margin: 32px auto;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.05); /* Elevation 1 */
+}
+
+.admin h2 {
+  font: var(--md-sys-typescale-headline-large);
+  color: var(--md-sys-color-on-surface);
+  margin: 0;
+}
+
+.admin h3 {
+  font: var(--md-sys-typescale-title-large);
+  color: var(--md-sys-color-primary);
+  margin-top: 32px;
+  margin-bottom: 16px;
+}
+
+.admin p {
+  font: var(--md-sys-typescale-body-medium);
+  color: var(--md-sys-color-on-surface-variant);
+  line-height: 1.5;
+}
+
+/* Admin Controls (Buttons, Inputs) */
+button {
+  font: var(--md-sys-typescale-label-large);
+  padding: 10px 24px;
+  border-radius: 20px; /* Fully rounded */
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* Primary Button */
+button[type="submit"], 
+button.primary-btn {
+  background-color: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+button[type="submit"]:hover {
+  background-color: #005615; /* Darken slightly */
+  box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+}
+
+/* Secondary/Outline Button */
+button[type="button"] {
+  background-color: transparent;
+  color: var(--md-sys-color-primary);
+  border: 1px solid var(--md-sys-color-outline);
+}
+button[type="button"]:hover {
+  background-color: var(--md-sys-color-surface-variant);
+}
+
+/* Inputs */
+input[type="text"],
+input[type="number"],
+input[type="password"] {
+  background-color: var(--md-sys-color-surface-variant);
+  border: none;
+  border-bottom: 2px solid var(--md-sys-color-outline);
+  border-radius: 4px 4px 0 0;
+  padding: 12px 16px;
+  font: var(--md-sys-typescale-body-large);
+  color: var(--md-sys-color-on-surface-variant);
+  transition: border-color 0.2s;
+  min-width: 200px;
+}
+
+input:focus {
+  outline: none;
+  border-bottom-color: var(--md-sys-color-primary);
+  background-color: #e8eee4; /* Slightly lighter */
+}
+
+/* Cards inside Admin */
+.card-surface {
+  background: var(--md-sys-color-surface-variant);
+  color: var(--md-sys-color-on-surface-variant);
+  border-radius: 16px; /* M3 Medium */
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+/* Chips/Tags */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 16px;
+  border-radius: 8px;
+  font: var(--md-sys-typescale-label-medium);
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+  border: 1px solid transparent;
 }

@@ -1,203 +1,195 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="admin">
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-    <h2>Admin</h2>
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
+    <h2>Admin Dashboard</h2>
     <a href="{{ url_for('admin_logout') }}"
-      style="background: #6c757d; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; font-size: 14px;">Logout</a>
+       style="color: var(--md-sys-color-primary); font: var(--md-sys-typescale-label-large); text-decoration: none;">
+       Logout
+    </a>
   </div>
-  <p>Open sessions: <strong>{{ open_count }}</strong> • Total sessions: <strong>{{ total }}</strong></p>
 
-  <h3>Student Roster Management</h3>
-
-  <!-- FERPA-Compliant Roster Upload -->
-  <div style="background: #e8f5e8; border: 1px solid #4caf50; border-radius: 4px; padding: 15px; margin-bottom: 15px;">
-    <h4 style="color: #2e7d32; margin: 0 0 10px 0;">🔒 FERPA-Compliant Upload</h4>
-    <p style="margin: 0 0 10px 0; color: #2e7d32; font-size: 14px;">Student data encrypted and stored securely in database</p>
-    <form id="sessionRosterForm">
-      <input type="file" id="sessionFileInput" name="file" accept=".csv" style="margin-right: 10px;">
-      <button type="submit" style="background: #4caf50; color: white; margin-right: 10px;">Upload Roster</button>
-      <button type="button" id="sessionUploadBtn" style="background: #2196f3; color: white;">Alternative Upload</button>
-    </form>
-    <div id="sessionRosterResult"></div>
-    {% if db_roster_count > 0 %}
-    <p style="margin: 10px 0 0 0; color: #2e7d32; font-size: 14px;">✅ Database roster: {{ db_roster_count }} students
-      loaded (Encrypted & Persistent)</p>
-    {% endif %}
-    {% if memory_roster_count > 0 %}
-    <p style="margin: 5px 0 0 0; color: #1976d2; font-size: 14px;">🖥️ Display roster: {{ memory_roster_count }}
-      students (Cached)</p>
-    {% endif %}
-
-    <!-- Roster Management -->
-    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #4caf50;">
-      <button type="button" id="clearSessionBtn" style="background: #f44336; color: white; font-size: 12px;">Clear All Roster Data</button>
-      <div id="sessionDebugResult" style="font-size: 12px; margin-top: 5px;"></div>
+  <div style="display: flex; gap: 16px; margin-bottom: 32px; flex-wrap: wrap;">
+    <div class="chip" style="background: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container);">
+      Open Sessions: <strong>{{ open_count }}</strong>
+    </div>
+    <div class="chip" style="background: var(--md-sys-color-surface-variant); color: var(--md-sys-color-on-surface-variant);">
+      Total Sessions: <strong>{{ total }}</strong>
     </div>
   </div>
 
+  <!-- Roster Management -->
+  <h3>Roster Management</h3>
+  <div class="card-surface">
+    <h4 style="margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
+      <span class="material-symbols-rounded">lock</span>
+      FERPA-Compliant Upload
+    </h4>
+    <p>Student data is encrypted and stored securely.</p>
+    
+    <form id="sessionRosterForm" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px;">
+      <input type="file" id="sessionFileInput" name="file" accept=".csv" style="padding: 8px;">
+      <button type="submit" class="primary-btn">Upload CSV</button>
+      <button type="button" id="sessionUploadBtn">Alternative Upload</button>
+    </form>
+    
+    <div id="sessionRosterResult"></div>
 
+    <div style="margin-top: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+      <div style="padding: 12px; background: var(--md-sys-color-background); border-radius: 8px;">
+        <div style="font: var(--md-sys-typescale-headline-small); color: var(--md-sys-color-primary);">{{ db_roster_count }}</div>
+        <div style="font: var(--md-sys-typescale-body-small);">Database Roster (Encrypted)</div>
+      </div>
+      <div style="padding: 12px; background: var(--md-sys-color-background); border-radius: 8px;">
+        <div style="font: var(--md-sys-typescale-headline-small); color: var(--md-sys-color-secondary);">{{ memory_roster_count }}</div>
+        <div style="font: var(--md-sys-typescale-body-small);">Display Cache</div>
+      </div>
+    </div>
 
-  <h3>Settings</h3>
-  <div style="margin:6px 0 12px 0; display:flex; gap:12px; align-items:center;">
-    {% if sheets_status == 'ok' %}
-    <span
-      style="padding:2px 8px; border-radius:12px; background:#e6ffed; color:#1f7a1f; border:1px solid #c6f6d5;">Sheets:
-      OK</span>
-    {% if sheets_link %}<a href="{{ sheets_link }}" target="_blank" rel="noopener">Open Logs Sheet</a>{% endif %}
-    {% elif sheets_status == 'degraded' %}
-    <span
-      style="padding:2px 8px; border-radius:12px; background:#fffbea; color:#975a16; border:1px solid #f6e05e;">Sheets:
-      Degraded</span>
-    {% if sheets_link %}<a href="{{ sheets_link }}" target="_blank" rel="noopener">Open Logs Sheet</a>{% endif %}
-    {% else %}
-    <span
-      style="padding:2px 8px; border-radius:12px; background:#edf2f7; color:#4a5568; border:1px solid #e2e8f0;">Sheets:
-      Off</span>
-    {% endif %}
+    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--md-sys-color-outline);">
+      <button type="button" id="clearSessionBtn" style="color: var(--md-sys-color-error); border-color: var(--md-sys-color-error);">
+        Clear All Roster Data
+      </button>
+      <div id="sessionDebugResult" style="font-size: 12px; margin-top: 8px;"></div>
+    </div>
   </div>
-  <form id="settingsForm">
-    <label>Room name <input name="room_name" value="{{ settings.room_name }}" /></label>
-    <label>Capacity <input type="number" min="1" step="1" name="capacity" value="{{ settings.capacity }}" /></label>
-    <label>Overdue minutes <input type="number" min="1" step="1" name="overdue_minutes"
-        value="{{ settings.overdue_minutes }}" /></label>
-    <button type="submit">Save</button>
-  </form>
-  <div id="settingsResult"></div>
 
-  <h3>Weekly Focused Insights</h3>
+  <!-- Settings -->
+  <h3>Settings</h3>
+  <div class="card-surface">
+    <div style="margin-bottom: 16px;">
+      {% if sheets_status == 'ok' %}
+        <span class="chip" style="background: #e6ffed; color: #1f7a1f;">Sheets: OK</span>
+      {% elif sheets_status == 'degraded' %}
+        <span class="chip" style="background: #fffbea; color: #975a16;">Sheets: Degraded</span>
+      {% else %}
+        <span class="chip" style="background: #edf2f7; color: #4a5568;">Sheets: Off</span>
+      {% endif %}
+      {% if sheets_link %}<a href="{{ sheets_link }}" target="_blank" style="margin-left: 8px; font-size: 14px;">Open Logs</a>{% endif %}
+    </div>
+
+    <form id="settingsForm" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+      <div>
+        <label style="display: block; margin-bottom: 4px; font: var(--md-sys-typescale-label-small);">Room Name</label>
+        <input name="room_name" value="{{ settings.room_name }}" style="width: 100%;">
+      </div>
+      <div>
+        <label style="display: block; margin-bottom: 4px; font: var(--md-sys-typescale-label-small);">Capacity</label>
+        <input type="number" min="1" name="capacity" value="{{ settings.capacity }}" style="width: 100%;">
+      </div>
+      <div>
+        <label style="display: block; margin-bottom: 4px; font: var(--md-sys-typescale-label-small);">Overdue (min)</label>
+        <input type="number" min="1" name="overdue_minutes" value="{{ settings.overdue_minutes }}" style="width: 100%;">
+      </div>
+      <div style="display: flex; align-items: flex-end;">
+        <button type="submit" class="primary-btn">Save Settings</button>
+      </div>
+    </form>
+    <div id="settingsResult" style="margin-top: 8px; font-size: 14px;"></div>
+  </div>
+
+  <!-- Stats -->
+  <h3>Weekly Insights</h3>
   <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:16px;">
-    <div>
-      <h4>Top users (7 days)</h4>
+    <div class="card-surface">
+      <h4 style="margin-top:0;">Top Users</h4>
       <canvas id="chartTopUsage" height="160"></canvas>
     </div>
-    <div>
-      <h4>Most overdue (count)</h4>
+    <div class="card-surface">
+      <h4 style="margin-top:0;">Most Overdue</h4>
       <canvas id="chartTopOverdue" height="160"></canvas>
     </div>
-    <div>
-      <h4>Highest overdue rate %</h4>
+    <div class="card-surface">
+      <h4 style="margin-top:0;">Overdue Rate %</h4>
       <canvas id="chartTopOverdueRate" height="160"></canvas>
     </div>
   </div>
 
-  <h3>Student Roster Status</h3>
-  <div style="background: #e8f5e8; border: 1px solid #4caf50; border-radius: 4px; padding: 15px; margin-bottom: 20px;">
-    <h4 style="color: #2e7d32; margin: 0 0 10px 0;">🔒 FERPA-Compliant Roster Status</h4>
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-      <div>
-        <p style="margin: 0; font-size: 18px; font-weight: bold; color: #2e7d32;">{{ db_roster_count }} students</p>
-        <p style="margin: 5px 0 0 0; color: #2e7d32; font-size: 12px;">Database roster (Persistent)</p>
-      </div>
-      <div>
-        <p style="margin: 0; font-size: 18px; font-weight: bold; color: #1976d2;">{{ memory_roster_count }} students</p>
-        <p style="margin: 5px 0 0 0; color: #1976d2; font-size: 12px;">Display roster (Cached)</p>
-      </div>
-    </div>
-    <p style="margin: 10px 0 0 0; color: #666; font-size: 12px;">Student data is encrypted and stored in the database.
-    </p>
-  </div>
-
-  <h3>Automatic Ban on Overdue</h3>
-  <div style="background: #ffebee; border: 1px solid #f44336; border-radius: 4px; padding: 15px; margin-bottom: 20px;">
-    <h4 style="color: #c62828; margin: 0 0 10px 0;">⚙️ Auto-Ban Settings</h4>
-
+  <!-- Auto Ban -->
+  <h3>Auto-Ban</h3>
+  <div class="card-surface" style="border-left: 4px solid var(--md-sys-color-error);">
     {% if not settings.get('auto_ban_overdue') and settings.get('auto_ban_overdue') is none %}
-    <div
-      style="background: #fff3cd; border: 1px solid #ffc107; padding: 12px; margin-bottom: 15px; border-radius: 4px;">
-      <strong style="color: #856404;">⚠️ First Time Setup Required:</strong>
-      <p style="margin: 5px 0 0 0; color: #856404; font-size: 13px;">
-        Please run the database migration below to enable auto-ban feature. Scroll down to "Database" section and click
-        "Run Database Migration".
-      </p>
+    <div style="background: var(--color-yellow-container); color: var(--color-yellow-on-container); padding: 12px; margin-bottom: 16px; border-radius: 8px;">
+      <strong>⚠️ Setup Required:</strong> Run database migration below.
     </div>
     {% endif %}
 
-    <p style="margin: 0 0 15px 0; color: #c62828; font-size: 14px;">Automatically ban students when they become overdue.
-      Overdue threshold: <strong>{{ settings.overdue_minutes }} minutes</strong></p>
-
-    <div style="background: white; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
-      <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
-        <label
-          style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 16px; font-weight: bold;">
-          <input type="checkbox" id="autoBanToggle" {% if settings.get('auto_ban_overdue') %}checked{% endif %}
-            style="width: 20px; height: 20px; cursor: pointer;">
-          <span id="autoBanToggleLabel">{% if settings.get('auto_ban_overdue') %}✅ Auto-Ban ENABLED{% else %}❌ Auto-Ban
-            DISABLED{% endif %}</span>
-        </label>
-      </div>
-      <p style="margin: 0; font-size: 13px; color: #666;">
-        When enabled, students will be automatically banned when they exceed the overdue threshold. The system checks
-        every second.
-      </p>
-      <div id="autoBanToggleResult" style="margin-top: 8px; font-size: 13px;"></div>
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+      <label class="switch-label" style="display: flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer;">
+        <input type="checkbox" id="autoBanToggle" {% if settings.get('auto_ban_overdue') %}checked{% endif %} style="width: 20px; height: 20px;">
+        <span id="autoBanToggleLabel">
+          {% if settings.get('auto_ban_overdue') %}Auto-Ban Enabled{% else %}Auto-Ban Disabled{% endif %}
+        </span>
+      </label>
     </div>
+    
+    <p style="font-size: 13px; margin-bottom: 16px;">Checks every second. Overdue threshold: <strong>{{ settings.overdue_minutes }} min</strong>.</p>
+    <div id="autoBanToggleResult"></div>
 
-    <h4 style="color: #c62828; margin: 15px 0 10px 0;">⚠️ Currently Overdue Students</h4>
-    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-      <button id="loadOverdueBtn" style="background: #ff9800; color: white;">Check Overdue Students</button>
-      <button id="manualBanOverdueBtn" style="background: #f44336; color: white;" disabled>Manually Ban All
-        Overdue</button>
+    <h4 style="color: var(--md-sys-color-error); margin: 24px 0 12px 0;">Currently Overdue</h4>
+    <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+      <button id="loadOverdueBtn" style="background: var(--color-yellow-primary); color: white;">Check Overdue</button>
+      <button id="manualBanOverdueBtn" style="background: var(--md-sys-color-error); color: white;" disabled>Ban All Overdue</button>
     </div>
     <div id="overdueListContainer" style="display: none;">
-      <div style="margin: 10px 0; padding: 8px; background: white; border-radius: 4px;">
-        <div id="overdueList" style="padding: 10px;"></div>
-      </div>
+      <div id="overdueList" style="max-height: 200px; overflow-y: auto; background: var(--md-sys-color-background); padding: 8px; border-radius: 8px;"></div>
     </div>
-    <div id="overdueResult" style="margin-top: 10px; font-size: 14px;"></div>
+    <div id="overdueResult" style="margin-top: 8px;"></div>
   </div>
 
-  <h3>Restroom Ban Management</h3>
-  <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 15px; margin-bottom: 20px;">
-    <h4 style="color: #856404; margin: 0 0 10px 0;">🚫 Student Restroom Bans</h4>
-    <p style="margin: 0 0 10px 0; color: #856404; font-size: 14px;">Ban students from using the restroom. Banned
-      students can still scan back in to end their current trip, but cannot start new trips. They will see a red warning
-      when they try to scan out.</p>
-    <button id="loadStudentsBtn" style="background: #007bff; color: white; margin-bottom: 10px;">Load Student
-      List</button>
+  <!-- Restroom Bans -->
+  <h3>Banned Students</h3>
+  <div class="card-surface" style="border-left: 4px solid var(--color-yellow-primary);">
+    <button id="loadStudentsBtn" class="primary-btn" style="margin-bottom: 16px;">Load Student List</button>
+    
     <div id="studentListContainer" style="display: none;">
-      <div style="margin: 10px 0; padding: 8px; background: white; border-radius: 4px;">
-        <input type="text" id="studentSearchBox" placeholder="Search students..."
-          style="width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px;">
-        <div style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px;">
-          <div id="studentList" style="padding: 10px;"></div>
-        </div>
+      <input type="text" id="studentSearchBox" placeholder="Search students..." style="width: 100%; margin-bottom: 12px;">
+      <div style="max-height: 300px; overflow-y: auto; border: 1px solid var(--md-sys-color-outline); border-radius: 8px;">
+        <div id="studentList" style="padding: 8px;"></div>
       </div>
-      <div id="banResult" style="margin-top: 10px; font-size: 14px;"></div>
+      <div id="banResult" style="margin-top: 8px;"></div>
     </div>
   </div>
 
-  <h3>Kiosk Control</h3>
-  <div style="margin-bottom: 16px;">
-    {% if settings.kiosk_suspended %}
-    <button id="resumeKiosk" style="background: #28a745; color: white;">Resume Kiosk</button>
-    <span style="color: #dc3545; font-weight: bold;">⚠ Kiosk is currently SUSPENDED</span>
-    {% else %}
-    <button id="suspendKiosk" style="background: #dc3545; color: white;">Suspend Kiosk</button>
-    <span style="color: #28a745;">✓ Kiosk is active</span>
-    {% endif %}
+  <!-- Controls -->
+  <h3>System Controls</h3>
+  <div class="card-surface">
+    <div style="margin-bottom: 24px;">
+      <h4 style="margin-top: 0;">Kiosk Status</h4>
+      {% if settings.kiosk_suspended %}
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <button id="resumeKiosk" style="background: var(--md-sys-color-primary); color: white;">Resume Kiosk</button>
+        <span style="color: var(--md-sys-color-error); font-weight: bold;">SUSPENDED</span>
+      </div>
+      {% else %}
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <button id="suspendKiosk" style="background: var(--md-sys-color-error); color: white;">Suspend Kiosk</button>
+        <span style="color: var(--md-sys-color-primary);">Active</span>
+      </div>
+      {% endif %}
+    </div>
+
+    <div style="margin-bottom: 24px;">
+      <h4 style="margin-top: 0;">Database Maintenance</h4>
+      <button id="runMigration" style="background: var(--md-sys-color-secondary); color: white;">Run Migrations</button>
+      <span id="migrationResult" style="margin-left: 8px;"></span>
+    </div>
+
+    <div style="background: var(--md-sys-color-error-container); padding: 16px; border-radius: 12px;">
+      <h4 style="margin-top: 0; color: var(--md-sys-color-on-error-container);">Danger Zone</h4>
+      <p style="color: var(--md-sys-color-on-error-container); font-size: 13px;">Permanently delete all session history.</p>
+      <button id="resetDbBtn" style="background: var(--md-sys-color-error); color: white;">Delete History</button>
+      <span id="resetDbResult" style="margin-left: 8px; color: var(--md-sys-color-on-error-container);"></span>
+    </div>
   </div>
 
-  <h3>Database</h3>
-  <div style="margin-bottom:16px;">
-    <button id="runMigration" style="background:#007bff;color:white;">Run Database Migration</button>
-    <span id="migrationResult"></span>
+  <div style="margin-top: 32px; display: flex; gap: 16px;">
+    <button id="override">Force End Current Session</button>
+    <a href="{{ url_for('export_csv') }}" class="primary-btn" style="text-decoration: none; background: var(--md-sys-color-secondary);">Download CSV</a>
   </div>
-
-  <!-- Danger Zone -->
-  <div style="margin-bottom:16px; padding:12px; border:1px solid #dc3545; background:#fff5f5;">
-    <h4 style="color:#dc3545; margin:0 0 8px 0;">Danger Zone</h4>
-    <p style="margin:0 0 8px 0; color:#dc3545; font-size:13px;">This will permanently DELETE all session history from
-      the database. Student roster and settings are preserved.</p>
-    <button id="resetDbBtn" style="background:#dc3545; color:white;">Delete ALL Session History</button>
-    <span id="resetDbResult" style="margin-left:8px;"></span>
-  </div>
-
-  <h3>Force End</h3>
-  <button id="override">End Current Session</button>
-  <a href="{{ url_for('export_csv') }}">Download today's CSV</a>
 </section>
 
+<!-- Scripts -->
 <script>
   document.getElementById('override').onclick = async () => {
     const r = await fetch('/api/override_end', { method: 'POST' });
@@ -212,11 +204,8 @@
     const label = document.getElementById('autoBanToggleLabel');
     const resultDiv = document.getElementById('autoBanToggleResult');
 
-    // Optimistically update UI
-    label.textContent = isEnabled ? '✅ Auto-Ban ENABLED' : '❌ Auto-Ban DISABLED';
-    label.style.color = isEnabled ? '#2e7d32' : '#c62828';
+    label.textContent = isEnabled ? 'Auto-Ban Enabled' : 'Auto-Ban Disabled';
     resultDiv.textContent = 'Saving...';
-    resultDiv.style.color = '#007bff';
 
     try {
       const r = await fetch('/api/settings', {
@@ -224,82 +213,47 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ auto_ban_overdue: isEnabled })
       });
-
-      // Check if response is actually JSON
-      const contentType = r.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('Server returned non-JSON response. Please run database migration first.');
-      }
-
       const j = await r.json();
 
       if (j.ok) {
-        resultDiv.style.color = '#28a745';
-        resultDiv.textContent = isEnabled
-          ? '✓ Auto-ban is now ACTIVE - students will be banned automatically when overdue'
-          : '✓ Auto-ban is now DISABLED - manual banning only';
-        setTimeout(() => {
-          resultDiv.textContent = '';
-        }, 3000);
+        resultDiv.textContent = isEnabled ? 'Saved: Active' : 'Saved: Disabled';
+        setTimeout(() => { resultDiv.textContent = ''; }, 3000);
       } else {
-        // Revert on error
         checkbox.checked = !isEnabled;
-        label.textContent = !isEnabled ? '✅ Auto-Ban ENABLED' : '❌ Auto-Ban DISABLED';
-        label.style.color = !isEnabled ? '#2e7d32' : '#c62828';
-        resultDiv.style.color = '#dc3545';
-        resultDiv.textContent = `❌ Failed: ${j.message || 'Could not save setting'}`;
+        label.textContent = !isEnabled ? 'Auto-Ban Enabled' : 'Auto-Ban Disabled';
+        resultDiv.textContent = `Failed: ${j.message}`;
       }
     } catch (error) {
-      // Revert on error
       checkbox.checked = !isEnabled;
-      label.textContent = !isEnabled ? '✅ Auto-Ban ENABLED' : '❌ Auto-Ban DISABLED';
-      label.style.color = !isEnabled ? '#2e7d32' : '#c62828';
-      resultDiv.style.color = '#dc3545';
-      resultDiv.textContent = `❌ Error: ${error.message}`;
+      resultDiv.textContent = `Error: ${error.message}`;
     }
   };
 
-  // Overdue Student Management
+  // Overdue
   let overdueStudents = [];
-
   document.getElementById('loadOverdueBtn').onclick = async () => {
     const btn = document.getElementById('loadOverdueBtn');
-    const manualBanBtn = document.getElementById('manualBanOverdueBtn');
     const container = document.getElementById('overdueListContainer');
     const resultDiv = document.getElementById('overdueResult');
+    const manualBanBtn = document.getElementById('manualBanOverdueBtn');
 
     btn.disabled = true;
     btn.textContent = 'Checking...';
-    resultDiv.textContent = '';
-    manualBanBtn.disabled = true;
-
     try {
       const r = await fetch('/api/overdue_students');
       const j = await r.json();
-
       if (j.ok) {
         overdueStudents = j.students || [];
         renderOverdueList();
         container.style.display = 'block';
-        btn.textContent = `Found ${j.count} overdue student(s)`;
-
-        if (j.count > 0) {
-          resultDiv.style.color = '#f44336';
-          resultDiv.textContent = `⚠️ ${j.count} student(s) are overdue (threshold: ${j.overdue_threshold_minutes} min)`;
-          manualBanBtn.disabled = false;
-        } else {
-          resultDiv.style.color = '#28a745';
-          resultDiv.textContent = `✓ No students are currently overdue`;
-        }
+        btn.textContent = `Found ${j.count}`;
+        resultDiv.textContent = j.count > 0 ? `${j.count} overdue.` : 'None overdue.';
+        manualBanBtn.disabled = j.count === 0;
       } else {
-        resultDiv.style.color = '#dc3545';
-        resultDiv.textContent = `❌ Failed: ${j.message}`;
-        btn.textContent = 'Check Overdue Students';
+        resultDiv.textContent = j.message;
       }
-    } catch (error) {
-      resultDiv.style.color = '#dc3545';
-      resultDiv.textContent = `❌ Error: ${error.message}`;
-      btn.textContent = 'Check Overdue Students';
+    } catch (e) {
+      resultDiv.textContent = e.message;
     } finally {
       btn.disabled = false;
     }
@@ -307,320 +261,144 @@
 
   function renderOverdueList() {
     const listDiv = document.getElementById('overdueList');
-
     if (overdueStudents.length === 0) {
-      listDiv.innerHTML = '<p style="color: #28a745; text-align: center; font-weight: bold;">✓ No students are currently overdue</p>';
+      listDiv.innerHTML = '<div style="text-align:center; padding:8px;">No overdue students</div>';
       return;
     }
-
-    const notBannedCount = overdueStudents.filter(s => !s.banned).length;
-
-    let html = '';
-    if (notBannedCount > 0) {
-      html += `<p style="color: #f44336; font-weight: bold; margin-bottom: 10px;">⚠️ ${notBannedCount} overdue student(s) not yet banned</p>`;
-    }
-
-    overdueStudents.forEach(student => {
-      const bgColor = student.banned ? '#e8f5e9' : '#ffebee';
-      const textColor = student.banned ? '#2e7d32' : '#c62828';
-      const statusText = student.banned ? '✓ Already Banned' : `⚠️ ${student.duration_minutes} min overdue`;
-      html += `
-      <div style="padding: 10px; margin: 4px 0; background: ${bgColor}; border-radius: 4px; border: 1px solid ${student.banned ? '#81c784' : '#e57373'};">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div style="flex: 1;">
-            <span style="font-weight: bold; color: ${textColor};">${student.name}</span>
-            <span style="color: #666; font-size: 12px; margin-left: 8px;">(${student.student_id})</span>
-          </div>
-          <div style="text-align: right;">
-            <span style="color: ${textColor}; font-weight: bold; font-size: 14px;">${statusText}</span>
-          </div>
-        </div>
+    listDiv.innerHTML = overdueStudents.map(s => `
+      <div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee;">
+        <span><strong>${s.name}</strong> (${s.student_id})</span>
+        <span style="color:${s.banned ? 'green' : 'red'}">${s.banned ? 'Banned' : s.duration_minutes + 'm'}</span>
       </div>
-    `;
-    });
-
-    listDiv.innerHTML = html;
+    `).join('');
   }
 
   document.getElementById('manualBanOverdueBtn').onclick = async () => {
-    if (!confirm('Manually ban all currently overdue students from starting new restroom trips? They can still scan back in to end their current trip.')) {
-      return;
-    }
-
-    const btn = document.getElementById('manualBanOverdueBtn');
-    const resultDiv = document.getElementById('overdueResult');
-
-    btn.disabled = true;
-    btn.textContent = 'Banning...';
-    resultDiv.textContent = 'Processing manual ban...';
-    resultDiv.style.color = '#007bff';
-
+    if (!confirm('Ban all overdue students?')) return;
     try {
-      const r = await fetch('/api/auto_ban_overdue', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
+      const r = await fetch('/api/auto_ban_overdue', { method: 'POST' });
       const j = await r.json();
-
       if (j.ok) {
-        resultDiv.style.color = '#28a745';
-        resultDiv.textContent = `✓ ${j.message}`;
-
-        // Refresh the overdue list
-        setTimeout(() => {
-          document.getElementById('loadOverdueBtn').click();
-        }, 1500);
+        alert(j.message);
+        document.getElementById('loadOverdueBtn').click();
       } else {
-        resultDiv.style.color = '#dc3545';
-        resultDiv.textContent = `❌ ${j.message}`;
-        btn.disabled = false;
-        btn.textContent = 'Manually Ban All Overdue';
+        alert(j.message);
       }
-    } catch (error) {
-      resultDiv.style.color = '#dc3545';
-      resultDiv.textContent = `❌ Error: ${error.message}`;
-      btn.disabled = false;
-      btn.textContent = 'Manually Ban All Overdue';
-    }
+    } catch (e) { alert(e.message); }
   };
 
-  // Student Ban Management
+  // Students List
   let allStudents = [];
   let filteredStudents = [];
-
   document.getElementById('loadStudentsBtn').onclick = async () => {
     const btn = document.getElementById('loadStudentsBtn');
     const container = document.getElementById('studentListContainer');
-    const resultDiv = document.getElementById('banResult');
-
     btn.disabled = true;
     btn.textContent = 'Loading...';
-    resultDiv.textContent = '';
-
     try {
       const r = await fetch('/api/students');
       const j = await r.json();
-
       if (j.ok) {
         allStudents = j.students || [];
         filteredStudents = [...allStudents];
         renderStudentList();
         container.style.display = 'block';
-        btn.textContent = `Loaded ${j.count} students`;
-        resultDiv.style.color = '#28a745';
-        resultDiv.textContent = `✓ ${j.count} students loaded`;
+        btn.textContent = 'Reload List';
       } else {
-        resultDiv.style.color = '#dc3545';
-        resultDiv.textContent = `❌ Failed: ${j.message}`;
-        btn.textContent = 'Load Student List';
+        alert(j.message);
       }
-    } catch (error) {
-      resultDiv.style.color = '#dc3545';
-      resultDiv.textContent = `❌ Error: ${error.message}`;
-      btn.textContent = 'Load Student List';
-    } finally {
-      btn.disabled = false;
-    }
+    } catch (e) { alert(e.message); }
+    finally { btn.disabled = false; }
   };
 
   function renderStudentList() {
     const listDiv = document.getElementById('studentList');
-
     if (filteredStudents.length === 0) {
-      listDiv.innerHTML = '<p style="color: #666; text-align: center;">No students found</p>';
+      listDiv.innerHTML = '<div style="padding:8px;">No students found</div>';
       return;
     }
-
-    const bannedCount = filteredStudents.filter(s => s.banned).length;
-
-    let html = '';
-    if (bannedCount > 0) {
-      html += `<p style="color: #dc3545; font-weight: bold; margin-bottom: 10px;">⚠️ ${bannedCount} student(s) currently banned</p>`;
-    }
-
-    filteredStudents.forEach(student => {
-      const checked = student.banned ? 'checked' : '';
-      const bgColor = student.banned ? '#ffebee' : 'transparent';
-      const textColor = student.banned ? '#c62828' : '#333';
-      html += `
-      <div style="padding: 8px; margin: 4px 0; background: ${bgColor}; border-radius: 4px; display: flex; align-items: center; gap: 10px;">
-        <input type="checkbox" 
-               id="ban_${student.id}" 
-               data-student-id="${student.id}" 
-               data-student-name="${student.name}"
-               ${checked}
-               onchange="toggleBan('${student.id}', '${student.name}', this.checked)"
-               style="cursor: pointer; width: 18px; height: 18px;">
-        <label for="ban_${student.id}" style="cursor: pointer; flex: 1; color: ${textColor}; font-weight: ${student.banned ? 'bold' : 'normal'};">
-          ${student.name} ${student.banned ? '🚫' : ''}
-        </label>
-        <span style="color: #666; font-size: 12px;">${student.id}</span>
+    listDiv.innerHTML = filteredStudents.map(s => `
+      <div style="display:flex; align-items:center; padding:8px; border-bottom:1px solid #eee; background:${s.banned ? 'var(--md-sys-color-error-container)' : 'transparent'}">
+        <input type="checkbox" ${s.banned ? 'checked' : ''} onchange="toggleBan('${s.id}', '${s.name}', this.checked)" style="margin-right:12px;">
+        <div style="flex:1">
+          <div>${s.name}</div>
+          <div style="font-size:12px; opacity:0.7">${s.id}</div>
+        </div>
+        ${s.banned ? '🚫' : ''}
       </div>
-    `;
-    });
-
-    listDiv.innerHTML = html;
+    `).join('');
   }
 
-  async function toggleBan(studentId, studentName, shouldBan) {
-    const resultDiv = document.getElementById('banResult');
-    resultDiv.textContent = shouldBan ? `Banning ${studentName}...` : `Unbanning ${studentName}...`;
-    resultDiv.style.color = '#007bff';
-
+  async function toggleBan(sid, name, ban) {
+    document.getElementById('banResult').textContent = (ban ? 'Banning ' : 'Unbanning ') + name + '...';
     try {
-      const endpoint = shouldBan ? '/api/ban_student' : '/api/unban_student';
-      const r = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ student_id: studentId })
-      });
+      const ep = ban ? '/api/ban_student' : '/api/unban_student';
+      const r = await fetch(ep, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({student_id: sid})});
       const j = await r.json();
-
       if (j.ok) {
-        resultDiv.style.color = '#28a745';
-        resultDiv.textContent = `✓ ${j.message}`;
-
-        // Update local state
-        const student = allStudents.find(s => s.id === studentId);
-        if (student) {
-          student.banned = shouldBan;
-        }
-        const filteredStudent = filteredStudents.find(s => s.id === studentId);
-        if (filteredStudent) {
-          filteredStudent.banned = shouldBan;
-        }
-
+        document.getElementById('banResult').textContent = 'Done.';
+        const s = allStudents.find(x => x.id === sid);
+        if (s) s.banned = ban;
         renderStudentList();
       } else {
-        resultDiv.style.color = '#dc3545';
-        resultDiv.textContent = `❌ ${j.message}`;
-
-        // Revert checkbox
-        const checkbox = document.getElementById(`ban_${studentId}`);
-        if (checkbox) checkbox.checked = !shouldBan;
+        alert(j.message);
       }
-    } catch (error) {
-      resultDiv.style.color = '#dc3545';
-      resultDiv.textContent = `❌ Error: ${error.message}`;
-
-      // Revert checkbox
-      const checkbox = document.getElementById(`ban_${studentId}`);
-      if (checkbox) checkbox.checked = !shouldBan;
-    }
+    } catch (e) { alert(e.message); }
   }
 
-  // Search functionality
   document.getElementById('studentSearchBox').oninput = (e) => {
-    const searchTerm = e.target.value.toLowerCase();
-
-    if (searchTerm === '') {
-      filteredStudents = [...allStudents];
-    } else {
-      filteredStudents = allStudents.filter(student =>
-        student.name.toLowerCase().includes(searchTerm) ||
-        student.id.toLowerCase().includes(searchTerm)
-      );
-    }
-
+    const term = e.target.value.toLowerCase();
+    filteredStudents = allStudents.filter(s => s.name.toLowerCase().includes(term) || s.id.toLowerCase().includes(term));
     renderStudentList();
   };
 
-  // Roster Upload
+  // Upload
   document.getElementById('sessionRosterForm').onsubmit = async (e) => {
     e.preventDefault();
-    const fileInput = e.target.querySelector('input[type="file"]');
-    const resultDiv = document.getElementById('sessionRosterResult');
-
-    if (!fileInput.files || fileInput.files.length === 0) {
-      resultDiv.innerHTML = `<p style="color: #d32f2f; margin: 5px 0 0 0;">❌ Please select a CSV file</p>`;
-      return;
-    }
-
-    resultDiv.innerHTML = `<p style="color: #2196f3; margin: 5px 0 0 0;">📤 Uploading...</p>`;
-
+    const fd = new FormData(e.target);
     try {
-      const fd = new FormData(e.target);
       const r = await fetch('/api/upload_session_roster', { method: 'POST', body: fd });
       const j = await r.json();
-
-      if (j.ok) {
-        resultDiv.innerHTML = `<p style="color: #2e7d32; margin: 5px 0 0 0;">✅ ${j.imported} students uploaded successfully</p>`;
-        setTimeout(() => location.reload(), 1500);
-      } else {
-        resultDiv.innerHTML = `<p style="color: #d32f2f; margin: 5px 0 0 0;">❌ ${j.message || 'Upload failed'}</p>`;
-      }
-    } catch (error) {
-      resultDiv.innerHTML = `<p style="color: #d32f2f; margin: 5px 0 0 0;">❌ Network error: ${error.message}</p>`;
-    }
+      if (j.ok) location.reload(); else alert(j.message);
+    } catch (e) { alert(e.message); }
   };
 
+  // Other buttons (kiosk, migrate, reset)
+  const bindBtn = (id, url, confirmMsg) => {
+    const btn = document.getElementById(id);
+    if (btn) btn.onclick = async () => {
+      if (confirmMsg && !confirm(confirmMsg)) return;
+      try {
+        const r = await fetch(url, { method: 'POST' });
+        const j = await r.json();
+        if (j.ok) location.reload(); else alert(j.message);
+      } catch (e) { alert(e.message); }
+    };
+  };
 
+  bindBtn('suspendKiosk', '/api/suspend_kiosk', 'Suspend Kiosk?');
+  bindBtn('resumeKiosk', '/api/resume_kiosk');
+  bindBtn('runMigration', '/api/migrate', 'Run Migration?');
+  
+  const resetBtn = document.getElementById('resetDbBtn');
+  if (resetBtn) resetBtn.onclick = async () => {
+    if (!confirm('DELETE ALL HISTORY?')) return;
+    if (!confirm('REALLY?')) return;
+    try {
+      const r = await fetch('/api/reset_database', { method: 'POST' });
+      const j = await r.json();
+      alert(j.message);
+      if (j.ok) location.reload();
+    } catch(e) { alert(e.message); }
+  };
 
-  // Alternative upload button handler
-  document.addEventListener('DOMContentLoaded', function () {
-    const sessionUploadBtn = document.getElementById('sessionUploadBtn');
-    if (sessionUploadBtn) {
-      sessionUploadBtn.onclick = async () => {
-        const fileInput = document.getElementById('sessionFileInput');
-        const resultDiv = document.getElementById('sessionRosterResult');
-
-        if (!fileInput.files || fileInput.files.length === 0) {
-          resultDiv.innerHTML = `<p style="color: #d32f2f; margin: 5px 0 0 0;">❌ Please select a CSV file first</p>`;
-          return;
-        }
-
-        resultDiv.innerHTML = `<p style="color: #2196f3; margin: 5px 0 0 0;">📤 Uploading...</p>`;
-
-        try {
-          const fd = new FormData();
-          fd.append('file', fileInput.files[0]);
-          const r = await fetch('/api/upload_session_roster', { method: 'POST', body: fd });
-          const j = await r.json();
-
-          if (j.ok) {
-            resultDiv.innerHTML = `<p style="color: #2e7d32; margin: 5px 0 0 0;">✅ ${j.imported} students uploaded successfully</p>`;
-            setTimeout(() => location.reload(), 1500);
-          } else {
-            resultDiv.innerHTML = `<p style="color: #d32f2f; margin: 5px 0 0 0;">❌ ${j.message || 'Upload failed'}</p>`;
-          }
-        } catch (error) {
-          resultDiv.innerHTML = `<p style="color: #d32f2f; margin: 5px 0 0 0;">❌ Network error: ${error.message}</p>`;
-        }
-      };
+  document.getElementById('clearSessionBtn').onclick = async () => {
+    if(confirm('Clear Roster?')) {
+      await fetch('/api/clear_session_roster', { method: 'POST' });
+      location.reload();
     }
-
-
-    // Clear roster button
-    const clearSessionBtn = document.getElementById('clearSessionBtn');
-    if (clearSessionBtn) {
-      clearSessionBtn.onclick = async () => {
-        if (!confirm('Clear all roster data? This will remove all uploaded student information.')) {
-          return;
-        }
-
-        const resultDiv = document.getElementById('sessionDebugResult');
-        resultDiv.textContent = 'Clearing...';
-
-        try {
-          const r = await fetch('/api/clear_session_roster', { method: 'POST' });
-          const j = await r.json();
-
-          if (j.ok) {
-            resultDiv.style.color = '#2e7d32';
-            resultDiv.textContent = '✅ Roster cleared';
-            setTimeout(() => location.reload(), 1000);
-          } else {
-            resultDiv.style.color = '#d32f2f';
-            resultDiv.textContent = `❌ Failed: ${j.message}`;
-          }
-        } catch (error) {
-          resultDiv.style.color = '#d32f2f';
-          resultDiv.textContent = `❌ Error: ${error.message}`;
-        }
-      };
-    }
-  });
-
+  };
+  
   document.getElementById('settingsForm').onsubmit = async (e) => {
     e.preventDefault();
     const f = e.target;
@@ -631,96 +409,10 @@
     };
     const r = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     const j = await r.json();
-    document.getElementById('settingsResult').textContent = j.ok ? 'Saved.' : (j.message || 'Error');
+    alert(j.ok ? 'Saved' : j.message);
   };
-
-  // Suspend/Resume kiosk handlers
-  const suspendBtn = document.getElementById('suspendKiosk');
-  const resumeBtn = document.getElementById('resumeKiosk');
-
-  if (suspendBtn) {
-    suspendBtn.onclick = async () => {
-      if (confirm('Are you sure you want to suspend the kiosk? Students will not be able to scan in/out.')) {
-        try {
-          const r = await fetch('/api/suspend_kiosk', { method: 'POST' });
-          const j = await r.json();
-          if (j.ok) {
-            location.reload();
-          } else {
-            alert(j.message || 'Error suspending kiosk');
-          }
-        } catch (e) {
-          alert('Error suspending kiosk');
-        }
-      }
-    };
-  }
-
-  if (resumeBtn) {
-    resumeBtn.onclick = async () => {
-      try {
-        const r = await fetch('/api/resume_kiosk', { method: 'POST' });
-        const j = await r.json();
-        if (j.ok) {
-          location.reload();
-        } else {
-          alert(j.message || 'Error resuming kiosk');
-        }
-      } catch (e) {
-        alert('Error resuming kiosk');
-      }
-    };
-  }
-
-  const migrateBtn = document.getElementById('runMigration');
-  if (migrateBtn) {
-    migrateBtn.onclick = async () => {
-      if (!confirm('Run database migration now?')) return;
-      migrateBtn.disabled = true;
-      document.getElementById('migrationResult').textContent = 'Running...';
-      try {
-        const r = await fetch('/api/migrate', { method: 'POST' });
-        const j = await r.json();
-        if (j.ok) {
-          document.getElementById('migrationResult').textContent = 'Migration completed.';
-          setTimeout(() => location.reload(), 1000);
-        } else {
-          document.getElementById('migrationResult').textContent = j.message || 'Migration failed';
-        }
-      } catch (e) {
-        document.getElementById('migrationResult').textContent = 'Migration failed';
-      } finally {
-        migrateBtn.disabled = false;
-      }
-    };
-  }
-
-  // Hard reset database (danger zone)
-  const resetDbBtn = document.getElementById('resetDbBtn');
-  if (resetDbBtn) {
-    resetDbBtn.onclick = async () => {
-      if (!confirm('This will permanently DELETE all session history from the database. Continue?')) return;
-      if (!confirm('Are you absolutely sure? This cannot be undone.')) return;
-      resetDbBtn.disabled = true;
-      const result = document.getElementById('resetDbResult');
-      result.textContent = 'Resetting...';
-      try {
-        const r = await fetch('/api/reset_database', { method: 'POST' });
-        const j = await r.json();
-        if (j.ok) {
-          result.textContent = `Done. Removed ${j.cleared_sessions} sessions.`;
-          setTimeout(() => location.reload(), 1200);
-        } else {
-          result.textContent = j.message || 'Reset failed';
-        }
-      } catch (e) {
-        result.textContent = 'Network error';
-      } finally {
-        resetDbBtn.disabled = false;
-      }
-    };
-  }
 </script>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
   async function loadCharts() {
@@ -730,9 +422,14 @@
       const c1 = document.getElementById('chartTopUsage');
       const c2 = document.getElementById('chartTopOverdue');
       const c3 = document.getElementById('chartTopOverdueRate');
-      new Chart(c1, { type: 'bar', data: { labels: j.top_usage.labels, datasets: [{ label: 'Count', data: j.top_usage.values, backgroundColor: 'rgba(41,183,101,0.6)' }] }, options: { plugins: { legend: { display: false } }, indexAxis: 'y' } });
-      new Chart(c2, { type: 'bar', data: { labels: j.top_overdue.labels, datasets: [{ label: 'Overdues', data: j.top_overdue.overdues, backgroundColor: 'rgba(242, 201, 76, 0.7)' }] }, options: { plugins: { legend: { display: false } }, indexAxis: 'y' } });
-      new Chart(c3, { type: 'bar', data: { labels: j.top_overdue_rate.labels, datasets: [{ label: 'Overdue %', data: j.top_overdue_rate.rates, backgroundColor: 'rgba(217, 83, 79, 0.7)' }] }, options: { plugins: { legend: { display: false } }, indexAxis: 'y' } });
+      // Update chart colors to match theme
+      const colorPrimary = getComputedStyle(document.body).getPropertyValue('--md-sys-color-primary');
+      const colorError = getComputedStyle(document.body).getPropertyValue('--md-sys-color-error');
+      const colorTertiary = getComputedStyle(document.body).getPropertyValue('--md-sys-color-tertiary');
+      
+      new Chart(c1, { type: 'bar', data: { labels: j.top_usage.labels, datasets: [{ label: 'Count', data: j.top_usage.values, backgroundColor: colorPrimary }] }, options: { plugins: { legend: { display: false } }, indexAxis: 'y' } });
+      new Chart(c2, { type: 'bar', data: { labels: j.top_overdue.labels, datasets: [{ label: 'Overdues', data: j.top_overdue.overdues, backgroundColor: colorError }] }, options: { plugins: { legend: { display: false } }, indexAxis: 'y' } });
+      new Chart(c3, { type: 'bar', data: { labels: j.top_overdue_rate.labels, datasets: [{ label: 'Overdue %', data: j.top_overdue_rate.rates, backgroundColor: colorTertiary }] }, options: { plugins: { legend: { display: false } }, indexAxis: 'y' } });
     } catch (e) { }
   }
   loadCharts();
