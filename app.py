@@ -1276,7 +1276,12 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
 
 # Run automatic initialization (must be after all functions are defined)
-initialize_database_if_needed()
+# Only run this if we are in the main process (not a reloader or worker)
+if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not os.environ.get("WERKZEUG_RUN_MAIN"):
+    try:
+        initialize_database_if_needed()
+    except Exception as e:
+        print(f"Startup initialization failed: {e}")
 
 # CRITICAL FIX for Render/Gunicorn with --preload:
 # We must close the database connection pool in the parent process after initialization.
