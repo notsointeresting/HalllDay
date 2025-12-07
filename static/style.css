@@ -91,15 +91,15 @@ body {
   overflow-x: hidden;
 }
 
-/* Background State Overrides - Muted versions for full body bg */
+/* Background State Overrides - More saturated for visibility */
 body.bg-green {
-  background-color: #f0fdf4; /* Very light green surface */
+  background-color: #d7f5dd; /* Lighter but more visible green */
 }
 body.bg-red {
-  background-color: #fff8f6; /* Very light red surface */
+  background-color: #ffe6e2; /* Lighter but more visible red */
 }
 body.bg-yellow {
-  background-color: #fffdf0; /* Very light yellow surface */
+  background-color: #fff8c4; /* Lighter but more visible yellow */
 }
 
 header {
@@ -222,16 +222,23 @@ main {
 
 /* Typography inside container */
 .status-title {
-  font: var(--md-sys-typescale-display-medium);
+  font: var(--md-sys-typescale-display-large);
   margin: 0 0 16px 0;
   word-break: break-word;
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  max-width: 90%; /* Ensure it doesn't touch edges */
 }
 
 .status-subtitle {
-  font: var(--md-sys-typescale-headline-small);
-  opacity: 0.9;
+  font: var(--md-sys-typescale-headline-medium);
+  opacity: 1;
   margin: 0;
-  word-break: break-word;
+  word-wrap: break-word; /* Allow wrapping */
+  overflow-wrap: break-word;
+  font-weight: 500;
+  max-width: 85%; /* Constrain width to encourage wrapping inside shape */
+  line-height: 1.3;
 }
 
 /* Iconography */

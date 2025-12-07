@@ -473,7 +473,11 @@ def api_scan():
     student_name = get_student_name(code)
     
     if student_name == "Student":  # Default fallback means student not found
-        return jsonify(ok=False, message=f"Unknown ID: {code} - Please upload roster first"), 404
+        # Check if roster is actually empty
+        if len(get_memory_roster()) == 0:
+            return jsonify(ok=False, message="Roster empty. Please upload student list."), 404
+        else:
+            return jsonify(ok=False, message=f"Incorrect ID: {code}"), 404
     
     # Ensure minimal Student record exists for foreign key constraint
     if not Student.query.get(code):
