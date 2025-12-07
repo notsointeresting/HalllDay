@@ -180,9 +180,12 @@ main {
 /* GREEN: Standard State */
 .expressive-container.green::before {
   background-color: var(--color-green-container);
-  mask-image: url('shapes/cookie4.svg');
-  -webkit-mask-image: url('shapes/cookie4.svg');
-  animation: float-shape 8s ease-in-out infinite alternate;
+  /* Mask image not used for border-radius morphing */
+  mask-image: none;
+  -webkit-mask-image: none;
+  
+  border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
+  animation: morph-blob-green 8s ease-in-out infinite alternate;
 }
 
 .expressive-container.green {
@@ -192,8 +195,15 @@ main {
 /* RED: Alert/Banned */
 .expressive-container.red::before {
   background-color: var(--color-red-container);
-  mask-image: url('shapes/burst.svg'); /* Burst for alert/banned */
+  mask-image: url('shapes/burst.svg'); 
   -webkit-mask-image: url('shapes/burst.svg');
+  mask-size: contain;
+  -webkit-mask-size: contain;
+  mask-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-position: center;
+  
   animation: pulse-shape 2s ease-in-out infinite;
 }
 
@@ -204,9 +214,12 @@ main {
 /* YELLOW: Warning/Overdue */
 .expressive-container.yellow::before {
   background-color: var(--color-yellow-container);
-  mask-image: url('shapes/cookie6.svg'); /* 6-sided for slight tension/difference */
-  -webkit-mask-image: url('shapes/cookie6.svg');
-  animation: wobble-shape 4s ease-in-out infinite;
+  /* Liquid blob for yellow too */
+  mask-image: none;
+  -webkit-mask-image: none;
+  
+  border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+  animation: morph-blob-yellow 6s ease-in-out infinite alternate;
 }
 
 .expressive-container.yellow {
@@ -216,21 +229,22 @@ main {
 /* PROCESSING */
 .expressive-container.processing::before {
   background: linear-gradient(135deg, var(--md-sys-color-surface-variant), var(--md-sys-color-primary-container));
-  mask-image: url('shapes/cookie4.svg');
-  -webkit-mask-image: url('shapes/cookie4.svg');
-  animation: spin-slow 20s linear infinite;
+  mask-image: none;
+  -webkit-mask-image: none;
+  border-radius: 50%;
+  animation: morph-blob-processing 3s ease-in-out infinite;
 }
 
 /* Typography inside container */
 .status-title {
   font-family: 'Outfit', sans-serif;
-  font-size: clamp(3rem, 8vw, 8rem); /* Massive responsive type */
+  font-size: clamp(2.5rem, 6vw, 6rem); /* Adjusted max size */
   line-height: 1.1;
   margin: 0 0 16px 0;
   word-break: break-word;
   font-weight: 800; /* Extra bold */
   text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  max-width: 90%;
+  max-width: 70%; /* Tighter constraint for center of blob */
   
   /* Text Animation */
   animation: text-slide-up 0.8s cubic-bezier(0.2, 0, 0, 1) backwards;
@@ -245,7 +259,7 @@ main {
   word-wrap: break-word;
   overflow-wrap: break-word;
   font-weight: 600;
-  max-width: 85%;
+  max-width: 65%; /* Tighter constraint for center of blob */
   
   /* Text Animation (delayed) */
   animation: text-slide-up 0.8s cubic-bezier(0.2, 0, 0, 1) 0.1s backwards;
@@ -273,22 +287,30 @@ main {
   to { opacity: 1; transform: scale(1); }
 }
 
-/* Animations */
-@keyframes float-shape {
-  0% { transform: scale(0.95) rotate(-2deg); }
-  100% { transform: scale(1.02) rotate(2deg); }
+/* Blob Morphing Animations */
+@keyframes morph-blob-green {
+  0% { border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; transform: rotate(-2deg); }
+  33% { border-radius: 70% 30% 50% 50% / 30% 30% 70% 70%; transform: rotate(2deg); }
+  66% { border-radius: 100% 60% 60% 100% / 100% 100% 60% 60%; transform: rotate(-1deg); }
+  100% { border-radius: 69% 31% 30% 70% / 60% 30% 70% 40%; transform: rotate(1deg); }
+}
+
+@keyframes morph-blob-yellow {
+  0% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; transform: scale(1); }
+  50% { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; transform: scale(1.05); }
+  100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; transform: scale(1); }
+}
+
+@keyframes morph-blob-processing {
+  0% { border-radius: 50%; transform: rotate(0deg); }
+  50% { border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; transform: rotate(180deg); }
+  100% { border-radius: 50%; transform: rotate(360deg); }
 }
 
 @keyframes pulse-shape {
   0% { transform: scale(0.95); }
   50% { transform: scale(1.05); }
   100% { transform: scale(0.95); }
-}
-
-@keyframes wobble-shape {
-  0% { transform: rotate(-3deg) scale(0.98); }
-  50% { transform: rotate(3deg) scale(1.02); }
-  100% { transform: rotate(-3deg) scale(0.98); }
 }
 
 @keyframes spin-slow {
