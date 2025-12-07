@@ -5,7 +5,7 @@ let buffer = '';
 
 function setPanel(state, title, subtitle, icon) {
   const panel = document.getElementById('statusPanel');
-  panel.classList.remove('red', 'yellow', 'green');
+  panel.classList.remove('red', 'yellow', 'green', 'processing');
   panel.classList.add(state);
   // swap body bg for visibility
   document.body.classList.remove('bg-green', 'bg-red', 'bg-yellow');
@@ -291,7 +291,7 @@ function setFromStatus(j) {
       setPanel('red', 'In Use', `${j.name} • ${mins}:${secs.toString().padStart(2, '0')}`, 'timer');
     }
   } else {
-    setPanel('green', 'Scan Badge', 'Ready for next student', 'check_circle');
+    setPanel('green', 'Scan Badge', '', 'check_circle');
   }
 }
 
