@@ -4,18 +4,16 @@
   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
     <h2>Admin Dashboard</h2>
     <a href="{{ url_for('admin_logout') }}"
-      style="color: var(--md-sys-color-primary); font: var(--md-sys-typescale-label-large); text-decoration: none;">
-      Logout
+       style="color: var(--md-sys-color-primary); font: var(--md-sys-typescale-label-large); text-decoration: none;">
+       Logout
     </a>
   </div>
 
   <div style="display: flex; gap: 16px; margin-bottom: 32px; flex-wrap: wrap;">
-    <div class="chip"
-      style="background: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container);">
+    <div class="chip" style="background: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container);">
       Open Sessions: <strong>{{ open_count }}</strong>
     </div>
-    <div class="chip"
-      style="background: var(--md-sys-color-surface-variant); color: var(--md-sys-color-on-surface-variant);">
+    <div class="chip" style="background: var(--md-sys-color-surface-variant); color: var(--md-sys-color-on-surface-variant);">
       Total Sessions: <strong>{{ total }}</strong>
     </div>
   </div>
@@ -28,33 +26,28 @@
       FERPA-Compliant Upload
     </h4>
     <p>Student data is encrypted and stored securely.</p>
-
-    <form id="sessionRosterForm"
-      style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px;">
+    
+    <form id="sessionRosterForm" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px;">
       <input type="file" id="sessionFileInput" name="file" accept=".csv" style="padding: 8px;">
       <button type="submit" class="primary-btn">Upload CSV</button>
       <button type="button" id="sessionUploadBtn">Alternative Upload</button>
     </form>
-
+    
     <div id="sessionRosterResult"></div>
 
-    <div
-      style="margin-top: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+    <div style="margin-top: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
       <div style="padding: 12px; background: var(--md-sys-color-background); border-radius: 8px;">
-        <div style="font: var(--md-sys-typescale-headline-small); color: var(--md-sys-color-primary);">{{
-          db_roster_count }}</div>
+        <div style="font: var(--md-sys-typescale-headline-small); color: var(--md-sys-color-primary);">{{ db_roster_count }}</div>
         <div style="font: var(--md-sys-typescale-body-small);">Database Roster (Encrypted)</div>
       </div>
       <div style="padding: 12px; background: var(--md-sys-color-background); border-radius: 8px;">
-        <div style="font: var(--md-sys-typescale-headline-small); color: var(--md-sys-color-secondary);">{{
-          memory_roster_count }}</div>
+        <div style="font: var(--md-sys-typescale-headline-small); color: var(--md-sys-color-secondary);">{{ memory_roster_count }}</div>
         <div style="font: var(--md-sys-typescale-body-small);">Display Cache</div>
       </div>
     </div>
 
     <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--md-sys-color-outline);">
-      <button type="button" id="clearSessionBtn"
-        style="color: var(--md-sys-color-error); border-color: var(--md-sys-color-error);">
+      <button type="button" id="clearSessionBtn" style="color: var(--md-sys-color-error); border-color: var(--md-sys-color-error);">
         Clear All Roster Data
       </button>
       <div id="sessionDebugResult" style="font-size: 12px; margin-top: 8px;"></div>
@@ -66,18 +59,16 @@
   <div class="card-surface">
     <div style="margin-bottom: 16px;">
       {% if sheets_status == 'ok' %}
-      <span class="chip" style="background: #e6ffed; color: #1f7a1f;">Sheets: OK</span>
+        <span class="chip" style="background: #e6ffed; color: #1f7a1f;">Sheets: OK</span>
       {% elif sheets_status == 'degraded' %}
-      <span class="chip" style="background: #fffbea; color: #975a16;">Sheets: Degraded</span>
+        <span class="chip" style="background: #fffbea; color: #975a16;">Sheets: Degraded</span>
       {% else %}
-      <span class="chip" style="background: #edf2f7; color: #4a5568;">Sheets: Off</span>
+        <span class="chip" style="background: #edf2f7; color: #4a5568;">Sheets: Off</span>
       {% endif %}
-      {% if sheets_link %}<a href="{{ sheets_link }}" target="_blank" style="margin-left: 8px; font-size: 14px;">Open
-        Logs</a>{% endif %}
+      {% if sheets_link %}<a href="{{ sheets_link }}" target="_blank" style="margin-left: 8px; font-size: 14px;">Open Logs</a>{% endif %}
     </div>
 
-    <form id="settingsForm"
-      style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+    <form id="settingsForm" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
       <div>
         <label style="display: block; margin-bottom: 4px; font: var(--md-sys-typescale-label-small);">Room Name</label>
         <input name="room_name" value="{{ settings.room_name }}" style="width: 100%;">
@@ -87,8 +78,7 @@
         <input type="number" min="1" name="capacity" value="{{ settings.capacity }}" style="width: 100%;">
       </div>
       <div>
-        <label style="display: block; margin-bottom: 4px; font: var(--md-sys-typescale-label-small);">Overdue
-          (min)</label>
+        <label style="display: block; margin-bottom: 4px; font: var(--md-sys-typescale-label-small);">Overdue (min)</label>
         <input type="number" min="1" name="overdue_minutes" value="{{ settings.overdue_minutes }}" style="width: 100%;">
       </div>
       <div style="display: flex; align-items: flex-end;">
@@ -100,12 +90,6 @@
 
   <!-- Stats -->
   <h3>Weekly Insights</h3>
-  <p
-    style="font-size: 13px; color: var(--md-sys-color-on-surface-variant); margin: -8px 0 16px 0; display: flex; align-items: center; gap: 4px;">
-    <span class="material-symbols-rounded" style="font-size: 16px;">info</span>
-    "Anonymous" entries appear when IDs are scanned without a roster. Uploading a roster will replace them with real
-    names.
-  </p>
   <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:16px;">
     <div class="card-surface">
       <h4 style="margin-top:0;">Top Users</h4>
@@ -125,37 +109,30 @@
   <h3>Auto-Ban</h3>
   <div class="card-surface" style="border-left: 4px solid var(--md-sys-color-error);">
     {% if not settings.get('auto_ban_overdue') and settings.get('auto_ban_overdue') is none %}
-    <div
-      style="background: var(--color-yellow-container); color: var(--color-yellow-on-container); padding: 12px; margin-bottom: 16px; border-radius: 8px;">
+    <div style="background: var(--color-yellow-container); color: var(--color-yellow-on-container); padding: 12px; margin-bottom: 16px; border-radius: 8px;">
       <strong>⚠️ Setup Required:</strong> Run database migration below.
     </div>
     {% endif %}
 
     <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-      <label class="switch-label"
-        style="display: flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer;">
-        <input type="checkbox" id="autoBanToggle" {% if settings.get('auto_ban_overdue') %}checked{% endif %}
-          style="width: 20px; height: 20px;">
+      <label class="switch-label" style="display: flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer;">
+        <input type="checkbox" id="autoBanToggle" {% if settings.get('auto_ban_overdue') %}checked{% endif %} style="width: 20px; height: 20px;">
         <span id="autoBanToggleLabel">
           {% if settings.get('auto_ban_overdue') %}Auto-Ban Enabled{% else %}Auto-Ban Disabled{% endif %}
         </span>
       </label>
     </div>
-
-    <p style="font-size: 13px; margin-bottom: 16px;">Checks every second. Overdue threshold: <strong>{{
-        settings.overdue_minutes }} min</strong>.</p>
+    
+    <p style="font-size: 13px; margin-bottom: 16px;">Checks every second. Overdue threshold: <strong>{{ settings.overdue_minutes }} min</strong>.</p>
     <div id="autoBanToggleResult"></div>
 
     <h4 style="color: var(--md-sys-color-error); margin: 24px 0 12px 0;">Currently Overdue</h4>
     <div style="display: flex; gap: 12px; margin-bottom: 12px;">
       <button id="loadOverdueBtn" style="background: var(--color-yellow-primary); color: white;">Check Overdue</button>
-      <button id="manualBanOverdueBtn" style="background: var(--md-sys-color-error); color: white;" disabled>Ban All
-        Overdue</button>
+      <button id="manualBanOverdueBtn" style="background: var(--md-sys-color-error); color: white;" disabled>Ban All Overdue</button>
     </div>
     <div id="overdueListContainer" style="display: none;">
-      <div id="overdueList"
-        style="max-height: 200px; overflow-y: auto; background: var(--md-sys-color-background); padding: 8px; border-radius: 8px;">
-      </div>
+      <div id="overdueList" style="max-height: 200px; overflow-y: auto; background: var(--md-sys-color-background); padding: 8px; border-radius: 8px;"></div>
     </div>
     <div id="overdueResult" style="margin-top: 8px;"></div>
   </div>
@@ -164,12 +141,10 @@
   <h3>Banned Students</h3>
   <div class="card-surface" style="border-left: 4px solid var(--color-yellow-primary);">
     <button id="loadStudentsBtn" class="primary-btn" style="margin-bottom: 16px;">Load Student List</button>
-
+    
     <div id="studentListContainer" style="display: none;">
-      <input type="text" id="studentSearchBox" placeholder="Search students..."
-        style="width: 100%; margin-bottom: 12px;">
-      <div
-        style="max-height: 300px; overflow-y: auto; border: 1px solid var(--md-sys-color-outline); border-radius: 8px;">
+      <input type="text" id="studentSearchBox" placeholder="Search students..." style="width: 100%; margin-bottom: 12px;">
+      <div style="max-height: 300px; overflow-y: auto; border: 1px solid var(--md-sys-color-outline); border-radius: 8px;">
         <div id="studentList" style="padding: 8px;"></div>
       </div>
       <div id="banResult" style="margin-top: 8px;"></div>
@@ -202,8 +177,7 @@
 
     <div style="background: var(--md-sys-color-error-container); padding: 16px; border-radius: 12px;">
       <h4 style="margin-top: 0; color: var(--md-sys-color-on-error-container);">Danger Zone</h4>
-      <p style="color: var(--md-sys-color-on-error-container); font-size: 13px;">Permanently delete all session history.
-      </p>
+      <p style="color: var(--md-sys-color-on-error-container); font-size: 13px;">Permanently delete all session history.</p>
       <button id="resetDbBtn" style="background: var(--md-sys-color-error); color: white;">Delete History</button>
       <span id="resetDbResult" style="margin-left: 8px; color: var(--md-sys-color-on-error-container);"></span>
     </div>
@@ -211,8 +185,7 @@
 
   <div style="margin-top: 32px; display: flex; gap: 16px;">
     <button id="override">Force End Current Session</button>
-    <a href="{{ url_for('export_csv') }}" class="primary-btn"
-      style="text-decoration: none; background: var(--md-sys-color-secondary);">Download CSV</a>
+    <a href="{{ url_for('export_csv') }}" class="primary-btn" style="text-decoration: none; background: var(--md-sys-color-secondary);">Download CSV</a>
   </div>
 </section>
 
@@ -360,7 +333,7 @@
     document.getElementById('banResult').textContent = (ban ? 'Banning ' : 'Unbanning ') + name + '...';
     try {
       const ep = ban ? '/api/ban_student' : '/api/unban_student';
-      const r = await fetch(ep, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ student_id: sid }) });
+      const r = await fetch(ep, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({student_id: sid})});
       const j = await r.json();
       if (j.ok) {
         document.getElementById('banResult').textContent = 'Done.';
@@ -406,7 +379,7 @@
   bindBtn('suspendKiosk', '/api/suspend_kiosk', 'Suspend Kiosk?');
   bindBtn('resumeKiosk', '/api/resume_kiosk');
   bindBtn('runMigration', '/api/migrate', 'Run Migration?');
-
+  
   const resetBtn = document.getElementById('resetDbBtn');
   if (resetBtn) resetBtn.onclick = async () => {
     if (!confirm('DELETE ALL HISTORY?')) return;
@@ -416,16 +389,16 @@
       const j = await r.json();
       alert(j.message);
       if (j.ok) location.reload();
-    } catch (e) { alert(e.message); }
+    } catch(e) { alert(e.message); }
   };
 
   document.getElementById('clearSessionBtn').onclick = async () => {
-    if (confirm('Clear Roster?')) {
+    if(confirm('Clear Roster?')) {
       await fetch('/api/clear_session_roster', { method: 'POST' });
       location.reload();
     }
   };
-
+  
   document.getElementById('settingsForm').onsubmit = async (e) => {
     e.preventDefault();
     const f = e.target;
@@ -453,7 +426,7 @@
       const colorPrimary = getComputedStyle(document.body).getPropertyValue('--md-sys-color-primary');
       const colorError = getComputedStyle(document.body).getPropertyValue('--md-sys-color-error');
       const colorTertiary = getComputedStyle(document.body).getPropertyValue('--md-sys-color-tertiary');
-
+      
       new Chart(c1, { type: 'bar', data: { labels: j.top_usage.labels, datasets: [{ label: 'Count', data: j.top_usage.values, backgroundColor: colorPrimary }] }, options: { plugins: { legend: { display: false } }, indexAxis: 'y' } });
       new Chart(c2, { type: 'bar', data: { labels: j.top_overdue.labels, datasets: [{ label: 'Overdues', data: j.top_overdue.overdues, backgroundColor: colorError }] }, options: { plugins: { legend: { display: false } }, indexAxis: 'y' } });
       new Chart(c3, { type: 'bar', data: { labels: j.top_overdue_rate.labels, datasets: [{ label: 'Overdue %', data: j.top_overdue_rate.rates, backgroundColor: colorTertiary }] }, options: { plugins: { legend: { display: false } }, indexAxis: 'y' } });

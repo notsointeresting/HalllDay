@@ -84,39 +84,3 @@ class RosterService:
             self.db.session.commit()
         except Exception:
             self.db.session.rollback()
-    
-    def update_anonymous_students(self, student_model) -> int:
-        """
-        Update Student.name for any Anonymous_* entries matching the roster.
-        Called after roster upload to retroactively fix anonymous entries.
-        Returns the count of updated students.
-        
-        NOTE (v2.0): This may be legacy code. Since /api/stats/week now does 
-        roster lookups via get_student_name(), this retroactive DB update is 
-        mostly cosmetic. Consider removing in a 2.0 refactor if Student.name 
-        is no longer used directly anywhere.
-        """
-        updated_count = 0
-        try:
-            # Get all Anonymous students from the Student table
-            anonymous_students = student_model.query.filter(
-                student_model.name.like('Anonymous_%')
-            ).all()
-            
-            for student in anonymous_students:
-                # Check if we have a real name in the roster
-                real_name = self.get_student_name(student.id, fallback=None)
-                if real_name and real_name != student.name:
-                    student.name = real_name
-                    updated_count += 1
-            
-            if updated_count > 0:
-                self.db.session.commit()
-                
-        except Exception:
-            try:
-                self.db.session.rollback()
-            except Exception:
-                pass
-        
-        return updated_count
