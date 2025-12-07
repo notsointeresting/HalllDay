@@ -18,6 +18,10 @@ Use the assets and guidelines in `design_system/` to overhaul the frontend.
     - **Kiosk**: Make the "Scan ID" area a prominent, accessible M3 surface.
     - **Display**: Update the status cards and lists to match the new aesthetic.
     - **Responsiveness**: Ensure layouts adapt gracefully to mobile, tablet, and desktop (using flexbox/grid and M3 breakpoints).
+- [x] **Refinement**:
+    - Scale typography and shapes to fill the viewport for an immersive experience.
+    - Add entrance animations for text and icons.
+    - Increase contrast and saturation for better visibility from a distance.
 
 ### 2. Stats Page & "Anonymous" Students
 **Goal:** Remove "Anonymous" student entries from stats and prioritize actual student data.
