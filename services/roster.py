@@ -1,22 +1,12 @@
 """
 Roster Service: Handles student roster management
-Centralizes all roster operations for FERPA-compliant student data handling
 """
 from typing import Dict, Optional
 import hashlib
-from cryptography.fernet import Fernet
 
 
 class RosterService:
-    def __init__(self, db, cipher_suite: Fernet, student_name_model):
-        """
-        Initialize RosterService
-        
-        Args:
-            db: SQLAlchemy database instance
-            cipher_suite: Fernet encryption instance
-            student_name_model: StudentName model class
-        """
+    def __init__(self, db, cipher_suite, student_name_model):
         self.db = db
         self.cipher_suite = cipher_suite
         self.StudentName = student_name_model
@@ -56,8 +46,7 @@ class RosterService:
                 )
                 self.db.session.add(student_name)
             self.db.session.commit()
-        except Exception as e:
-            print(f"DEBUG: Error storing student name: {e}")
+        except Exception:
             try:
                 self.db.session.rollback()
             except Exception:
@@ -93,7 +82,5 @@ class RosterService:
         try:
             self.StudentName.query.delete()
             self.db.session.commit()
-            print("DEBUG: Cleared all student names from database")
-        except Exception as e:
-            print(f"DEBUG: Error clearing student names: {e}")
+        except Exception:
             self.db.session.rollback()

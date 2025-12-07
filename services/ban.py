@@ -1,51 +1,35 @@
 """
 Ban Service: Handles student ban management
-Centralizes ban/unban operations and overdue checking
 """
 from typing import Dict, List, Any
-import hashlib
 
 
 class BanService:
     def __init__(self, db, student_name_model, roster_service):
-        """
-        Initialize BanService
-        
-        Args:
-            db: SQLAlchemy database instance
-            student_name_model: StudentName model class
-            roster_service: RosterService instance for name lookups
-        """
         self.db = db
         self.StudentName = student_name_model
         self.roster_service = roster_service
     
-    def _hash_student_id(self, student_id: str) -> str:
-        """Create a hash of student ID for lookup"""
-        return hashlib.sha256(f"student_{student_id}".encode()).hexdigest()[:16]
-    
     def is_student_banned(self, student_id: str) -> bool:
         """Check if a student is banned from using the restroom"""
         try:
-            name_hash = self._hash_student_id(student_id)
+            name_hash = self.roster_service._hash_student_id(student_id)
             student_name = self.StudentName.query.filter_by(name_hash=name_hash).first()
             return student_name.banned if student_name else False
-        except Exception as e:
-            print(f"DEBUG: Error checking ban status for {student_id}: {e}")
+        except Exception:
             return False
     
     def set_student_banned(self, student_id: str, banned_status: bool) -> bool:
         """Ban or unban a student from using the restroom"""
         try:
-            name_hash = self._hash_student_id(student_id)
+            name_hash = self.roster_service._hash_student_id(student_id)
             student_name = self.StudentName.query.filter_by(name_hash=name_hash).first()
             if student_name:
                 student_name.banned = banned_status
                 self.db.session.commit()
                 return True
             return False
-        except Exception as e:
-            print(f"DEBUG: Error setting ban status for {student_id}: {e}")
+        except Exception:
             try:
                 self.db.session.rollback()
             except Exception:
@@ -76,8 +60,7 @@ class BanService:
                     })
             
             return overdue_list
-        except Exception as e:
-            print(f"DEBUG: Error getting overdue students: {e}")
+        except Exception:
             return []
     
     def auto_ban_overdue_students(self, open_sessions: list, overdue_minutes: int) -> Dict[str, Any]:
@@ -88,14 +71,12 @@ class BanService:
             banned_students = []
             
             for student in overdue_list:
-                if not student['banned']:  # Only ban if not already banned
+                if not student['banned']:
                     success = self.set_student_banned(student['student_id'], True)
                     if success:
                         banned_count += 1
                         banned_students.append(student['name'])
-                        print(f"DEBUG: Auto-banned {student['name']} ({student['student_id']}) for being overdue {student['duration_minutes']} minutes")
             
             return {'count': banned_count, 'students': banned_students}
-        except Exception as e:
-            print(f"DEBUG: Error auto-banning overdue students: {e}")
+        except Exception:
             return {'count': 0, 'students': []}

@@ -7,10 +7,10 @@ import time
 import hashlib
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
-from typing import Dict, Optional, List, Any, Tuple
+from typing import Dict, Optional, List, Any
 from functools import wraps
 
-from flask import Flask, jsonify, render_template, request, redirect, url_for, send_file, Response, stream_with_context, session, flash
+from flask import Flask, jsonify, render_template, request, redirect, url_for, send_file, Response, stream_with_context, session
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
 
@@ -49,10 +49,6 @@ def _get_encryption_key():
     return base64.urlsafe_b64encode(key_32)
 
 cipher_suite = Fernet(_get_encryption_key())
-
-# FERPA-Compliant Memory Cache for Student Roster
-# Kept for performance, but DB is now the persistent source of truth
-_memory_roster = {}
 
 
 # ---------- Models ----------
@@ -214,51 +210,6 @@ def clear_memory_roster() -> None:
     if roster_service:
         roster_service.clear_memory_roster()
 
-def _hash_student_id(student_id: str) -> str:
-    """Create a hash of student ID for FERPA-compliant lookup"""
-    return hashlib.sha256(f"student_{student_id}".encode()).hexdigest()[:16]
-
-def store_student_name_db(student_id: str, name: str) -> None:
-    """Store student name in database using hash for lookup and encryption for retrieval"""
-    try:
-        name_hash = _hash_student_id(student_id)
-        # Encrypt the ID
-        encrypted_id = cipher_suite.encrypt(student_id.encode()).decode()
-        
-        existing = StudentName.query.filter_by(name_hash=name_hash).first()
-        if existing:
-            existing.display_name = name
-            existing.encrypted_id = encrypted_id
-        else:
-            student_name = StudentName(name_hash=name_hash, display_name=name, encrypted_id=encrypted_id)
-            db.session.add(student_name)
-        db.session.commit()
-    except Exception as e:
-        print(f"DEBUG: Error storing student name: {e}")
-        try:
-            db.session.rollback()
-        except Exception:
-            pass
-
-def get_student_name_db(student_id: str) -> Optional[str]:
-    """Get student name from database using hash lookup"""
-    try:
-        name_hash = _hash_student_id(student_id)
-        student_name = StudentName.query.filter_by(name_hash=name_hash).first()
-        return student_name.display_name if student_name else None
-    except Exception:
-        return None
-
-def clear_all_student_names_db():
-    """Clear all student names from database"""
-    try:
-        StudentName.query.delete()
-        db.session.commit()
-        print("DEBUG: Cleared all student names from database")
-    except Exception as e:
-        print(f"DEBUG: Error clearing student names: {e}")
-        db.session.rollback()
-
 def get_student_name(student_id: str, fallback: str = "Student") -> str:
     """Get student name from memory or database."""
     return roster_service.get_student_name(student_id, fallback) if roster_service else fallback
@@ -279,8 +230,7 @@ def get_overdue_students() -> List[Dict[str, Any]]:
         settings = get_settings()
         open_sessions = session_service.get_open_sessions()
         return ban_service.get_overdue_students(open_sessions, settings["overdue_minutes"])
-    except Exception as e:
-        print(f"DEBUG: Error getting overdue students: {e}")
+    except Exception:
         return []
 
 def auto_ban_overdue_students() -> Dict[str, Any]:
@@ -291,8 +241,7 @@ def auto_ban_overdue_students() -> Dict[str, Any]:
         settings = get_settings()
         open_sessions = session_service.get_open_sessions()
         return ban_service.auto_ban_overdue_students(open_sessions, settings["overdue_minutes"])
-    except Exception as e:
-        print(f"DEBUG: Error auto-banning overdue students: {e}")
+    except Exception:
         return {'count': 0, 'students': []}
 
 # ---------- Utility ----------
@@ -310,10 +259,6 @@ def get_open_sessions():
 def get_current_holder():
     """Get the first student currently holding the pass"""
     return session_service.get_current_holder() if session_service else None
-
-def auto_end_expired():
-    # No-op: we no longer auto-end. Overdue is indicated in UI and CSV export.
-    return
 
 def get_settings():
     try:
@@ -515,8 +460,6 @@ def _start_keepalive_thread():
 
 @app.post("/api/scan")
 def api_scan():
-    auto_end_expired()
-    
     # Check if kiosk is suspended
     if get_settings()["kiosk_suspended"]:
         return jsonify(ok=False, message="Kiosk is currently suspended by administrator"), 403
@@ -526,21 +469,13 @@ def api_scan():
     if not code:
         return jsonify(ok=False, message="No code scanned"), 400
 
-    # FERPA Compliance: Check both session and memory roster
+    # Look up student name from encrypted database
     student_name = get_student_name(code)
     
     if student_name == "Student":  # Default fallback means student not found
         return jsonify(ok=False, message=f"Unknown ID: {code} - Please upload roster first"), 404
     
-    # Ensure memory roster is populated for cross-device access
-    # This happens when a student scans successfully, ensuring display can access names
-    memory_roster = get_memory_roster()
-    session_roster = session.get('student_roster', {})
-    if len(memory_roster) == 0 and len(session_roster) > 0:
-        print(f"DEBUG: Populating memory roster during scan ({len(session_roster)} students)")
-        set_memory_roster(session_roster)
-    
-    # Ensure minimal Student record exists for foreign key constraint (anonymous)
+    # Ensure minimal Student record exists for foreign key constraint
     if not Student.query.get(code):
         anonymous_student = Student(id=code, name=f"Anonymous_{code}")
         db.session.add(anonymous_student)
@@ -613,7 +548,6 @@ def api_scan():
 
 @app.get("/api/status")
 def api_status():
-    auto_end_expired()
     settings = get_settings()
     
     s = get_current_holder()
@@ -643,20 +577,7 @@ def sse_events():
             kiosk_suspended = settings["kiosk_suspended"]
             auto_ban_overdue = settings.get("auto_ban_overdue", False)
             if s:
-                # FERPA Compliance: Get name from session or memory roster
                 student_name = get_student_name(s.student_id, "Student")
-                
-                # Additional fallback for SSE streams that don't have session access
-                # If memory roster is empty, try to find any active session with roster data
-                if student_name == "Student" and len(get_memory_roster()) == 0:
-                    print(f"DEBUG: SSE fallback - trying to find roster data for student {s.student_id}")
-                    # This is a last resort - in production, the memory roster should be populated
-                    # from the admin session when they upload the roster
-                
-                # Debug logging (remove in production)
-                if student_name == "Student":
-                    print(f"DEBUG: SSE stream - Student {s.student_id} showing as 'Student' (name not found)")
-                
                 payload = {
                     "in_use": True,
                     "name": student_name,
@@ -788,33 +709,6 @@ def api_resume_kiosk():
             s.kiosk_suspended = False
         db.session.commit()
         return jsonify(ok=True, suspended=False)
-    except Exception as e:
-        db.session.rollback()
-        return jsonify(ok=False, message=str(e)), 500
-
-@app.post("/api/toggle_kiosk_suspend")
-def api_toggle_kiosk_suspend():
-    """Toggle kiosk suspension with passcode (for kiosk shortcut)."""
-    try:
-        payload = request.get_json(silent=True) or {}
-        passcode = payload.get('passcode', '').strip()
-        
-        # Verify passcode
-        if passcode != config.ADMIN_PASSCODE:
-            return jsonify(ok=False, message="Invalid passcode"), 401
-        
-        # Toggle suspension
-        s = Settings.query.get(1)
-        if not s:
-            s = Settings(id=1, kiosk_suspended=True)
-            db.session.add(s)
-            new_state = True
-        else:
-            s.kiosk_suspended = not s.kiosk_suspended
-            new_state = s.kiosk_suspended
-        
-        db.session.commit()
-        return jsonify(ok=True, suspended=new_state, message=f"Kiosk {'suspended' if new_state else 'resumed'}")
     except Exception as e:
         db.session.rollback()
         return jsonify(ok=False, message=str(e)), 500
@@ -983,30 +877,15 @@ def api_upload_session_roster():
             count += 1
             
             # Store in DB (encrypted)
-            store_student_name_db(sid, name)
+            roster_service.store_student_name(sid, name)
         
         # Populate memory cache for immediate performance
         set_memory_roster(student_roster)
-        
-        print(f"DEBUG: Roster uploaded - {count} students stored in database (encrypted)")
             
-        return jsonify(ok=True, imported=count, message=f"Roster uploaded successfully ({count} students). Data is encrypted and persistent.")
+        return jsonify(ok=True, imported=count, message=f"Roster uploaded successfully ({count} students).")
         
     except Exception as e:
         return jsonify(ok=False, message=f"Upload failed: {str(e)}"), 500
-
-@app.post("/api/test_auth")
-@require_admin_auth_api
-def api_test_auth():
-    """Test endpoint to verify admin authentication is working"""
-    return jsonify(ok=True, message="Admin authentication is working", authenticated=True)
-
-@app.get("/api/session_roster")
-@require_admin_auth_api
-def api_get_session_roster():
-    """Get current session roster for debugging"""
-    student_roster = session.get('student_roster', {})
-    return jsonify(ok=True, roster=student_roster, count=len(student_roster))
 
 @app.get("/api/memory_roster_status")
 @require_admin_auth_api
@@ -1021,38 +900,13 @@ def api_get_memory_roster_status():
     
     return jsonify(ok=True, **status)
 
-@app.get("/api/debug_roster")
-def api_debug_roster():
-    """Debug endpoint to check roster status (no auth required for testing)"""
-    # Get current session holder
-    s = get_current_holder()
-    student_id = s.student_id if s else None
-    
-    # Check both rosters
-    session_roster = session.get('student_roster', {})
-    memory_roster = get_memory_roster()
-    
-    # Test get_student_name function
-    test_name = get_student_name(student_id, "Student") if student_id else None
-    
-    debug_info = {
-        'current_student_id': student_id,
-        'session_roster_count': len(session_roster),
-        'memory_roster_count': len(memory_roster),
-        'test_student_name': test_name,
-        'memory_roster_sample': dict(list(memory_roster.items())[:3]) if memory_roster else {},
-        'session_roster_sample': dict(list(session_roster.items())[:3]) if session_roster else {}
-    }
-    
-    return jsonify(ok=True, debug=debug_info)
-
 @app.post("/api/clear_session_roster")
 @require_admin_auth_api
 def api_clear_session_roster():
     """Clear memory and database roster."""
     clear_memory_roster()
-    clear_all_student_names_db()
-    return jsonify(ok=True, message="All rosters cleared from database and memory")
+    roster_service.clear_all_student_names()
+    return jsonify(ok=True, message="All rosters cleared")
 
 
 
@@ -1060,23 +914,19 @@ def api_clear_session_roster():
 @app.post("/api/reset_database")
 @require_admin_auth_api
 def api_reset_database():
-    """Reset: Delete all sessions from database (students stored in session only).
-
-    This clears all session history while preserving student roster in browser session.
-    Settings are preserved.
+    """Reset: Delete all sessions from database.
+    
+    This clears all session history. Student roster and settings are preserved.
     """
     try:
-        # Count before deletion
         total_sessions = Session.query.count()
-
-        # Delete all sessions (no need to delete students - they're session-only now)
         db.session.query(Session).delete()
         db.session.commit()
 
         return jsonify(
             ok=True,
             cleared_sessions=total_sessions,
-            message="Database reset complete - all sessions removed (student roster remains in session)"
+            message="Database reset complete - all sessions removed"
         )
     except Exception as e:
         try:
@@ -1088,7 +938,6 @@ def api_reset_database():
 @app.get("/export.csv")
 def export_csv():
     """Export sessions for the current day in local timezone."""
-    auto_end_expired()
     today_local = datetime.now(TZ).date()
     start = datetime.combine(today_local, datetime.min.time(), tzinfo=TZ).astimezone(timezone.utc)
     end = datetime.combine(today_local, datetime.max.time(), tzinfo=TZ).astimezone(timezone.utc)
@@ -1118,13 +967,12 @@ def export_csv():
 
 @app.cli.command("init-db")
 def init_db():
-    """Initialize DB (students are now session-only, not database-stored)."""
+    """Initialize database tables and default settings."""
     db.create_all()
     if not Settings.query.get(1):
         db.session.add(Settings(id=1, room_name=config.ROOM_NAME, capacity=config.CAPACITY, overdue_minutes=getattr(config, "MAX_MINUTES", 10), kiosk_suspended=False, auto_ban_overdue=False))
         db.session.commit()
-    # Note: Student roster is now uploaded via web interface to session only (FERPA compliant)
-    print("Database initialized (students are session-only).")
+    print("Database initialized successfully.")
 
 
 def run_migrations():
@@ -1261,31 +1109,20 @@ def run_migrations():
         messages.append("auto_ban_overdue column already exists")
 
     # Migration 4: ensure StudentName.encrypted_id exists
-    # Migration 4: ensure StudentName.encrypted_id exists
-    print("Migration 4: Checking encrypted_id column...", file=sys.stderr)
     try:
-        # Use a raw connection and force commit
         with db.engine.connect() as conn:
-            # Check if column exists first to avoid unnecessary DDL
             res = conn.execute(text(
                 "SELECT column_name FROM information_schema.columns WHERE table_name='student_name' AND column_name='encrypted_id'"
             ))
             if res.scalar():
-                print("Migration 4: encrypted_id column already exists.", file=sys.stderr)
                 messages.append("encrypted_id column already exists")
             else:
-                print("Migration 4: Adding encrypted_id column...", file=sys.stderr)
-                # Force autocommit isolation level for DDL if needed, or just execute
                 conn.execute(text("ALTER TABLE student_name ADD COLUMN IF NOT EXISTS encrypted_id VARCHAR"))
                 conn.commit()
-                print("Migration 4: Successfully added encrypted_id column.", file=sys.stderr)
                 messages.append("Added encrypted_id column successfully")
                 
     except Exception as e:
-        err_msg = f"CRITICAL MIGRATION FAILURE: Failed to add encrypted_id column: {e}"
-        print(err_msg, file=sys.stderr)
-        messages.append(err_msg)
-        # We must raise here because the app cannot function without this column
+        messages.append(f"Failed to add encrypted_id column: {e}")
         raise e
 
 

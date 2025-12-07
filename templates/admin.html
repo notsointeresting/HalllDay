@@ -10,15 +10,13 @@
 
   <h3>Student Roster Management</h3>
 
-  <!-- FERPA-Compliant Session Upload -->
+  <!-- FERPA-Compliant Roster Upload -->
   <div style="background: #e8f5e8; border: 1px solid #4caf50; border-radius: 4px; padding: 15px; margin-bottom: 15px;">
-    <h4 style="color: #2e7d32; margin: 0 0 10px 0;">🔒 FERPA-Compliant Upload (Recommended)</h4>
-    <p style="margin: 0 0 10px 0; color: #2e7d32; font-size: 14px;">Student names stored in browser session only - not
-      on external servers</p>
+    <h4 style="color: #2e7d32; margin: 0 0 10px 0;">🔒 FERPA-Compliant Upload</h4>
+    <p style="margin: 0 0 10px 0; color: #2e7d32; font-size: 14px;">Student data encrypted and stored securely in database</p>
     <form id="sessionRosterForm">
       <input type="file" id="sessionFileInput" name="file" accept=".csv" style="margin-right: 10px;">
-      <button type="submit" style="background: #4caf50; color: white; margin-right: 10px;">Upload to Session
-        Only</button>
+      <button type="submit" style="background: #4caf50; color: white; margin-right: 10px;">Upload Roster</button>
       <button type="button" id="sessionUploadBtn" style="background: #2196f3; color: white;">Alternative Upload</button>
     </form>
     <div id="sessionRosterResult"></div>
@@ -31,16 +29,10 @@
       students (Cached)</p>
     {% endif %}
 
-    <!-- Debug Authentication -->
+    <!-- Roster Management -->
     <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #4caf50;">
-      <button type="button" id="testAuthBtn"
-        style="background: #9c27b0; color: white; font-size: 12px; margin-right: 5px;">Test Authentication</button>
-      <button type="button" id="viewSessionBtn"
-        style="background: #607d8b; color: white; font-size: 12px; margin-right: 5px;">View Session Roster</button>
-      <button type="button" id="clearSessionBtn" style="background: #f44336; color: white; font-size: 12px;">Clear
-        Session</button>
-      <div id="testAuthResult" style="font-size: 12px; margin-top: 5px;"></div>
-      <div id="sessionDebugResult" style="font-size: 12px; margin-top: 5px; max-height: 200px; overflow-y: auto;"></div>
+      <button type="button" id="clearSessionBtn" style="background: #f44336; color: white; font-size: 12px;">Clear All Roster Data</button>
+      <div id="sessionDebugResult" style="font-size: 12px; margin-top: 5px;"></div>
     </div>
   </div>
 
@@ -196,7 +188,7 @@
   <div style="margin-bottom:16px; padding:12px; border:1px solid #dc3545; background:#fff5f5;">
     <h4 style="color:#dc3545; margin:0 0 8px 0;">Danger Zone</h4>
     <p style="margin:0 0 8px 0; color:#dc3545; font-size:13px;">This will permanently DELETE all session history from
-      the database. Your current browser session roster will remain intact.</p>
+      the database. Student roster and settings are preserved.</p>
     <button id="resetDbBtn" style="background:#dc3545; color:white;">Delete ALL Session History</button>
     <span id="resetDbResult" style="margin-left:8px;"></span>
   </div>
@@ -207,14 +199,6 @@
 </section>
 
 <script>
-  console.log('Admin panel JavaScript loaded');
-
-  // Test if forms exist
-  document.addEventListener('DOMContentLoaded', function () {
-    console.log('DOM loaded');
-    console.log('sessionRosterForm exists:', !!document.getElementById('sessionRosterForm'));
-  });
-
   document.getElementById('override').onclick = async () => {
     const r = await fetch('/api/override_end', { method: 'POST' });
     const j = await r.json();
@@ -266,7 +250,6 @@
         resultDiv.textContent = `❌ Failed: ${j.message || 'Could not save setting'}`;
       }
     } catch (error) {
-      console.error('Auto-ban toggle error:', error);
       // Revert on error
       checkbox.checked = !isEnabled;
       label.textContent = !isEnabled ? '✅ Auto-Ban ENABLED' : '❌ Auto-Ban DISABLED';
@@ -314,7 +297,6 @@
         btn.textContent = 'Check Overdue Students';
       }
     } catch (error) {
-      console.error('Load overdue students error:', error);
       resultDiv.style.color = '#dc3545';
       resultDiv.textContent = `❌ Error: ${error.message}`;
       btn.textContent = 'Check Overdue Students';
@@ -395,7 +377,6 @@
         btn.textContent = 'Manually Ban All Overdue';
       }
     } catch (error) {
-      console.error('Manual ban error:', error);
       resultDiv.style.color = '#dc3545';
       resultDiv.textContent = `❌ Error: ${error.message}`;
       btn.disabled = false;
@@ -434,7 +415,6 @@
         btn.textContent = 'Load Student List';
       }
     } catch (error) {
-      console.error('Load students error:', error);
       resultDiv.style.color = '#dc3545';
       resultDiv.textContent = `❌ Error: ${error.message}`;
       btn.textContent = 'Load Student List';
@@ -520,7 +500,6 @@
         if (checkbox) checkbox.checked = !shouldBan;
       }
     } catch (error) {
-      console.error('Toggle ban error:', error);
       resultDiv.style.color = '#dc3545';
       resultDiv.textContent = `❌ Error: ${error.message}`;
 
@@ -546,11 +525,9 @@
     renderStudentList();
   };
 
-  // FERPA-Compliant Session Upload
+  // Roster Upload
   document.getElementById('sessionRosterForm').onsubmit = async (e) => {
     e.preventDefault();
-    console.log('Session roster form submitted');
-
     const fileInput = e.target.querySelector('input[type="file"]');
     const resultDiv = document.getElementById('sessionRosterResult');
 
@@ -563,33 +540,27 @@
 
     try {
       const fd = new FormData(e.target);
-      console.log('Sending request to /api/upload_session_roster');
       const r = await fetch('/api/upload_session_roster', { method: 'POST', body: fd });
-      console.log('Response status:', r.status);
       const j = await r.json();
-      console.log('session_roster_upload response:', j);
 
       if (j.ok) {
-        resultDiv.innerHTML = `<p style="color: #2e7d32; margin: 5px 0 0 0;">✅ ${j.imported} students loaded to session (FERPA compliant)</p>`;
-        setTimeout(() => location.reload(), 1500); // Refresh to show updated count
+        resultDiv.innerHTML = `<p style="color: #2e7d32; margin: 5px 0 0 0;">✅ ${j.imported} students uploaded successfully</p>`;
+        setTimeout(() => location.reload(), 1500);
       } else {
         resultDiv.innerHTML = `<p style="color: #d32f2f; margin: 5px 0 0 0;">❌ ${j.message || 'Upload failed'}</p>`;
       }
     } catch (error) {
-      console.error('Upload error:', error);
       resultDiv.innerHTML = `<p style="color: #d32f2f; margin: 5px 0 0 0;">❌ Network error: ${error.message}</p>`;
     }
   };
 
 
 
-  // Alternative button handlers (in case form submission doesn't work)
+  // Alternative upload button handler
   document.addEventListener('DOMContentLoaded', function () {
-    // Session roster alternative upload
     const sessionUploadBtn = document.getElementById('sessionUploadBtn');
     if (sessionUploadBtn) {
       sessionUploadBtn.onclick = async () => {
-        console.log('Session alternative button clicked');
         const fileInput = document.getElementById('sessionFileInput');
         const resultDiv = document.getElementById('sessionRosterResult');
 
@@ -598,127 +569,51 @@
           return;
         }
 
-        resultDiv.innerHTML = `<p style="color: #2196f3; margin: 5px 0 0 0;">📤 Uploading via alternative method...</p>`;
+        resultDiv.innerHTML = `<p style="color: #2196f3; margin: 5px 0 0 0;">📤 Uploading...</p>`;
 
         try {
           const fd = new FormData();
           fd.append('file', fileInput.files[0]);
-          console.log('Sending alternative request to /api/upload_session_roster');
           const r = await fetch('/api/upload_session_roster', { method: 'POST', body: fd });
-          console.log('Alternative response status:', r.status);
           const j = await r.json();
-          console.log('Alternative session_roster_upload response:', j);
 
           if (j.ok) {
-            resultDiv.innerHTML = `<p style="color: #2e7d32; margin: 5px 0 0 0;">✅ ${j.imported} students loaded to session (FERPA compliant)</p>`;
+            resultDiv.innerHTML = `<p style="color: #2e7d32; margin: 5px 0 0 0;">✅ ${j.imported} students uploaded successfully</p>`;
             setTimeout(() => location.reload(), 1500);
           } else {
             resultDiv.innerHTML = `<p style="color: #d32f2f; margin: 5px 0 0 0;">❌ ${j.message || 'Upload failed'}</p>`;
           }
         } catch (error) {
-          console.error('Alternative upload error:', error);
           resultDiv.innerHTML = `<p style="color: #d32f2f; margin: 5px 0 0 0;">❌ Network error: ${error.message}</p>`;
         }
       };
     }
 
 
-
-
-
-    // Test authentication button
-    const testAuthBtn = document.getElementById('testAuthBtn');
-    if (testAuthBtn) {
-      testAuthBtn.onclick = async () => {
-        console.log('Testing authentication...');
-        const resultDiv = document.getElementById('testAuthResult');
-        resultDiv.textContent = 'Testing...';
-
-        try {
-          const r = await fetch('/api/test_auth', { method: 'POST' });
-          console.log('Test auth response status:', r.status);
-          const j = await r.json();
-          console.log('Test auth response:', j);
-
-          if (j.ok) {
-            resultDiv.style.color = '#2e7d32';
-            resultDiv.textContent = '✅ Authentication working';
-          } else {
-            resultDiv.style.color = '#d32f2f';
-            resultDiv.textContent = `❌ Auth failed: ${j.message}`;
-          }
-        } catch (error) {
-          console.error('Test auth error:', error);
-          resultDiv.style.color = '#d32f2f';
-          resultDiv.textContent = `❌ Error: ${error.message}`;
-        }
-      };
-    }
-
-    // View session roster button
-    const viewSessionBtn = document.getElementById('viewSessionBtn');
-    if (viewSessionBtn) {
-      viewSessionBtn.onclick = async () => {
-        console.log('Viewing session roster...');
-        const resultDiv = document.getElementById('sessionDebugResult');
-        resultDiv.textContent = 'Loading...';
-
-        try {
-          const r = await fetch('/api/session_roster');
-          console.log('Session roster response status:', r.status);
-          const j = await r.json();
-          console.log('Session roster response:', j);
-
-          if (j.ok) {
-            resultDiv.style.color = '#2e7d32';
-            const rosterEntries = Object.entries(j.roster);
-            if (rosterEntries.length === 0) {
-              resultDiv.innerHTML = '📝 Session roster is empty';
-            } else {
-              resultDiv.innerHTML = `📝 Session roster (${j.count} students):<br/>` +
-                rosterEntries.slice(0, 10).map(([id, name]) => `${id}: ${name}`).join('<br/>') +
-                (rosterEntries.length > 10 ? `<br/>... and ${rosterEntries.length - 10} more` : '');
-            }
-          } else {
-            resultDiv.style.color = '#d32f2f';
-            resultDiv.textContent = `❌ Failed: ${j.message}`;
-          }
-        } catch (error) {
-          console.error('View session error:', error);
-          resultDiv.style.color = '#d32f2f';
-          resultDiv.textContent = `❌ Error: ${error.message}`;
-        }
-      };
-    }
-
-    // Clear session roster button
+    // Clear roster button
     const clearSessionBtn = document.getElementById('clearSessionBtn');
     if (clearSessionBtn) {
       clearSessionBtn.onclick = async () => {
-        if (!confirm('Clear the session roster? This will remove all uploaded student data from your session.')) {
+        if (!confirm('Clear all roster data? This will remove all uploaded student information.')) {
           return;
         }
 
-        console.log('Clearing session roster...');
         const resultDiv = document.getElementById('sessionDebugResult');
         resultDiv.textContent = 'Clearing...';
 
         try {
           const r = await fetch('/api/clear_session_roster', { method: 'POST' });
-          console.log('Clear session response status:', r.status);
           const j = await r.json();
-          console.log('Clear session response:', j);
 
           if (j.ok) {
             resultDiv.style.color = '#2e7d32';
-            resultDiv.textContent = '✅ Session roster cleared';
+            resultDiv.textContent = '✅ Roster cleared';
             setTimeout(() => location.reload(), 1000);
           } else {
             resultDiv.style.color = '#d32f2f';
             resultDiv.textContent = `❌ Failed: ${j.message}`;
           }
         } catch (error) {
-          console.error('Clear session error:', error);
           resultDiv.style.color = '#d32f2f';
           resultDiv.textContent = `❌ Error: ${error.message}`;
         }
@@ -736,7 +631,6 @@
     };
     const r = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     const j = await r.json();
-    console.log('settings_update', j);
     document.getElementById('settingsResult').textContent = j.ok ? 'Saved.' : (j.message || 'Error');
   };
 
@@ -750,14 +644,12 @@
         try {
           const r = await fetch('/api/suspend_kiosk', { method: 'POST' });
           const j = await r.json();
-          console.log('suspend', j);
           if (j.ok) {
             location.reload();
           } else {
             alert(j.message || 'Error suspending kiosk');
           }
         } catch (e) {
-          console.error('suspend error', e);
           alert('Error suspending kiosk');
         }
       }
@@ -769,14 +661,12 @@
       try {
         const r = await fetch('/api/resume_kiosk', { method: 'POST' });
         const j = await r.json();
-        console.log('resume', j);
         if (j.ok) {
           location.reload();
         } else {
           alert(j.message || 'Error resuming kiosk');
         }
       } catch (e) {
-        console.error('resume error', e);
         alert('Error resuming kiosk');
       }
     };
@@ -791,7 +681,6 @@
       try {
         const r = await fetch('/api/migrate', { method: 'POST' });
         const j = await r.json();
-        console.log('migrate', j);
         if (j.ok) {
           document.getElementById('migrationResult').textContent = 'Migration completed.';
           setTimeout(() => location.reload(), 1000);
@@ -799,7 +688,6 @@
           document.getElementById('migrationResult').textContent = j.message || 'Migration failed';
         }
       } catch (e) {
-        console.error('migration error', e);
         document.getElementById('migrationResult').textContent = 'Migration failed';
       } finally {
         migrateBtn.disabled = false;

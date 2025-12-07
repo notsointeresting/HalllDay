@@ -282,16 +282,7 @@ main {
   left: -9999px;
 }
 
-.helper {
-  position: absolute;
-  bottom: 24px;
-  width: 100%;
-  text-align: center;
-  opacity: 0.5;
-  font-size: 14px;
-}
-
-/* Admin Panel - Keep it clean but use new font */
+/* Admin Panel */
 .admin {
   background: #fff;
   color: #000;
@@ -300,16 +291,4 @@ main {
   width: min(900px, 92vw);
   margin: 32px auto;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-}
-
-.students {
-  columns: 2;
-  gap: 24px;
-}
-
-.students li {
-  list-style: none;
-  padding: 8px 0;
-  border-bottom: 1px solid #eee;
-  font-size: 16px;
 }
