@@ -1273,3 +1273,10 @@ if __name__ == "__main__":
 
 # Run automatic initialization (must be after all functions are defined)
 initialize_database_if_needed()
+
+# CRITICAL FIX for Render/Gunicorn with --preload:
+# We must close the database connection pool in the parent process after initialization.
+# This forces each forked worker to create its own clean SSL connection.
+# Without this, workers inherit a broken SSL state and fail with "decryption failed".
+with app.app_context():
+    db.engine.dispose()
