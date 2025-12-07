@@ -77,7 +77,7 @@ Use the assets and guidelines in `design_system/` to overhaul the frontend.
     - **Refactor**: Roster lookups must be scoped to the `User`. (e.g., Student ID "123" for Teacher A might be "John", but "123" for Teacher B might be "Jane").
 
 ### 4. Preparation Steps for 2.0
-- [ ] Create a `User` model.
+- [x] Create a `User` model.
 - [ ] Refactor `Settings` to link to `User`.
 - [ ] Refactor `Session` queries to filter by current user.
 - [ ] Implement `flask-dance` or `authlib` for Google Auth.
