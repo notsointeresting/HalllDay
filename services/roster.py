@@ -74,6 +74,47 @@ class RosterService:
                 self.db.session.rollback()
             except Exception:
                 pass
+
+    def store_student_names_batch(self, user_id: Optional[int], roster: dict) -> int:
+        """
+        Store multiple student names in database efficiently (single commit).
+        Returns the count of successfully stored students.
+        """
+        stored_count = 0
+        try:
+            for student_id, name in roster.items():
+                name_hash = self._hash_student_id(student_id)
+                encrypted_id = self.cipher_suite.encrypt(student_id.encode()).decode()
+                
+                # Build query with user_id scoping
+                query = self.StudentName.query.filter_by(name_hash=name_hash)
+                if user_id is not None:
+                    query = query.filter_by(user_id=user_id)
+                
+                existing = query.first()
+                if existing:
+                    existing.display_name = name
+                    existing.encrypted_id = encrypted_id
+                else:
+                    student_name = self.StudentName(
+                        name_hash=name_hash, 
+                        display_name=name, 
+                        encrypted_id=encrypted_id,
+                        user_id=user_id
+                    )
+                    self.db.session.add(student_name)
+                stored_count += 1
+            
+            # Single commit at the end
+            self.db.session.commit()
+            return stored_count
+            
+        except Exception as e:
+            try:
+                self.db.session.rollback()
+            except Exception:
+                pass
+            raise e  # Re-raise so caller knows it failed
     
     def get_student_name_from_db(self, user_id: Optional[int], student_id: str) -> Optional[str]:
         """Get student name from database using hash lookup"""

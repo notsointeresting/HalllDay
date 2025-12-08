@@ -1152,9 +1152,9 @@ def api_upload_session_roster():
                 continue
             student_roster[sid] = name
             count += 1
-            
-            # Store in DB (encrypted)
-            roster_service.store_student_name(user_id, sid, name)
+        
+        # Store all students in DB using efficient batch method (single commit)
+        db_stored = roster_service.store_student_names_batch(user_id, student_roster)
         
         # Populate memory cache for immediate performance
         set_memory_roster(student_roster, user_id)
