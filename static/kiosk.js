@@ -198,15 +198,19 @@ class Bubble {
     let textColor = 'var(--md-sys-color-on-green-container)';
 
     // Determine visuals based on type
+    // CONTRAST OVERRIDE: Bubbles are ALWAYS White (#ffffff)
+    // Text colors use the "On Container" dark variants for contrast
     if (type === 'available') {
       // Stable shape for available state - no morphing
       targetPath = PATH_COOKIE;
-      targetColor = 'var(--color-green-container)';
+      targetColor = '#ffffff';
       textColor = 'var(--md-sys-color-on-green-container)';
     } else if (type === 'used') {
       // Stable 12-sided cookie for used passes
       targetPath = PATH_COOKIE_12;
       showContent = true;
+      targetColor = '#ffffff';
+
       if (sessionData) {
         nameText = sessionData.name || 'Student';
         const mins = Math.floor((sessionData.elapsed || 0) / 60);
@@ -215,32 +219,38 @@ class Bubble {
 
         if (sessionData.overdue) {
           targetPath = PATH_SOFT_BURST; // More urgent shape when overdue
-          targetColor = 'var(--color-yellow-container)';
           textColor = 'var(--md-sys-color-on-yellow-container)';
           iconText = 'alarm';
         } else {
-          targetColor = 'var(--color-red-container)';
-          textColor = 'var(--md-sys-color-on-red-container)';
+          textColor = 'var(--md-sys-color-on-red-container)'; // or Green/Black? Used is usually 'Active' so maybe Green text? 
+          // Reverting to previous logic: Used = Red in this codebase? 
+          // Actually, 'Used' usually implies 'Out of Class'. 
+          // Previous code used red-container for 'used'.
+          // Let's stick to using the Dark Text of the state color.
+          textColor = 'var(--md-sys-color-on-primary-container)'; // Green-ish dark for standard use
+          // Wait, previous code had: targetColor = 'var(--color-red-container)' for used.
+          // So 'Used' was Red.
+          textColor = 'var(--md-sys-color-on-error-container)';
           iconText = 'timer';
         }
       }
     } else if (type === 'banned') {
       // Sharp burst for banned
       targetPath = PATH_BURST;
-      targetColor = 'var(--color-red-container)';
-      textColor = 'var(--md-sys-color-on-red-container)';
+      targetColor = '#ffffff';
+      textColor = 'var(--md-sys-color-on-error-container)';
       showContent = true;
       nameText = 'BANNED';
       iconText = 'block';
     } else if (type === 'processing') {
       targetPath = PATH_SOFT_BURST;
-      targetColor = 'var(--md-sys-color-surface-variant)';
+      targetColor = '#ffffff';
       textColor = 'var(--md-sys-color-on-surface-variant)';
     } else if (type === 'suspended') {
       // Sharp burst for suspended
       targetPath = PATH_BURST;
-      targetColor = 'var(--color-red-container)';
-      textColor = 'var(--md-sys-color-on-red-container)';
+      targetColor = '#ffffff';
+      textColor = 'var(--md-sys-color-on-error-container)';
       showContent = true;
       nameText = 'SUSPENDED';
       iconText = 'block';

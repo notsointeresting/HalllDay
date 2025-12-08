@@ -93,18 +93,18 @@ body {
 
 /* Background State Overrides - More saturated for visibility */
 body.bg-green {
-  background-color: #cbfac5;
-  /* Lighter but more visible green */
+  background-color: var(--color-green-container);
+  /* Stronger Green */
 }
 
 body.bg-red {
-  background-color: #ffe0dd;
-  /* Lighter but more visible red */
+  background-color: var(--color-red-container);
+  /* Stronger Red */
 }
 
 body.bg-yellow {
-  background-color: #ffe8c0;
-  /* Lighter but more visible yellow */
+  background-color: var(--color-yellow-container);
+  /* Stronger Yellow */
 }
 
 header {
