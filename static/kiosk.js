@@ -95,7 +95,7 @@ class Bubble {
         pointer-events: none;
         font-family: 'Outfit', sans-serif;
       ">
-        <div class="bubble-icon" style="font-family: 'Material Symbols Outlined'; font-size: 42px; margin-bottom: 8px;"></div>
+        <div class="bubble-icon" style="font-family: 'Material Symbols Rounded'; font-size: 42px; margin-bottom: 8px;"></div>
         <div class="bubble-name" style="
           font-family: 'Outfit', sans-serif;
           font-size: 2rem; 
@@ -106,7 +106,7 @@ class Bubble {
         "></div>
         <div class="bubble-timer" style="
           font-size: 1.5rem; 
-          font-family: 'Outfit', monospace; 
+          font-family: 'Outfit', sans-serif; 
           font-variant-numeric: tabular-nums; 
           opacity: 0.9; 
           margin-top: 6px; 
@@ -127,12 +127,10 @@ class Bubble {
     this.ySpring.update(dt);
     this.rotateSpring.update(dt);
 
-    // Breathing for available state
+    // Breathing for available state (Subtler)
     if (this.type === 'available' && Math.abs(this.scaleSpring.velocity) < 0.05) {
-      const t = Date.now() / 2000;
-      // We modulate the target slightly to create a breathing effect
-      // Note: Spring will chase this moving target
-      this.scaleSpring.target = 1.0 + Math.sin(t) * 0.03;
+      const t = Date.now() / 3000; // Slower
+      this.scaleSpring.target = 1.0 + Math.sin(t) * 0.005; // Very subtle
     }
 
     // Update DOM Transforms

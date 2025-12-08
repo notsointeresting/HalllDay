@@ -93,7 +93,7 @@ class Bubble {
         pointer-events: none;
         font-family: 'Outfit', sans-serif;
       ">
-        <div class="bubble-icon" style="font-family: 'Material Symbols Outlined'; font-size: 42px; margin-bottom: 8px;"></div>
+        <div class="bubble-icon" style="font-family: 'Material Symbols Rounded'; font-size: 42px; margin-bottom: 8px;"></div>
         <div class="bubble-name" style="
           font-family: 'Outfit', sans-serif;
           font-size: 2rem; 
@@ -104,7 +104,7 @@ class Bubble {
         "></div>
         <div class="bubble-timer" style="
           font-size: 1.5rem; 
-          font-family: 'Outfit', monospace; 
+          font-family: 'Outfit', sans-serif; 
           font-variant-numeric: tabular-nums; 
           opacity: 0.9; 
           margin-top: 6px; 
@@ -125,6 +125,13 @@ class Bubble {
     this.ySpring.update(dt);
     this.rotateSpring.update(dt);
 
+    // Breathing for available state (Subtler)
+    if (this.type === 'available' && Math.abs(this.scaleSpring.velocity) < 0.05) {
+      const t = Date.now() / 3000; // Slower
+      this.scaleSpring.target = 1.0 + Math.sin(t) * 0.005; // Very subtle
+    }
+
+    // Update DOM Transforms
     const scale = this.scaleSpring.current;
     if (scale < 0.01) {
       this.element.style.display = 'none';
@@ -220,11 +227,6 @@ class Bubble {
       this.element.querySelector('.bubble-name').textContent = nameText;
       this.element.querySelector('.bubble-timer').textContent = timerText;
       this.element.querySelector('.bubble-icon').textContent = iconText;
-    }
-
-    if (type === 'available' && Math.abs(this.scaleSpring.velocity) < 0.01) {
-      const t = Date.now() / 2000;
-      this.scaleSpring.target = scale + Math.sin(t) * 0.03;
     }
   }
 }
@@ -413,8 +415,11 @@ function setDisplay(j) {
     subtitleEl.style.position = 'fixed';
     subtitleEl.style.bottom = '40px';
     subtitleEl.style.left = '0';
-    subtitleEl.style.width = '100%';
+    subtitleEl.style.width = '100vw'; // Use vw
     subtitleEl.style.textAlign = 'center';
+    subtitleEl.style.display = 'block';
+    subtitleEl.style.margin = '0';
+    subtitleEl.style.padding = '0';
   }
 }
 
