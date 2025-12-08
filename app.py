@@ -407,7 +407,8 @@ def kiosk():
         user = User.query.get(user_id)
         if user and user.kiosk_token:
              return redirect(url_for('public_kiosk', token=user.kiosk_slug or user.kiosk_token))
-    return render_template("kiosk.html")
+    # Anonymous users get a landing page, not the functional kiosk
+    return render_template("kiosk_landing.html")
 
 # Public kiosk routes (2.0 - no login required, token-based)
 @app.route("/k/<token>")
@@ -430,7 +431,8 @@ def display():
         user = User.query.get(user_id)
         if user and user.kiosk_token:
              return redirect(url_for('public_display', token=user.kiosk_slug or user.kiosk_token))
-    return render_template("display.html")
+    # Anonymous users get the landing page
+    return render_template("kiosk_landing.html")
 
 # Public display routes (2.0 - no login required, token-based)
 @app.route("/d/<token>")

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="admin" style="max-width: 600px; text-align: center; padding-top: 60px;">
+    <h1 style="font: var(--md-sys-typescale-display-medium); margin-bottom: 16px;">HalllDay</h1>
+    <p
+        style="font: var(--md-sys-typescale-body-large); color: var(--md-sys-color-on-surface-variant); margin-bottom: 40px;">
+        Smart Hall Pass Tracker for Schools
+    </p>
+
+    <div class="card-surface" style="text-align: left;">
+        <h3 style="margin-top: 0;">📱 Access Your Kiosk</h3>
+        <p>If you have a kiosk URL from your administrator, enter it below or paste the full link in your browser.</p>
+
+        <form id="kioskForm" style="display: flex; gap: 8px; margin-top: 16px;">
+            <input type="text" id="kioskSlug" placeholder="Enter kiosk ID (e.g. mr-smith)"
+                style="flex: 1; padding: 12px;" required>
+            <button type="submit" class="primary-btn">Go</button>
+        </form>
+    </div>
+
+    <div style="margin-top: 32px;">
+        <a href="{{ url_for('admin_login') }}" class="primary-btn"
+            style="display: inline-block; text-decoration: none; padding: 12px 24px;">
+            Administrator Login
+        </a>
+    </div>
+
+    <p style="margin-top: 48px; font-size: 12px; color: var(--md-sys-color-on-surface-variant);">
+        Teachers: Sign in to create your own kiosk and track hall passes.
+    </p>
+</section>
+
+<script>
+    document.getElementById('kioskForm').onsubmit = (e) => {
+        e.preventDefault();
+        const slug = document.getElementById('kioskSlug').value.trim();
+        if (slug) {
+            window.location.href = '/k/' + encodeURIComponent(slug);
+        }
+    };
+</script>
+{% endblock %}
