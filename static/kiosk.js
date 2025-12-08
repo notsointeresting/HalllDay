@@ -189,6 +189,12 @@ class Bubble {
     const stateChanged = this.type !== type;
     this.type = type;
 
+    if (stateChanged) {
+      // Add a "pop" effect for responsiveness
+      this.scaleSpring.velocity += 15;
+      this.rotateSpring.velocity += 10;
+    }
+
     let targetPath = PATH_COOKIE;
     let targetColor = 'var(--color-green-container)';
     let showContent = false;
@@ -219,7 +225,7 @@ class Bubble {
 
         if (sessionData.overdue) {
           targetPath = PATH_SOFT_BURST; // More urgent shape when overdue
-          textColor = 'var(--md-sys-color-on-yellow-container)';
+          textColor = '#b24000'; // High contrast Orange
           iconText = 'alarm';
         } else {
           textColor = 'var(--md-sys-color-on-red-container)'; // or Green/Black? Used is usually 'Active' so maybe Green text? 
@@ -339,22 +345,22 @@ const bubbleManager = {
   },
 
   getLayout(count) {
-    if (count <= 1) return [{ x: 50, y: 50, scale: 1.3 }]; // Single bubble larger
+    if (count <= 1) return [{ x: 50, y: 50, scale: 1.25 }]; // Slightly smaller for consistency
     if (count === 2) return [
-      { x: 25, y: 50, scale: 1.15 }, // L - Takes up full left half
-      { x: 75, y: 50, scale: 1.15 }  // R - Takes up full right half
+      { x: 25, y: 50, scale: 0.95 }, // Reduced from 1.15
+      { x: 75, y: 50, scale: 0.95 }
     ];
-    // For 3+, keep grid but maybe larger
+    // For 3+, keep grid
     if (count === 3) return [
-      { x: 50, y: 30, scale: 0.8 }, // Top
-      { x: 25, y: 70, scale: 0.8 }, // BL
-      { x: 75, y: 70, scale: 0.8 }  // BR
+      { x: 50, y: 30, scale: 0.75 },
+      { x: 25, y: 70, scale: 0.75 },
+      { x: 75, y: 70, scale: 0.75 }
     ];
     // Generic Grid for 4+
     const result = [];
     const cols = Math.ceil(Math.sqrt(count));
     const rows = Math.ceil(count / cols);
-    const scale = 1.8 / Math.max(cols, rows); // Increased base scale
+    const scale = 1.5 / Math.max(cols, rows); // Reduced from 1.8
 
     for (let i = 0; i < count; i++) {
       const r = Math.floor(i / cols);
@@ -578,7 +584,7 @@ function setFromStatus(j) {
     setPanel('green', '', `${active.length} / ${capacity} In Use`, '');
   } else {
     // Full
-    setPanel('red', '', 'Hall Pass Full', '');
+    setPanel('red', '', '', ''); // Removed "Hall Pass Full" text
   }
 
   // --- OVERLAP FIX: Move subtitle to bottom if active bubbles exist ---
