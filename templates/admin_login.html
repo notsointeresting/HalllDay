@@ -1,41 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="admin" style="max-width: 480px; text-align: center;">
-  <h2>Admin Access</h2>
+  <h2>Administrator Sign In</h2>
+  <p style="color: var(--md-sys-color-on-surface-variant); margin-bottom: 24px;">
+    Sign in with your Google account to access your dashboard.
+  </p>
 
-  {% if error %}
-  <div
-    style="background: var(--md-sys-color-error-container); color: var(--md-sys-color-on-error-container); padding: 12px; border-radius: 8px; margin-bottom: 24px; font: var(--md-sys-typescale-body-medium);">
-    {{ error }}
-  </div>
-  {% endif %}
-
-  <div style="text-align: center; margin-bottom: 24px;">
-    <a href="{{ url_for('auth.login') }}" class="primary-btn"
-      style="display: inline-flex; align-items: center; gap: 8px; justify-content: center; width: 100%; text-decoration: none; background: #fff; color: #3c4043; border: 1px solid #dadce0;">
-      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" height="18" alt="">
-      Sign in with Google
-    </a>
-    <div
-      style="margin-top: 16px; display: flex; align-items: center; gap: 12px; color: var(--md-sys-color-on-surface-variant); font-size: 13px;">
-      <span style="flex: 1; height: 1px; background: currentColor; opacity: 0.2"></span>
-      OR
-      <span style="flex: 1; height: 1px; background: currentColor; opacity: 0.2"></span>
-    </div>
-  </div>
-
-  <form method="POST" action="{{ url_for('admin_login') }}" style="display: flex; flex-direction: column; gap: 24px;">
-    <div style="text-align: left;">
-      <label for="passcode"
-        style="display: block; margin-bottom: 8px; font: var(--md-sys-typescale-label-large); color: var(--md-sys-color-on-surface-variant);">Passcode</label>
-      <input type="password" id="passcode" name="passcode" required autofocus placeholder="Enter passcode"
-        style="width: 100%;" />
-    </div>
-
-    <button type="submit" class="primary-btn">
-      Access Panel
-    </button>
-  </form>
+  <a href="{{ url_for('auth.login') }}" class="primary-btn"
+    style="display: inline-flex; align-items: center; gap: 12px; justify-content: center; width: 100%; text-decoration: none; background: #fff; color: #3c4043; border: 1px solid #dadce0; padding: 14px 24px;">
+    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20" height="20" alt="">
+    Sign in with Google
+  </a>
 
   <div style="margin-top: 32px;">
     <a href="{{ url_for('kiosk') }}"
@@ -44,8 +19,4 @@
     </a>
   </div>
 </section>
-
-<script>
-  document.getElementById('passcode').focus();
-</script>
 {% endblock %}

@@ -17,16 +17,20 @@
 
   <!-- Global Stats -->
   <div style="display: flex; gap: 16px; margin-bottom: 32px; flex-wrap: wrap;">
-    <div class="chip" style="background: var(--md-sys-color-tertiary-container); color: var(--md-sys-color-on-tertiary-container);">
+    <div class="chip"
+      style="background: var(--md-sys-color-tertiary-container); color: var(--md-sys-color-on-tertiary-container);">
       Users: <strong>{{ user_count }}</strong>
     </div>
-    <div class="chip" style="background: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container);">
+    <div class="chip"
+      style="background: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container);">
       Total Sessions (All Users): <strong>{{ total }}</strong>
     </div>
-    <div class="chip" style="background: var(--md-sys-color-surface-variant); color: var(--md-sys-color-on-surface-variant);">
+    <div class="chip"
+      style="background: var(--md-sys-color-surface-variant); color: var(--md-sys-color-on-surface-variant);">
       Open Sessions: <strong>{{ open_count }}</strong>
     </div>
-    <div class="chip" style="background: var(--md-sys-color-surface-variant); color: var(--md-sys-color-on-surface-variant);">
+    <div class="chip"
+      style="background: var(--md-sys-color-surface-variant); color: var(--md-sys-color-on-surface-variant);">
       DB Roster (All): <strong>{{ db_roster_count }}</strong>
     </div>
   </div>
@@ -49,7 +53,8 @@
 
     <div style="background: var(--md-sys-color-error-container); padding: 16px; border-radius: 12px;">
       <h4 style="margin-top: 0; color: var(--md-sys-color-on-error-container);">⚠️ Danger Zone</h4>
-      <p style="color: var(--md-sys-color-on-error-container); font-size: 13px;">Permanently delete ALL session history (all users).</p>
+      <p style="color: var(--md-sys-color-on-error-container); font-size: 13px;">Permanently delete ALL session history
+        (all users).</p>
       <button id="resetDbBtn" style="background: var(--md-sys-color-error); color: white;">Delete ALL History</button>
       <span id="resetDbResult" style="margin-left: 8px; color: var(--md-sys-color-on-error-container);"></span>
     </div>
@@ -60,7 +65,9 @@
   <div class="card-surface">
     <button id="loadUsersBtn" class="primary-btn" style="margin-bottom: 16px;">Load All Users</button>
     <div id="userListContainer" style="display: none;">
-      <div id="userList" style="max-height: 300px; overflow-y: auto; background: var(--md-sys-color-background); padding: 8px; border-radius: 8px;"></div>
+      <div id="userList"
+        style="max-height: 300px; overflow-y: auto; background: var(--md-sys-color-background); padding: 8px; border-radius: 8px;">
+      </div>
     </div>
   </div>
 
@@ -148,7 +155,7 @@
               ${u.is_admin ? '<span style="color: orange;">👑 Admin</span>' : ''}
             </div>
             <div style="font-size: 12px; opacity: 0.7;">
-              ID: ${u.id} | Sessions: ${u.session_count || 0}
+              ID: ${u.id} | Sessions: ${u.session_count || 0} | Roster: ${u.roster_count || 0}
             </div>
           </div>
         `).join('');

@@ -4,47 +4,33 @@
 
 ---
 
-## Current Status: Phase 2.1 - Critical Fixes
+## Phase 2.1 - Complete ✅
 
-### P0 - Complete ✅
-- [x] Settings isolated per user (room name, capacity, overdue, suspend)
-- [x] Kiosk suspend keyboard shortcut working per user
+### P0 - Critical Fixes ✅
+- [x] Settings isolated per user
+- [x] Kiosk suspend shortcut fixed
 
-### P1 - In Progress 🔄
-- [x] Remove Google Sheets integration
-- [ ] Rebrand "HalllDay" → "IDK Can You?"
-- [ ] Remove legacy passcode login
+### P1 - Cleanup & Rebranding ✅
+- [x] Remove Google Sheets UI
+- [x] Rebrand to "IDK Can You?"
+- [x] Suspend button on admin
+- [x] Embed code for /display
+- [x] OAuth only (passcode removed)
 
+### P2 - Dev Dashboard ✅
+- [x] User roster counts added
+- [x] DB maintenance on /dev
 
-### P2 - Pending
-- [ ] Developer dashboard (view users, rosters)
-- [ ] Default Landing Page for the website for sign in/sign up/FAQ what is the app/Joke on "Can I use the restroom;IDK Can You?" currently at halllday.onrender.com but will be moved to idkcanyou.com. 
-- [ ] Move "Database Maintenance" button to /dev (not /admin)
-- [ ] Make suspend kiosk button on admin page more prominent towards the top, have tip for command shortcut next to it or under.
-- [ ] Embed Code for iframe generation should be for /display and not for /kiosk 
-
-### P3 - Cleanup
+### P3 - Future Cleanup
 - [ ] Full code audit
 - [ ] Remove dead code
 
 ---
 
-## Notes
-
-
-
-### Architecture Decisions
-- **Database Maintenance**: Should be dev-only, not shown to teachers
-- **Settings**: Each user gets auto-created Settings record on first login
-- **Rosters**: User-scoped hash ensures same student ID doesn't conflict across teachers
-
----
-
-## Multi-Tenancy Status ✅
+## Multi-Tenancy ✅
 
 | Data | Isolation |
 |------|-----------|
 | Sessions | Per-user |
 | Rosters | User-scoped hash |
-| Bans | User-scoped hash |
-| Settings | Per-user (auto-created) |
+| Settings | Per-user |

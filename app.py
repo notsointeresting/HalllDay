@@ -471,19 +471,11 @@ def public_display(token):
         return "Display not found", 404
     return render_template("display.html", user_id=user.id, user_name=user.name, token=token)
 
-@app.route("/admin/login", methods=["GET", "POST"])
+@app.route("/admin/login", methods=["GET"])
 def admin_login():
+    """Admin login page - OAuth only (legacy passcode removed)."""
     if is_admin_authenticated():
         return redirect(url_for('admin'))
-        
-    if request.method == "POST":
-        passcode = request.form.get("passcode", "").strip()
-        if passcode == config.ADMIN_PASSCODE:
-            session['admin_authenticated'] = True
-            session.permanent = True  # Keep session alive
-            return redirect(url_for('admin'))
-        else:
-            return render_template("admin_login.html", error="Invalid passcode. Please try again.")
     return render_template("admin_login.html")
 
 @app.route("/admin/logout")
@@ -1368,6 +1360,7 @@ def api_dev_users():
         user_list = []
         for u in users:
             session_count = Session.query.filter_by(user_id=u.id).count()
+            roster_count = StudentName.query.filter_by(user_id=u.id).count()
             user_list.append({
                 'id': u.id,
                 'email': u.email,
@@ -1376,6 +1369,7 @@ def api_dev_users():
                 'kiosk_token': u.kiosk_token,
                 'kiosk_slug': u.kiosk_slug,
                 'session_count': session_count,
+                'roster_count': roster_count,
                 'created_at': u.created_at.isoformat() if u.created_at else None,
                 'last_login': u.last_login.isoformat() if u.last_login else None,
             })
