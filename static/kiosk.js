@@ -127,6 +127,14 @@ class Bubble {
     this.ySpring.update(dt);
     this.rotateSpring.update(dt);
 
+    // Breathing for available state
+    if (this.type === 'available' && Math.abs(this.scaleSpring.velocity) < 0.05) {
+      const t = Date.now() / 2000;
+      // We modulate the target slightly to create a breathing effect
+      // Note: Spring will chase this moving target
+      this.scaleSpring.target = 1.0 + Math.sin(t) * 0.03;
+    }
+
     // Update DOM Transforms
     const scale = this.scaleSpring.current;
     if (scale < 0.01) {
@@ -231,11 +239,7 @@ class Bubble {
       this.element.querySelector('.bubble-icon').textContent = iconText;
     }
 
-    // Breathing for available
-    if (type === 'available' && Math.abs(this.scaleSpring.velocity) < 0.01) {
-      const t = Date.now() / 2000;
-      this.scaleSpring.target = scale + Math.sin(t) * 0.03;
-    }
+    // Breathing logic moved to update()
   }
 }
 
@@ -374,8 +378,9 @@ function setPanel(state, title, subtitle, icon) {
   }
 }
 
-// ... Sound System & Helpers (unchanged) ...
+// ... Sound System & Helpers ...
 const SoundSystem = {
+  // ... (unchanged) ...
   ctx: null,
   init() {
     if (!this.ctx) {
@@ -433,6 +438,7 @@ const SoundSystem = {
   }
 };
 
+let buffer = ''; // FIXED: Missing buffer variable
 let denyTimeout;
 let resetTimeout;
 
