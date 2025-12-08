@@ -147,14 +147,28 @@ def initialize_database_if_needed():
             db.create_all()
             print("Tables created successfully")
             
+            # IMPORTANT: Run migrations FIRST to add new columns before querying with them
+            print("Running database migrations (adding new columns)...")
+            try:
+                msgs = run_migrations()
+                for msg in msgs:
+                    print(f"Migration: {msg}")
+            except Exception as e:
+                print(f"Migration warning (non-fatal): {e}")
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
+            
             # Initialize services
             initialize_services()
             
             # Check if Settings table exists and has data
+            # Use raw SQL to avoid ORM column mapping issues
             settings_exists = False
             try:
-                # Try to query the Settings table
-                result = Settings.query.get(1)
+                # Use raw SQL to check if settings record exists (avoids user_id column issue)
+                result = db.session.execute(text("SELECT id FROM settings WHERE id = 1")).scalar()
                 if result:
                     settings_exists = True
                     print("Database appears to be initialized (Settings found)")
@@ -164,11 +178,16 @@ def initialize_database_if_needed():
             except Exception as e:
                 # Table doesn't exist or query failed
                 print(f"Settings table query failed: {e} - will initialize...")
+                try:
+                    db.session.rollback()  # Clear failed transaction state
+                except Exception:
+                    pass
                 settings_exists = False
             
             # Initialize settings if needed
             if not settings_exists:
                 try:
+                    db.session.rollback()  # Ensure clean transaction state
                     print("Creating default settings record...")
                     s = Settings(id=1, room_name=config.ROOM_NAME, capacity=config.CAPACITY,
                                overdue_minutes=getattr(config, "MAX_MINUTES", 10), kiosk_suspended=False, auto_ban_overdue=False)
@@ -187,16 +206,10 @@ def initialize_database_if_needed():
             try:
                 test_count = Session.query.count()
                 print(f"Database test successful - found {test_count} sessions")
-                
-                # Run migrations to ensure schema is up to date
-                print("Running database migrations...")
-                msgs = run_migrations()
-                for msg in msgs:
-                    print(f"Migration: {msg}")
-                    
             except Exception as e:
-                print(f"ERROR: Database test/migration failed: {e}")
+                print(f"ERROR: Database test failed: {e}")
                 raise
+
             
     except Exception as e:
         print(f"CRITICAL: Database initialization failed: {e}")
