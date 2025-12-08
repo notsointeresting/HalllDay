@@ -325,18 +325,31 @@ def get_current_holder(user_id: Optional[int] = None):
     return session_service.get_current_holder(user_id) if session_service else None
 
 def get_settings(user_id: Optional[int] = None):
-    """Get settings for a specific user (or legacy global defaults)."""
+    """Get settings for a specific user. Creates default settings if user doesn't have any."""
     try:
-        s = None
         if user_id is not None:
-             s = Settings.query.filter_by(user_id=user_id).first()
-        
-        # Fallback to legacy ID=1 if no user specified or no user settings found (though usually we should create them)
-        if not s:
-             s = Settings.query.get(1)
-
-        if not s:
-            return {"room_name": config.ROOM_NAME, "capacity": config.CAPACITY, "overdue_minutes": getattr(config, "MAX_MINUTES", 10), "kiosk_suspended": False, "auto_ban_overdue": False}
+            s = Settings.query.filter_by(user_id=user_id).first()
+            if not s:
+                # Create default settings for this user (isolated from all others)
+                s = Settings(
+                    user_id=user_id,
+                    room_name="Hall Pass",
+                    capacity=1,
+                    overdue_minutes=10,
+                    kiosk_suspended=False,
+                    auto_ban_overdue=False
+                )
+                db.session.add(s)
+                db.session.commit()
+        else:
+            # Legacy/anonymous: return defaults only (don't create or use global)
+            return {
+                "room_name": config.ROOM_NAME, 
+                "capacity": config.CAPACITY, 
+                "overdue_minutes": getattr(config, "MAX_MINUTES", 10), 
+                "kiosk_suspended": False, 
+                "auto_ban_overdue": False
+            }
         
         # Handle case where columns might not exist yet (during migration)
         try:
@@ -349,10 +362,22 @@ def get_settings(user_id: Optional[int] = None):
         except AttributeError:
             auto_ban_overdue = False
         
-        return {"room_name": s.room_name, "capacity": s.capacity, "overdue_minutes": s.overdue_minutes, "kiosk_suspended": kiosk_suspended, "auto_ban_overdue": auto_ban_overdue}
+        return {
+            "room_name": s.room_name, 
+            "capacity": s.capacity, 
+            "overdue_minutes": s.overdue_minutes, 
+            "kiosk_suspended": kiosk_suspended, 
+            "auto_ban_overdue": auto_ban_overdue
+        }
     except Exception:
         # If query fails, return defaults
-        return {"room_name": config.ROOM_NAME, "capacity": config.CAPACITY, "overdue_minutes": getattr(config, "MAX_MINUTES", 10), "kiosk_suspended": False, "auto_ban_overdue": False}
+        return {
+            "room_name": config.ROOM_NAME, 
+            "capacity": config.CAPACITY, 
+            "overdue_minutes": getattr(config, "MAX_MINUTES", 10), 
+            "kiosk_suspended": False, 
+            "auto_ban_overdue": False
+        }
 
 @app.context_processor
 def inject_room_name():
@@ -926,16 +951,20 @@ def api_override_end():
 def api_suspend_kiosk():
     try:
         user_id = get_current_user_id()
-        # Find or create settings for this user
-        s = None
-        if user_id is not None:
-            s = Settings.query.filter_by(user_id=user_id).first()
-        else:
-            s = Settings.query.get(1)
-            
+        if not user_id:
+            return jsonify(ok=False, message="User not authenticated"), 403
+        
+        # Get or create settings for this user
+        s = Settings.query.filter_by(user_id=user_id).first()
         if not s:
-            # Create new settings record
-            s = Settings(id=1 if user_id is None else None, user_id=user_id, kiosk_suspended=True, room_name=config.ROOM_NAME, capacity=config.CAPACITY)
+            s = Settings(
+                user_id=user_id,
+                room_name="Hall Pass",
+                capacity=1,
+                overdue_minutes=10,
+                kiosk_suspended=True,
+                auto_ban_overdue=False
+            )
             db.session.add(s)
         else:
             s.kiosk_suspended = True
@@ -950,15 +979,20 @@ def api_suspend_kiosk():
 def api_resume_kiosk():
     try:
         user_id = get_current_user_id()
-        # Find or create settings for this user
-        s = None
-        if user_id is not None:
-            s = Settings.query.filter_by(user_id=user_id).first()
-        else:
-            s = Settings.query.get(1)
-            
+        if not user_id:
+            return jsonify(ok=False, message="User not authenticated"), 403
+        
+        # Get or create settings for this user
+        s = Settings.query.filter_by(user_id=user_id).first()
         if not s:
-            s = Settings(id=1 if user_id is None else None, user_id=user_id, kiosk_suspended=False, room_name=config.ROOM_NAME, capacity=config.CAPACITY)
+            s = Settings(
+                user_id=user_id,
+                room_name="Hall Pass",
+                capacity=1,
+                overdue_minutes=10,
+                kiosk_suspended=False,
+                auto_ban_overdue=False
+            )
             db.session.add(s)
         else:
             s.kiosk_suspended = False
@@ -970,22 +1004,27 @@ def api_resume_kiosk():
 
 @app.post("/api/toggle_kiosk_suspend_quick")
 def api_toggle_kiosk_suspend_quick():
-    """Toggle kiosk suspension without passcode (for emergency kiosk shortcut)."""
+    """Toggle kiosk suspension (for keyboard shortcut Ctrl+Shift+S)."""
     try:
         # Resolve user context from token (sent by frontend) or session
         payload = request.get_json(silent=True) or {}
         token = payload.get("token")
         user_id = get_current_user_id(token)
         
-        # Toggle suspension
-        s = None
-        if user_id is not None:
-            s = Settings.query.filter_by(user_id=user_id).first()
-        else:
-            s = Settings.query.get(1)
-            
+        if not user_id:
+            return jsonify(ok=False, message="Invalid token or not authenticated"), 403
+        
+        # Get or create settings for this user
+        s = Settings.query.filter_by(user_id=user_id).first()
         if not s:
-            s = Settings(id=1 if user_id is None else None, user_id=user_id, kiosk_suspended=True, room_name=config.ROOM_NAME, capacity=config.CAPACITY)
+            s = Settings(
+                user_id=user_id,
+                room_name="Hall Pass",
+                capacity=1,
+                overdue_minutes=10,
+                kiosk_suspended=True,
+                auto_ban_overdue=False
+            )
             db.session.add(s)
             new_state = True
         else:
@@ -1777,11 +1816,25 @@ def get_settings_api():
 @app.post("/api/settings")
 @require_admin_auth_api
 def update_settings_api():
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify(ok=False, message="User not authenticated"), 403
+    
     data = request.get_json(silent=True) or {}
-    s = Settings.query.get(1)
+    
+    # Get or create the user's settings (isolated from all other users)
+    s = Settings.query.filter_by(user_id=user_id).first()
     if not s:
-        s = Settings(id=1)
+        s = Settings(
+            user_id=user_id,
+            room_name="Hall Pass",
+            capacity=1,
+            overdue_minutes=10,
+            kiosk_suspended=False,
+            auto_ban_overdue=False
+        )
         db.session.add(s)
+    
     if "room_name" in data:
         s.room_name = str(data["room_name"]).strip() or s.room_name
     if "capacity" in data:
@@ -1798,8 +1851,9 @@ def update_settings_api():
         s.kiosk_suspended = bool(data["kiosk_suspended"])
     if "auto_ban_overdue" in data:
         s.auto_ban_overdue = bool(data["auto_ban_overdue"])
+    
     db.session.commit()
-    return jsonify(ok=True, settings=get_settings())
+    return jsonify(ok=True, settings=get_settings(user_id))
 
 if __name__ == "__main__":
     with app.app_context():
