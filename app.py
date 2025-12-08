@@ -16,7 +16,6 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
 
 import config
-import sheets_logger
 import threading
 import requests
 from urllib.parse import urljoin
@@ -520,23 +519,11 @@ def admin():
             base_url = request.url_root.rstrip('/')
             kiosk_urls = current_user.get_public_urls(base_url)
         
-        # Sheets status/link for admin chip
-        try:
-            sheets_status = sheets_logger.get_status()
-        except Exception:
-            sheets_status = "off"
-        sheets_link = None
-        if sheets_logger.sheets_enabled():
-            sid = os.getenv("GOOGLE_SHEETS_LOG_ID")
-            if sid:
-                sheets_link = f"https://docs.google.com/spreadsheets/d/{sid}/edit#gid=0"
         return render_template(
             "admin.html",
             total=total,
             open_count=open_count,
             settings=settings,
-            sheets_status=sheets_status,
-            sheets_link=sheets_link,
             db_roster_count=db_roster_count,
             memory_roster_count=memory_roster_count,
             current_user=current_user,
@@ -585,24 +572,11 @@ def dev():
         db_roster_count = StudentName.query.count()
         user_count = User.query.count()
         
-        # Sheets status
-        try:
-            sheets_status = sheets_logger.get_status()
-        except Exception:
-            sheets_status = "off"
-        sheets_link = None
-        if sheets_logger.sheets_enabled():
-            sid = os.getenv("GOOGLE_SHEETS_LOG_ID")
-            if sid:
-                sheets_link = f"https://docs.google.com/spreadsheets/d/{sid}/edit#gid=0"
-        
         return render_template(
             "dev.html",
             total=total,
             open_count=open_count,
             settings=settings,
-            sheets_status=sheets_status,
-            sheets_link=sheets_link,
             db_roster_count=db_roster_count,
             memory_roster_count=memory_roster_count,
             user_count=user_count,
@@ -743,19 +717,6 @@ def api_scan():
             s.end_ts = now_utc()
             s.ended_by = "kiosk_scan"
             db.session.commit()
-            # Sheets completion (non-blocking)
-            try:
-                if sheets_logger.sheets_enabled():
-                    end_iso = s.end_ts.astimezone(timezone.utc).isoformat()
-                    sheets_logger.complete_end(
-                        student_id=code,
-                        end_iso=end_iso,
-                        duration_seconds=s.duration_seconds,
-                        ended_by="kiosk_scan",
-                        updated_iso=end_iso,
-                    )
-            except Exception:
-                pass
             return jsonify(ok=True, action="ended", name=student_name)
     
     # Check if student is banned from starting NEW restroom trips
@@ -771,21 +732,6 @@ def api_scan():
     sess = Session(student_id=code, start_ts=now_utc(), room=settings["room_name"], user_id=user_id)
     db.session.add(sess)
     db.session.commit()
-    # Sheets append (non-blocking)
-    try:
-        if sheets_logger.sheets_enabled():
-            start_iso = sess.start_ts.astimezone(timezone.utc).isoformat()
-            created_iso = datetime.now(timezone.utc).isoformat()
-            sheets_logger.append_start(
-                session_id=sess.id,
-                student_id=code,
-                name=student_name,  # From session, not database
-                room=settings["room_name"],
-                start_iso=start_iso,
-                created_iso=created_iso,
-            )
-    except Exception:
-        pass
     return jsonify(ok=True, action="started", name=student_name)
 
 @app.get("/api/status")
