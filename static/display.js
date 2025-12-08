@@ -73,6 +73,25 @@ class Bubble {
         xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
         <path d="${this.currentPath}" fill="${this.color}" />
       </svg>
+      <div class="bubble-content" style="
+        position: absolute; 
+        top: 50%; 
+        left: 50%; 
+        transform: translate(-50%, -50%); 
+        text-align: center; 
+        width: 200px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: var(--md-sys-color-on-surface);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      ">
+        <div class="bubble-icon" style="font-family: 'Material Symbols Outlined'; font-size: 24px; margin-bottom: 4px;"></div>
+        <div class="bubble-name" style="font-size: 1.1rem; font-weight: 600; line-height: 1.2; word-break: break-word;"></div>
+        <div class="bubble-timer" style="font-size: 0.9rem; font-family: monospace; font-variant-numeric: tabular-nums; opacity: 0.8; margin-top: 2px;"></div>
+      </div>
     `;
     return el;
   }
@@ -88,11 +107,24 @@ class Bubble {
     this.rotateSpring.update(dt);
 
     const scale = this.scaleSpring.current;
+    if (scale < 0.01) {
+      this.element.style.display = 'none';
+      return;
+    } else {
+      this.element.style.display = 'block';
+    }
+
     const x = this.xSpring.current;
     const y = this.ySpring.current;
     const rot = this.rotateSpring.current;
 
-    this.element.style.transform = `translate(calc(${x}% - 50%), calc(${y}% - 50%)) scale(${scale}) rotate(${rot}deg)`;
+    this.element.style.transform = `translate(calc(${x}% - 50%), calc(${y}% - 50%)) scale(${scale})`;
+
+    const svgEl = this.element.querySelector('.background-shape');
+    if (svgEl) {
+      svgEl.style.transform = `rotate(${rot}deg)`;
+      svgEl.style.transformOrigin = 'center';
+    }
 
     const pathDom = this.element.querySelector('path');
     if (pathDom) {
@@ -110,30 +142,66 @@ class Bubble {
 
     let targetPath = PATH_COOKIE;
     let targetColor = 'var(--color-green-container)';
+    let showContent = false;
+    let nameText = '';
+    let timerText = '';
+    let iconText = '';
+    let textColor = 'var(--md-sys-color-on-green-container)';
 
     if (type === 'available') {
       targetPath = PATH_COOKIE;
       targetColor = 'var(--color-green-container)';
+      textColor = 'var(--md-sys-color-on-green-container)';
     } else if (type === 'used') {
       targetPath = PATH_COOKIE;
-      if (sessionData && sessionData.overdue) {
-        targetColor = 'var(--color-yellow-container)';
-      } else {
-        targetColor = 'var(--color-red-container)';
+      showContent = true;
+      if (sessionData) {
+        nameText = sessionData.name || 'Student';
+        const mins = Math.floor((sessionData.elapsed || 0) / 60);
+        const secs = (sessionData.elapsed || 0) % 60;
+        timerText = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+        if (sessionData.overdue) {
+          targetColor = 'var(--color-yellow-container)';
+          textColor = 'var(--md-sys-color-on-yellow-container)';
+          iconText = 'alarm';
+        } else {
+          targetColor = 'var(--color-red-container)';
+          textColor = 'var(--md-sys-color-on-red-container)';
+          iconText = 'timer';
+        }
       }
     } else if (type === 'banned') {
       targetPath = PATH_BURST;
       targetColor = 'var(--color-red-container)';
+      textColor = 'var(--md-sys-color-on-red-container)';
+      showContent = true;
+      nameText = 'BANNED';
+      iconText = 'block';
     } else if (type === 'processing') {
       targetPath = PATH_COOKIE;
       targetColor = 'var(--md-sys-color-surface-variant)';
+      textColor = 'var(--md-sys-color-on-surface-variant)';
     } else if (type === 'suspended') {
       targetPath = PATH_BURST;
       targetColor = 'var(--color-red-container)';
+      textColor = 'var(--md-sys-color-on-red-container)';
+      showContent = true;
+      nameText = 'SUSPENDED';
+      iconText = 'block';
     }
 
     this.currentPath = targetPath;
     this.color = targetColor;
+
+    const contentEl = this.element.querySelector('.bubble-content');
+    if (contentEl) {
+      contentEl.style.opacity = showContent ? '1' : '0';
+      contentEl.style.color = textColor;
+      this.element.querySelector('.bubble-name').textContent = nameText;
+      this.element.querySelector('.bubble-timer').textContent = timerText;
+      this.element.querySelector('.bubble-icon').textContent = iconText;
+    }
 
     if (type === 'available' && Math.abs(this.scaleSpring.velocity) < 0.01) {
       const t = Date.now() / 2000;
@@ -156,6 +224,8 @@ const bubbleManager = {
 
     const usedCount = activeSessions.length;
     const showAvailable = usedCount < capacity;
+    // ...
+    // Note: display.js original sync was cleaner, we can keep it as is since user didn't request logic change, only tracking info which setTarget handles.
     const totalBubbles = usedCount + (showAvailable ? 1 : 0);
 
     this.ensureBubbleCount(totalBubbles);
@@ -276,14 +346,11 @@ function setDisplay(j) {
       icon = 'timer';
       title = 'In Use';
       if (active.some(s => s.overdue)) {
-        // If any are overdue, show yellow? Or mix?
-        // Prioritize overdue warning
         state = 'yellow';
         icon = 'alarm';
         title = 'Overdue';
       }
     } else {
-      // Partially full
       state = 'green';
       icon = 'check_circle';
       title = 'Available';
@@ -291,10 +358,12 @@ function setDisplay(j) {
 
     // Subtitle logic
     if (active.length === 1) {
-      const s = active[0];
-      const mins = Math.floor((s.elapsed || 0) / 60);
-      const secs = (s.elapsed || 0) % 60;
-      subtitle = `${s.name} • ${mins}:${secs.toString().padStart(2, '0')}`;
+      // If tracking info is now IN bubbles, do we hide it here?
+      // User complained about losing it "when allowing more than one pass".
+      // So for 1 pass, it's fine.
+      // For >1 pass, we now show it in bubbles.
+      // So we can simplify the subtitle or keep it as summary.
+      subtitle = `${active.length} / ${capacity} Checked Out`;
     } else {
       subtitle = `${active.length} / ${capacity} Checked Out`;
     }
@@ -339,12 +408,6 @@ function startSSE() {
   function showOffline() {
     document.body.classList.remove('bg-green', 'bg-red');
     document.body.classList.add('bg-yellow');
-
-    // Offline bubble state?
-    // We can't really control bubbles here easily without a full 'offline' type.
-    // Maybe just clear them?
-    // bubbleManager.ensureBubbleCount(0); 
-    // Or set to suspended/offline type.
 
     document.getElementById('displayIcon').textContent = 'wifi_off';
     document.getElementById('displayTitle').textContent = 'Offline';

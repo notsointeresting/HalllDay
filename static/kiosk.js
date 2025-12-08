@@ -73,13 +73,33 @@ class Bubble {
     el.style.top = '0';
     el.style.width = '100%';
     el.style.height = '100%';
-    el.style.pointerEvents = 'none'; // Background only
+    el.style.pointerEvents = 'none'; // Keep background interaction-free
 
+    // Inner structure: SVG + Content Overlay
     el.innerHTML = `
       <svg class="background-shape" viewBox="0 0 380 380" fill="none"
         xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
         <path d="${this.currentPath}" fill="${this.color}" />
       </svg>
+      <div class="bubble-content" style="
+        position: absolute; 
+        top: 50%; 
+        left: 50%; 
+        transform: translate(-50%, -50%); 
+        text-align: center; 
+        width: 200px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: var(--md-sys-color-on-surface);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      ">
+        <div class="bubble-icon" style="font-family: 'Material Symbols Outlined'; font-size: 24px; margin-bottom: 4px;"></div>
+        <div class="bubble-name" style="font-size: 1.1rem; font-weight: 600; line-height: 1.2; word-break: break-word;"></div>
+        <div class="bubble-timer" style="font-size: 0.9rem; font-family: monospace; font-variant-numeric: tabular-nums; opacity: 0.8; margin-top: 2px;"></div>
+      </div>
     `;
     return el;
   }
@@ -94,21 +114,54 @@ class Bubble {
     this.ySpring.update(dt);
     this.rotateSpring.update(dt);
 
-    // Update DOM
+    // Update DOM Transforms
     const scale = this.scaleSpring.current;
+    if (scale < 0.01) {
+      this.element.style.display = 'none';
+      return;
+    } else {
+      this.element.style.display = 'block';
+    }
 
     const x = this.xSpring.current;
     const y = this.ySpring.current;
     const rot = this.rotateSpring.current;
 
-    this.element.style.transform = `translate(calc(${x}% - 50%), calc(${y}% - 50%)) scale(${scale}) rotate(${rot}deg)`;
+    // Move the wrapper
+    // We want to transform the SVG for rotation/scale, but maybe keep text upright?
+    // If we rotate the wrapper, text rotates. 
+    // Optimization: Rotate the SVG only?
+    // Current CSS structure: wrapper is full screen.
+    // Let's transform the wrapper position, but apply scale/rotation to SVG directly?
+    // That complicates the content centering.
+    // Let's keep it simple: Rotate everything. It adds "flair".
+    // Or counter-rotate text? 
+    // The previous implementation rotated the whole shape.
+    // Let's try rotating the SVG only and scaling the wrapper.
+
+    // Actually, to simulate independent bubbles, the wrapper should be positioned at X,Y.
+    // It's 100% width/height currently.
+    // Let's leave wrapper 100% and translate a child container?
+    // No, current logic:
+    // this.element.style.transform = `translate(calc(${x}% - 50%), calc(${y}% - 50%)) scale(${scale}) rotate(${rot}deg)`;
+
+    // Issue: If we rotate text, it's hard to read.
+    // Fix: Rotate the SVG path inside, keeping wrapper (and text) upright (but scaled).
+
+    this.element.style.transform = `translate(calc(${x}% - 50%), calc(${y}% - 50%)) scale(${scale})`;
+
+    const svgEl = this.element.querySelector('.background-shape');
+    if (svgEl) {
+      svgEl.style.transform = `rotate(${rot}deg)`;
+      svgEl.style.transformOrigin = 'center';
+    }
 
     // Color/Path update
     const pathDom = this.element.querySelector('path');
     if (pathDom) {
       pathDom.setAttribute('d', this.currentPath);
       pathDom.style.fill = this.color;
-      pathDom.style.transition = 'fill 0.3s ease'; // Smooth color blend
+      pathDom.style.transition = 'fill 0.3s ease';
     }
   }
 
@@ -120,32 +173,69 @@ class Bubble {
 
     let targetPath = PATH_COOKIE;
     let targetColor = 'var(--color-green-container)';
+    let showContent = false;
+    let nameText = '';
+    let timerText = '';
+    let iconText = '';
+    let textColor = 'var(--md-sys-color-on-green-container)';
 
     // Determine visuals based on type
     if (type === 'available') {
       targetPath = PATH_COOKIE;
       targetColor = 'var(--color-green-container)';
+      textColor = 'var(--md-sys-color-on-green-container)';
+      // Optional: Show "Available" text if we want, but usually users prefer clean
     } else if (type === 'used') {
       targetPath = PATH_COOKIE;
-      if (sessionData && sessionData.overdue) {
-        targetColor = 'var(--color-yellow-container)';
-      } else {
-        targetColor = 'var(--color-red-container)';
+      showContent = true;
+      if (sessionData) {
+        nameText = sessionData.name || 'Student';
+        const mins = Math.floor((sessionData.elapsed || 0) / 60);
+        const secs = (sessionData.elapsed || 0) % 60;
+        timerText = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+        if (sessionData.overdue) {
+          targetColor = 'var(--color-yellow-container)';
+          textColor = 'var(--md-sys-color-on-yellow-container)';
+          iconText = 'alarm';
+        } else {
+          targetColor = 'var(--color-red-container)';
+          textColor = 'var(--md-sys-color-on-red-container)';
+          iconText = 'timer';
+        }
       }
     } else if (type === 'banned') {
       targetPath = PATH_BURST;
       targetColor = 'var(--color-red-container)';
+      textColor = 'var(--md-sys-color-on-red-container)';
+      showContent = true;
+      nameText = 'BANNED';
+      iconText = 'block';
     } else if (type === 'processing') {
       targetPath = PATH_COOKIE;
       targetColor = 'var(--md-sys-color-surface-variant)';
+      textColor = 'var(--md-sys-color-on-surface-variant)';
     } else if (type === 'suspended') {
       targetPath = PATH_BURST;
       targetColor = 'var(--color-red-container)';
+      textColor = 'var(--md-sys-color-on-red-container)';
+      showContent = true;
+      nameText = 'SUSPENDED';
+      iconText = 'block';
     }
 
-    // Just update properties, update() handles DOM
     this.currentPath = targetPath;
     this.color = targetColor;
+
+    // Update Content
+    const contentEl = this.element.querySelector('.bubble-content');
+    if (contentEl) {
+      contentEl.style.opacity = showContent ? '1' : '0';
+      contentEl.style.color = textColor;
+      this.element.querySelector('.bubble-name').textContent = nameText;
+      this.element.querySelector('.bubble-timer').textContent = timerText;
+      this.element.querySelector('.bubble-icon').textContent = iconText;
+    }
 
     // Breathing for available
     if (type === 'available' && Math.abs(this.scaleSpring.velocity) < 0.01) {
