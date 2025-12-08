@@ -364,8 +364,8 @@ def inject_room_name():
 # ---------- Admin Authentication ----------
 
 def is_admin_authenticated():
-    """Check if current session is authenticated as admin."""
-    return session.get('admin_authenticated', False)
+    """Check if current session is authenticated as admin (Legacy Passcode OR Google OAuth)."""
+    return session.get('admin_authenticated', False) or 'user_id' in session
 
 def require_admin_auth(f):
     """Decorator to require admin authentication for a route."""
@@ -401,6 +401,12 @@ def index():
 # Legacy kiosk route (for backward compatibility and logged-in users)
 @app.route("/kiosk")
 def kiosk():
+    user_id = get_current_user_id()
+    if user_id:
+        # Redirect logged-in users to their personal kiosk
+        user = User.query.get(user_id)
+        if user and user.kiosk_token:
+             return redirect(url_for('public_kiosk', token=user.kiosk_slug or user.kiosk_token))
     return render_template("kiosk.html")
 
 # Public kiosk routes (2.0 - no login required, token-based)
@@ -418,6 +424,12 @@ def public_kiosk(token):
 # Legacy display route (for backward compatibility)
 @app.route("/display")
 def display():
+    user_id = get_current_user_id()
+    if user_id:
+        # Redirect logged-in users to their personal display
+        user = User.query.get(user_id)
+        if user and user.kiosk_token:
+             return redirect(url_for('public_display', token=user.kiosk_slug or user.kiosk_token))
     return render_template("display.html")
 
 # Public display routes (2.0 - no login required, token-based)
@@ -434,6 +446,9 @@ def public_display(token):
 
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
+    if is_admin_authenticated():
+        return redirect(url_for('admin'))
+        
     if request.method == "POST":
         passcode = request.form.get("passcode", "").strip()
         if passcode == config.ADMIN_PASSCODE:
