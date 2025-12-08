@@ -110,7 +110,7 @@ class Bubble {
       ">
         <div class="bubble-icon" style="font-family: 'Material Symbols Rounded'; font-size: 42px; margin-bottom: 8px;"></div>
         <div class="bubble-name" style="
-          font-family: 'Outfit', sans-serif;
+          font-family: 'Inter', sans-serif;
           font-size: 3rem; 
           font-weight: 700; 
           line-height: 1.1; 
@@ -119,7 +119,7 @@ class Bubble {
         "></div>
         <div class="bubble-timer" style="
           font-size: 2.2rem; 
-          font-family: 'Outfit', sans-serif; 
+          font-family: 'Inter', sans-serif; 
           font-variant-numeric: tabular-nums; 
           opacity: 0.9; 
           margin-top: 12px; 
