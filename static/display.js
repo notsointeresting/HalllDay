@@ -48,10 +48,6 @@ const PATH_COOKIE_12 = "M166.697 39.8458C167.238 39.3157 167.508 39.0506 167.743
 // Soft Burst Shape  
 const PATH_SOFT_BURST = "M175.147 33.1508C181.983 22.2831 198.017 22.2831 204.853 33.1508L221.238 59.2009C225.731 66.3458 234.797 69.2506 242.692 66.0751L271.475 54.4972C283.482 49.6671 296.455 58.9613 295.507 71.7154L293.235 102.288C292.612 110.673 298.215 118.278 306.494 120.284L336.681 127.601C349.275 130.653 354.23 145.692 345.861 155.461L325.8 178.877C320.298 185.3 320.298 194.7 325.8 201.123L345.861 224.539C354.23 234.308 349.275 249.347 336.681 252.399L306.494 259.716C298.215 261.722 292.612 269.327 293.235 277.712L295.507 308.285C296.455 321.039 283.482 330.333 271.475 325.503L242.692 313.925C234.797 310.749 225.731 313.654 221.238 320.799L204.853 346.849C198.017 357.717 181.983 357.717 175.147 346.849L158.762 320.799C154.269 313.654 145.203 310.749 137.308 313.925L108.525 325.503C96.5177 330.333 83.5454 321.039 84.4931 308.285L86.7649 277.712C87.388 269.327 81.785 261.722 73.5056 259.716L43.3186 252.399C30.7252 249.347 25.7702 234.308 34.1391 224.539L54.1997 201.123C59.7018 194.7 59.7018 185.3 54.1997 178.877L34.1391 155.461C25.7702 145.692 30.7252 130.653 43.3186 127.601L73.5056 120.284C81.785 118.278 87.388 110.673 86.7649 102.288L84.4931 71.7154C83.5454 58.9613 96.5177 49.6671 108.525 54.4972L137.308 66.0751C145.203 69.2506 154.269 66.3458 158.762 59.201L175.147 33.1508Z";
 
-// Shape collection for morphing
-const AVAILABLE_SHAPES = [PATH_COOKIE, PATH_PUFFY, PATH_CLOVER, PATH_COOKIE_12];
-const MORPH_DURATION = 8000; // 8 seconds per shape transition
-
 // --- MULTI-BUBBLE SYSTEM ---
 
 class Bubble {
@@ -61,14 +57,19 @@ class Bubble {
     this.scaleSpring = new Spring(120, 14);
     this.xSpring = new Spring(100, 14);
     this.ySpring = new Spring(100, 14);
-    this.rotateSpring = new Spring(100, 12);
+    this.rotateSpring = new Spring(80, 10); // Softer rotation for subtle motion
 
     this.scaleSpring.set(0);
     this.xSpring.set(50);
     this.ySpring.set(50);
+    this.rotateSpring.set(0);
 
     this.currentPath = PATH_COOKIE;
+    this.targetPath = PATH_COOKIE;
+    this.previousPath = PATH_COOKIE;
+    this.pathMorphProgress = 1.0; // 1.0 = fully at target
     this.color = 'var(--color-green-container)';
+    this.previousType = null; // Track state changes for animations
 
     this.element = this.createDOM();
     document.getElementById('shape-container').appendChild(this.element);
@@ -141,8 +142,23 @@ class Bubble {
     this.ySpring.update(dt);
     this.rotateSpring.update(dt);
 
-    // Shape morphing now only happens on state changes (in setTarget)
-    // No continuous cycling - keeps UI calm and purposeful
+    // Material 3 motion: Shape morphing only on state changes
+    // Smooth path interpolation using spring physics
+    if (this.pathMorphProgress < 1.0) {
+      // Use spring for natural morphing feel
+      const morphSpring = new Spring(60, 12);
+      morphSpring.current = this.pathMorphProgress;
+      morphSpring.target = 1.0;
+      morphSpring.update(dt);
+      this.pathMorphProgress = morphSpring.current;
+      
+      // When morphing is complete, update currentPath
+      if (this.pathMorphProgress >= 0.99) {
+        this.pathMorphProgress = 1.0;
+        this.currentPath = this.targetPath;
+        this.previousPath = this.targetPath;
+      }
+    }
 
     // Update DOM Transforms
     const scale = this.scaleSpring.current;
@@ -157,30 +173,38 @@ class Bubble {
     const y = this.ySpring.current;
     const rot = this.rotateSpring.current;
 
+    // Material 3: Smooth position transitions guide attention
     this.element.style.transform = `translate(calc(${x}% - 50%), calc(${y}% - 50%)) scale(${scale})`;
+    this.element.style.transition = 'transform 0.3s cubic-bezier(0.2, 0, 0, 1)'; // M3 standard easing
 
     const svgEl = this.element.querySelector('.bubble-svg');
     if (svgEl) {
+      // Purposeful rotation: subtle motion on state change, not random
       svgEl.style.transform = `rotate(${rot}deg)`;
       svgEl.style.transformOrigin = 'center';
+      svgEl.style.transition = 'transform 0.3s cubic-bezier(0.2, 0, 0, 1)';
     }
 
-    // Color/Path update with morphing transition
+    // Color/Path update with Material 3 timing
     const pathDom = this.element.querySelector('path');
     if (pathDom) {
-      pathDom.setAttribute('d', this.currentPath);
+      // Use target path directly (CSS handles smooth transition)
+      pathDom.setAttribute('d', this.targetPath);
       pathDom.style.fill = this.color;
-      // Enable smooth transitions for fill and d attribute (shape morphing)
-      pathDom.style.transition = 'fill 0.3s ease, d 1.5s ease-in-out';
+      // Material 3 standard duration: 300ms for color, 400ms for complex shape changes
+      pathDom.style.transition = 'fill 0.3s cubic-bezier(0.2, 0, 0, 1), d 0.4s cubic-bezier(0.2, 0, 0, 1)';
     }
   }
 
   setTarget(x, y, scale, type, sessionData = null) {
+    const stateChanged = this.type !== type;
+    const wasVisible = this.scaleSpring.current > 0.01;
+    const isBecomingVisible = scale > 0.01 && !wasVisible;
+
     this.xSpring.target = x;
     this.ySpring.target = y;
     this.scaleSpring.target = scale;
-    this.type = type;
-
+    
     let targetPath = PATH_COOKIE;
     let targetColor = 'var(--color-green-container)';
     let showContent = false;
@@ -189,14 +213,13 @@ class Bubble {
     let iconText = '';
     let textColor = 'var(--md-sys-color-on-green-container)';
 
+    // Determine shape and color based on state - only change on actual state transitions
     if (type === 'available') {
-      // Shape is handled by morphing cycle in update()
-      targetPath = this.currentPath || PATH_COOKIE;
+      targetPath = PATH_COOKIE; // Stable shape for available state
       targetColor = 'var(--color-green-container)';
       textColor = 'var(--md-sys-color-on-green-container)';
     } else if (type === 'used') {
-      // Stable 12-sided cookie for used passes
-      targetPath = PATH_COOKIE_12;
+      targetPath = PATH_COOKIE_12; // Stable shape for active passes
       showContent = true;
       if (sessionData) {
         nameText = sessionData.name || 'Student';
@@ -205,7 +228,7 @@ class Bubble {
         timerText = `${mins}:${secs.toString().padStart(2, '0')}`;
 
         if (sessionData.overdue) {
-          targetPath = PATH_SOFT_BURST; // More urgent shape when overdue
+          targetPath = PATH_SOFT_BURST; // Morph to urgent shape when overdue
           targetColor = 'var(--color-yellow-container)';
           textColor = 'var(--md-sys-color-on-yellow-container)';
           iconText = 'alarm';
@@ -216,8 +239,7 @@ class Bubble {
         }
       }
     } else if (type === 'banned') {
-      // Sharp burst for banned
-      targetPath = PATH_BURST;
+      targetPath = PATH_BURST; // Sharp shape communicates urgency
       targetColor = 'var(--color-red-container)';
       textColor = 'var(--md-sys-color-on-red-container)';
       showContent = true;
@@ -228,8 +250,7 @@ class Bubble {
       targetColor = 'var(--md-sys-color-surface-variant)';
       textColor = 'var(--md-sys-color-on-surface-variant)';
     } else if (type === 'suspended') {
-      // Sharp burst for suspended
-      targetPath = PATH_BURST;
+      targetPath = PATH_BURST; // Sharp shape for suspended state
       targetColor = 'var(--color-red-container)';
       textColor = 'var(--md-sys-color-on-red-container)';
       showContent = true;
@@ -237,11 +258,39 @@ class Bubble {
       iconText = 'block';
     }
 
-    this.currentPath = targetPath;
+    // Only trigger morphing animation if path actually changed
+    if (this.targetPath !== targetPath) {
+      this.previousPath = this.currentPath;
+      this.targetPath = targetPath;
+      this.pathMorphProgress = 0.0; // Start morphing
+    }
+
+    // Material 3: Purposeful motion on state changes
+    if (stateChanged) {
+      // Subtle rotation to draw attention to state change
+      const rotationAmount = type === 'banned' || type === 'suspended' ? 15 : 
+                            type === 'used' ? 8 : 
+                            type === 'available' ? -5 : 0;
+      this.rotateSpring.target = rotationAmount;
+      
+      // Slight scale pulse when becoming visible or changing state
+      if (isBecomingVisible) {
+        // Entry animation: slight overshoot then settle
+        this.scaleSpring.current = scale * 0.8;
+        this.scaleSpring.velocity = scale * 0.3;
+      }
+    } else {
+      // Return to neutral rotation when state is stable
+      this.rotateSpring.target = 0;
+    }
+
+    this.type = type;
     this.color = targetColor;
 
+    // Update content with smooth transitions
     const contentEl = this.element.querySelector('.bubble-content');
     if (contentEl) {
+      contentEl.style.transition = 'opacity 0.3s cubic-bezier(0.2, 0, 0, 1), color 0.3s cubic-bezier(0.2, 0, 0, 1)';
       contentEl.style.opacity = showContent ? '1' : '0';
       contentEl.style.color = textColor;
       this.element.querySelector('.bubble-name').textContent = nameText;

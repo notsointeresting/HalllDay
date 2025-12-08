@@ -84,7 +84,8 @@ body {
   font: var(--md-sys-typescale-body-large);
   background-color: var(--md-sys-color-background);
   color: var(--md-sys-color-on-background);
-  transition: background-color 0.4s cubic-bezier(0.2, 0, 0, 1);
+  /* Material 3 standard easing: cubic-bezier(0.2, 0, 0, 1) for most transitions */
+  transition: background-color 0.3s cubic-bezier(0.2, 0, 0, 1);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -146,6 +147,16 @@ main {
   overflow: hidden;
 }
 
+.shape-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
 .background-shape {
   position: absolute;
   width: 120vmin;
@@ -161,9 +172,9 @@ main {
 }
 
 .background-shape path {
-  /* No CSS transition for d - handled by JS or instant swap with elastic recoil */
-  transition: fill 0.3s ease;
-  /* Color can still be CSS interpolated or JS */
+  /* Shape morphing handled by JS with Material 3 timing */
+  /* Color transitions use Material 3 standard easing */
+  transition: fill 0.3s cubic-bezier(0.2, 0, 0, 1);
 }
 
 .content-container {
@@ -232,19 +243,7 @@ main {
 
 /* Animations moved to JS or removed */
 
-@keyframes pulse-shape {
-  0% {
-    transform: translate(-50%, -50%) scale(1);
-  }
-
-  50% {
-    transform: translate(-50%, -50%) scale(1.1);
-  }
-
-  100% {
-    transform: translate(-50%, -50%) scale(1);
-  }
-}
+/* Material 3: Purposeful animations only - removed unused pulse animation */
 
 @keyframes spin-slow {
   from {
@@ -257,6 +256,7 @@ main {
 }
 
 .processing-spin {
+  /* Material 3: Processing state uses subtle rotation */
   animation: spin-slow 2s linear infinite;
   transform-origin: center;
 }
