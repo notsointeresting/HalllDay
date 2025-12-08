@@ -1,15 +1,16 @@
 # IDK Can You? - Hall Pass Tracker
 
-A modern, FERPA-compliant digital hall pass system designed for classrooms. Built with Flask and Material 3 Expressive Design, it prioritizes student data privacy and engaging user interactions.
+A modern, FERPA-compliant digital hall pass system designed for high-flow classrooms. Built with Flask and **Material 3 Expressive Design**, it combines privacy, fluid animations, and real-time syncing to create a seamless student experience using physical ID badges.
 
 ## Key Features
 
 - **Smart Scanning**: Fast check-in/out via barcode scanner or numpad.
+- **Fluid Multi-Pass UI**: Dynamic split-screen and grid layouts support multiple students simultaneously with fluid shape morphing animations.
+- **Expressive Design**: Physics-based animations ("Alive" motion), morphing shapes (Bubbles), and specific soundscapes for positive/negative actions.
 - **Privacy First (FERPA)**: Student IDs are hashed for lookup and encrypted at rest. No PII is exposed in plain text.
-- **Material 3 Design**: Beautiful, responsive interface with expressive animations and color-coded states (Available, In Use, Overdue).
 - **Real-time Sync**: Instant status updates across Kiosk and Display screens via Server-Sent Events (SSE).
-- **Google Sheets Integration**: Automatic logging of sessions to Google Sheets for external auditing.
 - **Auto-Ban**: Configurable automatic banning of students who exceed time limits.
+- **Dev Dashboard**: Technical admin controls for database management and system monitoring.
 
 ## Quick Start (Local)
 
@@ -33,9 +34,10 @@ A modern, FERPA-compliant digital hall pass system designed for classrooms. Buil
     ```
 
 4.  **Access the App**:
-    -   **Kiosk**: `http://localhost:5000/kiosk` (Student facing)
-    -   **Display**: `http://localhost:5000/display` (Classroom facing)
+    -   **Kiosk**: `http://localhost:5000/kiosk` (Student facing - Scanner input)
+    -   **Display**: `http://localhost:5000/display` (Classroom facing - Projector)
     -   **Admin**: `http://localhost:5000/admin` (Teacher control)
+    -   **Dev Tools**: `http://localhost:5000/dev/login` (Technical admin)
 
 ## Configuration
 
@@ -44,13 +46,18 @@ Configure the application using environment variables.
 | Variable | Description | Default |
 | :--- | :--- | :--- |
 | `HALLPASS_SECRET_KEY` | **CRITICAL**: Used for encryption. Change in production. | `change-me-in-production` |
-| `HALLPASS_ADMIN_PASSCODE` | Passcode for the admin panel. | `admin123` |
+| `HALLPASS_ADMIN_PASSCODE` | Passcode for the `/dev` dashboard. | `admin123` |
 | `HALLPASS_ROOM_NAME` | Name displayed on the screen. | `Hall Pass` |
 | `HALLPASS_CAPACITY` | Max students allowed out at once. | `1` |
 | `HALLPASS_MAX_MINUTES` | Threshold for "Overdue" status (minutes). | `12` |
 | `DATABASE_URL` | Database connection string. | `sqlite:///instance/hallpass.db` |
-| `GOOGLE_SHEETS_LOG_ID` | (Optional) Sheet ID for logging sessions. | `None` |
-| `GOOGLE_APPLICATION_CREDENTIALS_JSON` | (Optional) JSON content of Google Service Account. | `None` |
+
+## Appearance & Customization
+
+The application uses **Material 3 Expressive** principles with a custom color palette.
+- **Fonts**: Uses `Inter` for clean, readable typography.
+- **Icons**: Uses Google Material Symbols.
+- **Themes**: Status colors are bold and saturated for high visibility (Green=Available, Yellow=Overdue, Red=Full/Banned).
 
 ## Deployment
 
@@ -66,17 +73,10 @@ Configure the application using environment variables.
 
 ### Roster Management
 Upload a CSV file (`id, name`) in the Admin Panel. 
--   **Security**: Names are **encrypted** before being stored in the database.
--   **Lookup**: Student IDs are **hashed** to allow private lookups without storing plain IDs.
+-   **Security**: Names are **encrypted** before being stored.
+-   **Lookup**: Student IDs are **hashed** to allow private lookups.
 
-### Kiosk Control
--   **Suspend**: Temporarily disable the kiosk (e.g., during tests).
--   **Override**: Manually end a session if a student forgets to scan back in.
--   **Bans**: Manually ban specific students from using the pass (viewable in Admin panel).
-
-### Google Sheets Logging
-To enable remote logging:
-1.  Create a Google Service Account and download the JSON key.
-2.  Share your Google Sheet with the Service Account email.
-3.  Set `GOOGLE_SHEETS_LOG_ID` to your Sheet ID.
-4.  Set `GOOGLE_APPLICATION_CREDENTIALS_JSON` to the *content* of your JSON key file.
+### Developer Tools (`/dev`)
+Access via `/dev/login` using the `HALLPASS_ADMIN_PASSCODE`.
+-   **Database Stats**: View total sessions, active passes, and storage usage.
+-   **Maintenance**: Tools to wipe/reset the database or clear active sessions if they get stuck.

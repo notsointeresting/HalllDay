@@ -27,30 +27,39 @@
 
 ---
 
-## Multi-Tenancy Architecture ✅
+## Phase 3 - UI/UX Overhaul & Polish (Fluid Motion) ✅
+**Status**: Completed (2025-12-08)
 
-| Data | Isolation | Status |
-|------|-----------|--------|
-| Sessions | Per-user | ✅ Secure |
-| Rosters | User-scoped hash | ✅ Secure |
-| Settings | Per-user | ✅ Secure |
+### P0 - Core UX Improvements ✅
+- [x] **Multi-Pass UI**: Split-screen (2 students) and Grid Layout (3+ students) with fluid transitions.
+- [x] **Shape Morphing**: "Alive" bubbles that squash/stretch based on velocity and state.
+- [x] **Expressive Motion**: Physics-based springs for all interactions (entry, exit, state change).
+- [x] **Sound Design**: Custom soundscapes for positive (scan) and negative (ban/deny) actions.
+
+### P1 - Visual Consistency ✅ 
+- [x] **Banned State**: Distinct "Red/Black" banned UI to clearly differentiate from "Limit Reached".
+- [x] **Bold Colors**: Switched from pastel containers to **Vibrant/Saturated** backgrounds (Deep Green, Strong Red, Amber).
+- [x] **Typography**: Switched to **Inter** for cleaner, professional legibility.
+- [x] **Iconography**: Fixed "Pass_" glitch and removed overlapping background icons.
+
+### P2 - Documentation ✅
+- [x] **Replaced README**: Fully rewritten to reflect current feature set (Multi-Pass, Fernet Encryption, Dev Dashboard).
+- [x] **Removed Legacy**: Deleted all references to Google Sheets integration.
 
 ---
 
-## Pre-Launch Verification 🚀
+## Phase 4 - Future Roadmap (Next Steps) 🔮
 
-**Status: READY FOR LAUNCH**
+### P1 - Mobile & PWA
+- [ ] **Manifest & Service Worker**: Make the Kiosk a true PWA (installable on iPad home screen).
+- [ ] **Offline Resilience**: Queue scans if network drops and sync when back online.
+- [ ] **Wake Lock**: Prevent Kiosk screen from dimming/sleeping during class.
 
-### 🛡️ Security & Isolation
-- **Data Isolation**: Verified. Queries scope strictly to `user_id`.
-- **Real-time State**: Verified. SSE streams are user-scoped; no cross-tenant leakage.
-- **Kiosk Security**: Verified. Public routes enforce valid tokens.
+### P2 - Deployment Hardening
+- [ ] **Production Config**: Verify `gunicorn` worker settings for SSE scaling (gevent/eventlet recommended).
+- [ ] **Database Migration**: Ensure proper migration scripts for `alembic` if schema evolves further.
+- [ ] **Stress Testing**: Simulate 30+ simultaneous kiosks to verify SSE connection stability.
 
-### ⚠️ Implementation Notes
-1.  **Eventual Consistency**: Multi-worker setups may have slight delays in cache updates (roster names). Use restart if critical.
-2.  **Concurrency**: PostgreSQL transaction rollback in SSE loop ensures freshness.
-
-### 📋 Pre-Flight Checklist
-- [x] **OAuth**: Add `idkcanu.com` & `halllday.onrender.com` to Google Console.
-- [ ] **Env Vars**: Verify `SECRET_KEY` strength in production.
-- [ ] **Backup**: Optional DB snapshot via Render/Dev tools.
+### P3 - Advanced Features
+- [ ] **Insights Dashboard**: "Who leaves the most?" analytics for teachers.
+- [ ] **Digital Passes**: Apple Wallet / Google Wallet pass integration for students (long-term).
