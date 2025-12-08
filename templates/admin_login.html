@@ -9,7 +9,6 @@
     {{ error }}
   </div>
   {% endif %}
-  {% endif %}
 
   <div style="text-align: center; margin-bottom: 24px;">
     <a href="{{ url_for('auth.login') }}" class="primary-btn"
@@ -24,16 +23,18 @@
       <span style="flex: 1; height: 1px; background: currentColor; opacity: 0.2"></span>
     </div>
   </div>
-  <div style="text-align: left;">
-    <label for="passcode"
-      style="display: block; margin-bottom: 8px; font: var(--md-sys-typescale-label-large); color: var(--md-sys-color-on-surface-variant);">Passcode</label>
-    <input type="password" id="passcode" name="passcode" required autofocus placeholder="Enter passcode"
-      style="width: 100%;" />
-  </div>
 
-  <button type="submit" class="primary-btn">
-    Access Panel
-  </button>
+  <form method="POST" action="{{ url_for('admin_login') }}" style="display: flex; flex-direction: column; gap: 24px;">
+    <div style="text-align: left;">
+      <label for="passcode"
+        style="display: block; margin-bottom: 8px; font: var(--md-sys-typescale-label-large); color: var(--md-sys-color-on-surface-variant);">Passcode</label>
+      <input type="password" id="passcode" name="passcode" required autofocus placeholder="Enter passcode"
+        style="width: 100%;" />
+    </div>
+
+    <button type="submit" class="primary-btn">
+      Access Panel
+    </button>
   </form>
 
   <div style="margin-top: 32px;">
