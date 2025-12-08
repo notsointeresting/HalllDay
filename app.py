@@ -569,6 +569,12 @@ def dev():
     if not session.get('dev_authenticated'):
         return redirect(url_for('dev_login'))
     
+    # Get current user if logged in via OAuth
+    current_user = None
+    user_id = session.get('user_id')
+    if user_id:
+        current_user = User.query.get(user_id)
+    
     total = Session.query.count()
     open_count = Session.query.filter_by(end_ts=None).count()
     settings = get_settings()
