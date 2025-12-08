@@ -816,8 +816,9 @@ def sse_events():
             # but here we just call helpers which usually should be fine if app context is pushed.
             # However, stream_with_context handles the context.
             
-            # Force SQLAlchemy to fetch fresh data from DB (prevents stale cached objects)
-            db.session.expire_all()
+            # End current transaction and start fresh to see committed changes from other connections
+            # (PostgreSQL transaction isolation prevents seeing uncommitted data)
+            db.session.rollback()
             
             settings = get_settings(user_id)
             
