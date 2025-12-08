@@ -51,6 +51,10 @@
   --color-yellow-container: #ffdea7;
   --color-yellow-on-container: #271900;
 
+  /* Shared High-Contrast Status Text */
+  --color-overdue-text: #b24000;
+  /* Dark Orange/Red-Orange for white bubbles */
+
   /* Typography - Material 3 Typescale */
   --md-sys-typescale-display-large: 400 57px/64px 'Outfit', sans-serif;
   --md-sys-typescale-display-medium: 400 45px/52px 'Outfit', sans-serif;

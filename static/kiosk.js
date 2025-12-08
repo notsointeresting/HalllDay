@@ -225,7 +225,7 @@ class Bubble {
 
         if (sessionData.overdue) {
           targetPath = PATH_SOFT_BURST; // More urgent shape when overdue
-          textColor = '#b24000'; // High contrast Orange
+          textColor = 'var(--color-overdue-text)';
           iconText = 'alarm';
         } else {
           textColor = 'var(--md-sys-color-on-red-container)'; // or Green/Black? Used is usually 'Active' so maybe Green text? 

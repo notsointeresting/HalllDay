@@ -220,8 +220,8 @@ class Bubble {
 
         if (sessionData.overdue) {
           targetPath = PATH_SOFT_BURST; // More urgent shape when overdue
-          // Use a stronger, opaque color for visibility on white
-          textColor = '#b24000'; // Dark Orange/Red-Orange for high alert visibility
+          // Use shared variable for consistency
+          textColor = 'var(--color-overdue-text)';
           iconText = 'alarm';
         } else {
           textColor = 'var(--md-sys-color-on-error-container)';
