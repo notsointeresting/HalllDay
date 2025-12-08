@@ -1,20 +1,37 @@
 """
 Ban Service: Handles student ban management
+Refactored for 2.0 multi-tenancy with user_id scoping (via RosterService)
 """
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
 
 class BanService:
     def __init__(self, db, student_name_model, roster_service):
+        """
+        Initialize BanService.
+        
+        User scoping is inherited from the roster_service's user_id.
+        """
         self.db = db
         self.StudentName = student_name_model
         self.roster_service = roster_service
+    
+    @property
+    def _user_id(self) -> Optional[int]:
+        """Get user_id from roster_service for consistent scoping"""
+        return self.roster_service._user_id
     
     def is_student_banned(self, student_id: str) -> bool:
         """Check if a student is banned from using the restroom"""
         try:
             name_hash = self.roster_service._hash_student_id(student_id)
-            student_name = self.StudentName.query.filter_by(name_hash=name_hash).first()
+            
+            # Build query with optional user_id scoping
+            query = self.StudentName.query.filter_by(name_hash=name_hash)
+            if self._user_id is not None:
+                query = query.filter_by(user_id=self._user_id)
+            
+            student_name = query.first()
             return student_name.banned if student_name else False
         except Exception:
             return False
@@ -23,7 +40,13 @@ class BanService:
         """Ban or unban a student from using the restroom"""
         try:
             name_hash = self.roster_service._hash_student_id(student_id)
-            student_name = self.StudentName.query.filter_by(name_hash=name_hash).first()
+            
+            # Build query with optional user_id scoping
+            query = self.StudentName.query.filter_by(name_hash=name_hash)
+            if self._user_id is not None:
+                query = query.filter_by(user_id=self._user_id)
+            
+            student_name = query.first()
             if student_name:
                 student_name.banned = banned_status
                 self.db.session.commit()
@@ -43,6 +66,11 @@ class BanService:
             overdue_list = []
             
             for session_obj in open_sessions:
+                # Filter by user_id if set
+                if self._user_id is not None and hasattr(session_obj, 'user_id'):
+                    if session_obj.user_id != self._user_id:
+                        continue
+                
                 if session_obj.duration_seconds > overdue_seconds:
                     student_name = self.roster_service.get_student_name(
                         session_obj.student_id, "Student"
@@ -80,3 +108,4 @@ class BanService:
             return {'count': banned_count, 'students': banned_students}
         except Exception:
             return {'count': 0, 'students': []}
+

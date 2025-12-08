@@ -2,11 +2,24 @@
 {% block content %}
 <section class="admin">
   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
-    <h2>Admin Dashboard</h2>
-    <a href="{{ url_for('admin_logout') }}"
-      style="color: var(--md-sys-color-primary); font: var(--md-sys-typescale-label-large); text-decoration: none;">
-      Logout
-    </a>
+    <div style="display: flex; align-items: center; gap: 16px;">
+      {% if current_user %}
+      <img src="{{ current_user.picture_url or '' }}" alt=""
+        style="width: 40px; height: 40px; border-radius: 50%; background: var(--md-sys-color-surface-variant);">
+      <div>
+        <h2 style="margin: 0;">{{ current_user.name }}'s Dashboard</h2>
+        <div style="font-size: 12px; opacity: 0.7;">{{ current_user.email }}</div>
+      </div>
+      {% else %}
+      <h2>Admin Dashboard</h2>
+      {% endif %}
+    </div>
+    <div style="display: flex; gap: 16px; align-items: center;">
+      <a href="{{ url_for('auth.logout') if current_user else url_for('admin_logout') }}"
+        style="color: var(--md-sys-color-primary); font: var(--md-sys-typescale-label-large); text-decoration: none;">
+        Logout
+      </a>
+    </div>
   </div>
 
   <div style="display: flex; gap: 16px; margin-bottom: 32px; flex-wrap: wrap;">
@@ -19,6 +32,40 @@
       Total Sessions: <strong>{{ total }}</strong>
     </div>
   </div>
+
+  {% if kiosk_urls %}
+  <!-- Share & Embed Section -->
+  <h3>📱 Share Your Kiosk</h3>
+  <div class="card-surface" style="border-left: 4px solid var(--md-sys-color-primary);">
+    <p style="margin-top: 0;">Share these links with students or embed in your website. No login required!</p>
+
+    <div
+      style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 16px;">
+      <div style="background: var(--md-sys-color-background); padding: 12px; border-radius: 8px;">
+        <div style="font-weight: bold; margin-bottom: 8px;">🖥️ Kiosk URL (for scanning)</div>
+        <input type="text" id="kioskUrl" value="{{ kiosk_urls.kiosk }}" readonly
+          style="width: 100%; font-size: 12px; padding: 8px; background: var(--md-sys-color-surface-variant);">
+        <button onclick="copyToClipboard('kioskUrl')" style="margin-top: 8px;">📋 Copy</button>
+      </div>
+      <div style="background: var(--md-sys-color-background); padding: 12px; border-radius: 8px;">
+        <div style="font-weight: bold; margin-bottom: 8px;">📺 Display URL (status board)</div>
+        <input type="text" id="displayUrl" value="{{ kiosk_urls.display }}" readonly
+          style="width: 100%; font-size: 12px; padding: 8px; background: var(--md-sys-color-surface-variant);">
+        <button onclick="copyToClipboard('displayUrl')" style="margin-top: 8px;">📋 Copy</button>
+      </div>
+    </div>
+
+    <details style="margin-top: 16px;">
+      <summary style="cursor: pointer; font-weight: bold;">🔧 Embed Code (iframe)</summary>
+      <div style="margin-top: 12px;">
+        <textarea id="embedCode" readonly
+          style="width: 100%; height: 80px; font-size: 11px; font-family: monospace;">&lt;iframe src="{{ kiosk_urls.kiosk_full }}" width="400" height="600" frameborder="0"&gt;&lt;/iframe&gt;</textarea>
+        <button onclick="copyToClipboard('embedCode')" style="margin-top: 8px;">📋 Copy Embed Code</button>
+      </div>
+    </details>
+  </div>
+  {% endif %}
+
 
   <!-- Roster Management -->
   <h3>Roster Management</h3>
@@ -218,6 +265,21 @@
 
 <!-- Scripts -->
 <script>
+  // Copy to clipboard helper for Share/Embed section
+  function copyToClipboard(elementId) {
+    const el = document.getElementById(elementId);
+    el.select();
+    document.execCommand('copy');
+
+    // Show feedback
+    const btn = el.nextElementSibling || el.parentElement.querySelector('button');
+    if (btn) {
+      const originalText = btn.textContent;
+      btn.textContent = '✅ Copied!';
+      setTimeout(() => { btn.textContent = originalText; }, 2000);
+    }
+  }
+
   document.getElementById('override').onclick = async () => {
     const r = await fetch('/api/override_end', { method: 'POST' });
     const j = await r.json();

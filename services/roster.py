@@ -1,16 +1,31 @@
 """
 Roster Service: Handles student roster management
+Refactored for 2.0 multi-tenancy with user_id scoping
 """
 from typing import Dict, Optional
-import hashlib
 
 
 class RosterService:
-    def __init__(self, db, cipher_suite, student_name_model):
+    def __init__(self, db, cipher_suite, student_name_model, user_id: Optional[int] = None):
+        """
+        Initialize RosterService.
+        
+        Args:
+            db: SQLAlchemy database instance
+            cipher_suite: Fernet cipher for encryption
+            student_name_model: StudentName model class
+            user_id: Optional user ID for scoping (None = legacy/global mode)
+        """
         self.db = db
         self.cipher_suite = cipher_suite
         self.StudentName = student_name_model
+        self._user_id = user_id
         self._memory_roster: Dict[str, str] = {}
+    
+    def set_user_id(self, user_id: int) -> None:
+        """Set the user_id for scoped queries (call this per-request)"""
+        self._user_id = user_id
+        self._memory_roster = {}  # Clear cache when switching users
     
     def _hash_student_id(self, student_id: str) -> str:
         """Create a hash of student ID for FERPA-compliant lookup"""
@@ -34,7 +49,12 @@ class RosterService:
             name_hash = self._hash_student_id(student_id)
             encrypted_id = self.cipher_suite.encrypt(student_id.encode()).decode()
             
-            existing = self.StudentName.query.filter_by(name_hash=name_hash).first()
+            # Build query with optional user_id scoping
+            query = self.StudentName.query.filter_by(name_hash=name_hash)
+            if self._user_id is not None:
+                query = query.filter_by(user_id=self._user_id)
+            
+            existing = query.first()
             if existing:
                 existing.display_name = name
                 existing.encrypted_id = encrypted_id
@@ -42,7 +62,8 @@ class RosterService:
                 student_name = self.StudentName(
                     name_hash=name_hash, 
                     display_name=name, 
-                    encrypted_id=encrypted_id
+                    encrypted_id=encrypted_id,
+                    user_id=self._user_id  # 2.0: Associate with user
                 )
                 self.db.session.add(student_name)
             self.db.session.commit()
@@ -56,7 +77,13 @@ class RosterService:
         """Get student name from database using hash lookup"""
         try:
             name_hash = self._hash_student_id(student_id)
-            student_name = self.StudentName.query.filter_by(name_hash=name_hash).first()
+            
+            # Build query with optional user_id scoping
+            query = self.StudentName.query.filter_by(name_hash=name_hash)
+            if self._user_id is not None:
+                query = query.filter_by(user_id=self._user_id)
+            
+            student_name = query.first()
             return student_name.display_name if student_name else None
         except Exception:
             return None
@@ -78,12 +105,25 @@ class RosterService:
         return fallback
     
     def clear_all_student_names(self) -> None:
-        """Clear all student names from database"""
+        """Clear all student names from database (scoped to user if set)"""
         try:
-            self.StudentName.query.delete()
+            if self._user_id is not None:
+                self.StudentName.query.filter_by(user_id=self._user_id).delete()
+            else:
+                self.StudentName.query.delete()
             self.db.session.commit()
         except Exception:
             self.db.session.rollback()
+    
+    def get_all_students(self) -> list:
+        """Get all students for the current user (for admin display)"""
+        try:
+            query = self.StudentName.query
+            if self._user_id is not None:
+                query = query.filter_by(user_id=self._user_id)
+            return query.all()
+        except Exception:
+            return []
     
     def update_anonymous_students(self, student_model) -> int:
         """
@@ -91,17 +131,18 @@ class RosterService:
         Called after roster upload to retroactively fix anonymous entries.
         Returns the count of updated students.
         
-        NOTE (v2.0): This may be legacy code. Since /api/stats/week now does 
-        roster lookups via get_student_name(), this retroactive DB update is 
-        mostly cosmetic. Consider removing in a 2.0 refactor if Student.name 
-        is no longer used directly anywhere.
+        NOTE (v2.0): Scoped to current user if user_id is set.
         """
         updated_count = 0
         try:
-            # Get all Anonymous students from the Student table
-            anonymous_students = student_model.query.filter(
+            # Build query with optional user_id scoping
+            query = student_model.query.filter(
                 student_model.name.like('Anonymous_%')
-            ).all()
+            )
+            if self._user_id is not None:
+                query = query.filter_by(user_id=self._user_id)
+            
+            anonymous_students = query.all()
             
             for student in anonymous_students:
                 # Check if we have a real name in the roster
@@ -120,3 +161,8 @@ class RosterService:
                 pass
         
         return updated_count
+
+
+# Import at top level after class definition to avoid circular import
+import hashlib
+

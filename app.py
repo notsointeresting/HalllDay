@@ -27,6 +27,9 @@ from services.roster import RosterService
 from services.ban import BanService
 from services.session import SessionService
 
+# Import models
+from models.user import create_user_model
+
 app = Flask(__name__)
 
 # Prefer DATABASE_URL from env (Render), else config.py
@@ -34,6 +37,10 @@ app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", config.DATABAS
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SECRET_KEY"] = config.SECRET_KEY
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=8)  # Admin sessions last 8 hours
+
+# Google OAuth config (2.0 multi-user support)
+app.config["GOOGLE_CLIENT_ID"] = getattr(config, 'GOOGLE_CLIENT_ID', '')
+app.config["GOOGLE_CLIENT_SECRET"] = getattr(config, 'GOOGLE_CLIENT_SECRET', '')
 
 db = SQLAlchemy(app)
 TZ = ZoneInfo(config.TIMEZONE)
@@ -53,9 +60,14 @@ cipher_suite = Fernet(_get_encryption_key())
 
 # ---------- Models ----------
 
+# Create User model for multi-tenancy (2.0)
+User = create_user_model(db)
+
 class Student(db.Model):
     id = db.Column(db.String, primary_key=True)          # barcode value or student id
     name = db.Column(db.String, nullable=False)
+    # 2.0: Add user_id FK (nullable for migration compatibility)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
 
 class Session(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -64,8 +76,11 @@ class Session(db.Model):
     end_ts = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
     ended_by = db.Column(db.String, nullable=True)       # "kiosk_scan", "override", "auto"
     room = db.Column(db.String, nullable=True)
+    # 2.0: Add user_id FK (nullable for migration compatibility)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
 
     student = db.relationship("Student")
+    user = db.relationship('User', backref='sessions')
 
     @property
     def duration_seconds(self):
@@ -79,15 +94,28 @@ class Settings(db.Model):
     overdue_minutes = db.Column(db.Integer, nullable=False, default=10)
     kiosk_suspended = db.Column(db.Boolean, nullable=False, default=False)
     auto_ban_overdue = db.Column(db.Boolean, nullable=False, default=False)
+    # 2.0: Add user_id FK (nullable for migration compatibility, ID=1 is legacy global)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
+    
+    user = db.relationship('User', backref='settings')
 
 class StudentName(db.Model):
     """FERPA-compliant storage of student names only (no ID association)"""
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    name_hash = db.Column(db.String, nullable=False, unique=True)  # Hash of student_id for lookup
+    name_hash = db.Column(db.String, nullable=False)  # Hash of student_id for lookup (removed unique, see constraint below)
     encrypted_id = db.Column(db.String, nullable=True)   # Encrypted ID for admin retrieval
     display_name = db.Column(db.String, nullable=False)  # Actual name to display
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
     banned = db.Column(db.Boolean, nullable=False, default=False)  # Restroom ban flag
+    # 2.0: Add user_id FK (nullable for migration compatibility)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
+    
+    user = db.relationship('User', backref='student_names')
+    
+    # 2.0: Composite unique constraint - same student can exist for different users
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'name_hash', name='uq_user_name_hash'),
+    )
 
 # ---------- Service Initialization ----------
 # Initialize services after models are defined
@@ -314,17 +342,48 @@ def require_admin_auth_api(f):
 
 # ---------- Routes ----------
 
+# Register auth blueprint for Google OAuth (2.0)
+from auth import auth_bp, init_oauth
+app.register_blueprint(auth_bp)
+init_oauth(app)
+
 @app.route("/")
 def index():
     return redirect(url_for("kiosk"))
 
+# Legacy kiosk route (for backward compatibility and logged-in users)
 @app.route("/kiosk")
 def kiosk():
     return render_template("kiosk.html")
 
+# Public kiosk routes (2.0 - no login required, token-based)
+@app.route("/k/<token>")
+@app.route("/kiosk/<token>")
+def public_kiosk(token):
+    """Public kiosk access via unique token or slug"""
+    user = User.query.filter(
+        (User.kiosk_token == token) | (User.kiosk_slug == token)
+    ).first()
+    if not user:
+        return render_template("kiosk.html")  # Fallback to legacy
+    return render_template("kiosk.html", user_id=user.id, user_name=user.name)
+
+# Legacy display route (for backward compatibility)
 @app.route("/display")
 def display():
     return render_template("display.html")
+
+# Public display routes (2.0 - no login required, token-based)
+@app.route("/d/<token>")
+@app.route("/display/<token>")
+def public_display(token):
+    """Public display access via unique token or slug"""
+    user = User.query.filter(
+        (User.kiosk_token == token) | (User.kiosk_slug == token)
+    ).first()
+    if not user:
+        return render_template("display.html")  # Fallback to legacy
+    return render_template("display.html", user_id=user.id, user_name=user.name)
 
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
@@ -346,14 +405,34 @@ def admin_logout():
 @app.route("/admin")
 @require_admin_auth
 def admin():
-    total = Session.query.count()
-    open_count = Session.query.filter_by(end_ts=None).count()
+    """Teacher-facing admin dashboard (clean, user-friendly)"""
+    # Get current user if OAuth is active
+    current_user = None
+    user_id = session.get('user_id')
+    if user_id:
+        current_user = User.query.get(user_id)
+    
+    # Scope queries to current user if available
+    if current_user:
+        total = Session.query.filter_by(user_id=current_user.id).count()
+        open_count = Session.query.filter_by(end_ts=None, user_id=current_user.id).count()
+        db_roster_count = StudentName.query.filter_by(user_id=current_user.id).count()
+    else:
+        total = Session.query.count()
+        open_count = Session.query.filter_by(end_ts=None).count()
+        db_roster_count = StudentName.query.count()
+    
     settings = get_settings()
     
     try:
         # Roster counts
         memory_roster_count = len(get_memory_roster())
-        db_roster_count = StudentName.query.count()
+        
+        # Build public URLs for Share/Embed section
+        kiosk_urls = None
+        if current_user:
+            base_url = request.url_root.rstrip('/')
+            kiosk_urls = current_user.get_public_urls(base_url)
         
         # Sheets status/link for admin chip
         try:
@@ -374,10 +453,64 @@ def admin():
             sheets_link=sheets_link,
             db_roster_count=db_roster_count,
             memory_roster_count=memory_roster_count,
+            current_user=current_user,
+            kiosk_urls=kiosk_urls,
         )
     except Exception as e:
         import traceback
         return f"Admin Page Error: {str(e)} <br><pre>{traceback.format_exc()}</pre>", 500
+
+
+@app.route("/dev")
+@require_admin_auth
+def dev():
+    """Developer-only admin page with database tools and debugging"""
+    # Check if user is actually the developer (legacy auth or admin flag)
+    current_user = None
+    user_id = session.get('user_id')
+    if user_id:
+        current_user = User.query.get(user_id)
+        # Only allow if user has is_admin flag or is using legacy auth
+        if current_user and not current_user.is_admin:
+            if not session.get('admin_authenticated'):
+                return redirect(url_for('admin'))
+    
+    total = Session.query.count()
+    open_count = Session.query.filter_by(end_ts=None).count()
+    settings = get_settings()
+    
+    try:
+        # All roster counts (global, not scoped)
+        memory_roster_count = len(get_memory_roster())
+        db_roster_count = StudentName.query.count()
+        user_count = User.query.count()
+        
+        # Sheets status
+        try:
+            sheets_status = sheets_logger.get_status()
+        except Exception:
+            sheets_status = "off"
+        sheets_link = None
+        if sheets_logger.sheets_enabled():
+            sid = os.getenv("GOOGLE_SHEETS_LOG_ID")
+            if sid:
+                sheets_link = f"https://docs.google.com/spreadsheets/d/{sid}/edit#gid=0"
+        
+        return render_template(
+            "dev.html",
+            total=total,
+            open_count=open_count,
+            settings=settings,
+            sheets_status=sheets_status,
+            sheets_link=sheets_link,
+            db_roster_count=db_roster_count,
+            memory_roster_count=memory_roster_count,
+            user_count=user_count,
+            current_user=current_user,
+        )
+    except Exception as e:
+        import traceback
+        return f"Dev Page Error: {str(e)} <br><pre>{traceback.format_exc()}</pre>", 500
 
 # ---------- Keep-alive (Render) ----------
 _keepalive_started = False
@@ -974,6 +1107,56 @@ def export_csv():
         download_name="hallpass_export.csv",
     )
 
+# ---------- Developer API ----------
+
+@app.get("/api/dev/users")
+@require_admin_auth_api
+def api_dev_users():
+    """Get list of all users (developer only)"""
+    try:
+        users = User.query.all()
+        user_list = []
+        for u in users:
+            session_count = Session.query.filter_by(user_id=u.id).count()
+            user_list.append({
+                'id': u.id,
+                'email': u.email,
+                'name': u.name,
+                'is_admin': u.is_admin,
+                'kiosk_token': u.kiosk_token,
+                'kiosk_slug': u.kiosk_slug,
+                'session_count': session_count,
+                'created_at': u.created_at.isoformat() if u.created_at else None,
+                'last_login': u.last_login.isoformat() if u.last_login else None,
+            })
+        return jsonify(ok=True, users=user_list, count=len(user_list))
+    except Exception as e:
+        return jsonify(ok=False, message=str(e)), 500
+
+
+@app.post("/api/dev/set_admin")
+@require_admin_auth_api
+def api_dev_set_admin():
+    """Set a user's admin flag (developer only)"""
+    payload = request.get_json(silent=True) or {}
+    user_id = payload.get('user_id')
+    is_admin = payload.get('is_admin', False)
+    
+    if not user_id:
+        return jsonify(ok=False, message="user_id required"), 400
+    
+    try:
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify(ok=False, message="User not found"), 404
+        
+        user.is_admin = is_admin
+        db.session.commit()
+        return jsonify(ok=True, message=f"User {user.email} admin status: {is_admin}")
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(ok=False, message=str(e)), 500
+
 # ---------- CLI helpers ----------
 
 @app.cli.command("init-db")
@@ -1136,6 +1319,88 @@ def run_migrations():
         messages.append(f"Failed to add encrypted_id column: {e}")
         raise e
 
+    # ===== 2.0 MIGRATIONS =====
+    
+    # Migration 5: Create User table if not exists
+    try:
+        db.create_all()  # This will create User table if it doesn't exist
+        messages.append("User table created/verified")
+    except Exception as e:
+        messages.append(f"Warning: User table creation: {e}")
+    
+    # Migration 6: Add user_id columns to existing tables
+    user_id_migrations = [
+        ("settings", "user_id"),
+        ("session", "user_id"),
+        ("student_name", "user_id"),
+        ("student", "user_id"),
+    ]
+    
+    for table_name, column_name in user_id_migrations:
+        column_exists = False
+        try:
+            res = db.session.execute(text(f"""
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = '{table_name}' AND column_name = '{column_name}'
+            """))
+            column_exists = res.scalar() is not None
+        except Exception:
+            pass
+        
+        if not column_exists:
+            messages.append(f"Adding {column_name} column to {table_name} table")
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+            
+            try:
+                with db.engine.begin() as conn:
+                    conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS {column_name} INTEGER"))
+                messages.append(f"Added {column_name} to {table_name} successfully")
+            except Exception as e:
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
+                messages.append(f"Failed to add {column_name} to {table_name}: {e}")
+        else:
+            messages.append(f"{column_name} column already exists in {table_name}")
+    
+    # Migration 7: Create default migration user for legacy data if needed
+    try:
+        # Check if there's any legacy data without user_id
+        legacy_settings = Settings.query.filter_by(user_id=None).first()
+        if legacy_settings:
+            # Check if migration user exists
+            migration_user = User.query.filter_by(google_id="LEGACY_MIGRATION").first()
+            if not migration_user:
+                import secrets
+                migration_user = User(
+                    google_id="LEGACY_MIGRATION",
+                    email="legacy@halllday.local",
+                    name="Legacy Data (Pre-2.0)",
+                    kiosk_token=secrets.token_urlsafe(16)
+                )
+                db.session.add(migration_user)
+                db.session.commit()
+                messages.append(f"Created migration user (ID: {migration_user.id})")
+            
+            # Backfill user_id on legacy records
+            Settings.query.filter_by(user_id=None).update({Settings.user_id: migration_user.id})
+            Session.query.filter_by(user_id=None).update({Session.user_id: migration_user.id})
+            StudentName.query.filter_by(user_id=None).update({StudentName.user_id: migration_user.id})
+            Student.query.filter_by(user_id=None).update({Student.user_id: migration_user.id})
+            db.session.commit()
+            messages.append("Backfilled user_id on legacy records")
+        else:
+            messages.append("No legacy data migration needed")
+    except Exception as e:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        messages.append(f"Legacy data migration: {e}")
 
     return messages
 
