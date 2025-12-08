@@ -1,4 +1,4 @@
-# HalllDay - Hall Pass Tracker
+# IDK Can You? - Hall Pass Tracker
 
 A modern, FERPA-compliant digital hall pass system designed for classrooms. Built with Flask and Material 3 Expressive Design, it prioritizes student data privacy and engaging user interactions.
 
