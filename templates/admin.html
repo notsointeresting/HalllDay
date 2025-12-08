@@ -22,7 +22,7 @@
     </div>
   </div>
 
-  <div style="display: flex; gap: 16px; margin-bottom: 32px; flex-wrap: wrap;">
+  <div style="display: flex; gap: 16px; margin-bottom: 32px; flex-wrap: wrap; align-items: center;">
     <div class="chip"
       style="background: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container);">
       Open Sessions: <strong>{{ open_count }}</strong>
@@ -30,6 +30,17 @@
     <div class="chip"
       style="background: var(--md-sys-color-surface-variant); color: var(--md-sys-color-on-surface-variant);">
       Total Sessions: <strong>{{ total }}</strong>
+    </div>
+
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+      <button id="suspendBtn" onclick="toggleSuspend()" class="primary-btn"
+        style="background: {{ 'var(--md-sys-color-error)' if settings.get('kiosk_suspended') else 'var(--md-sys-color-primary)' }};">
+        {{ '▶️ Resume Kiosk' if settings.get('kiosk_suspended') else '⏸️ Suspend Kiosk' }}
+      </button>
+      <span style="font-size: 11px; color: var(--md-sys-color-on-surface-variant);">
+        Shortcut: <kbd
+          style="background: var(--md-sys-color-surface-variant); padding: 2px 4px; border-radius: 3px; font-family: monospace;">Ctrl+Shift+S</kbd>
+      </span>
     </div>
   </div>
 
@@ -59,7 +70,7 @@
       <summary style="cursor: pointer; font-weight: bold;">🔧 Embed Code (iframe)</summary>
       <div style="margin-top: 12px;">
         <textarea id="embedCode" readonly
-          style="width: 100%; height: 80px; font-size: 11px; font-family: monospace;">&lt;iframe src="{{ kiosk_urls.kiosk_full }}" width="400" height="600" frameborder="0"&gt;&lt;/iframe&gt;</textarea>
+          style="width: 100%; height: 80px; font-size: 11px; font-family: monospace;">&lt;iframe src="{{ kiosk_urls.display_full }}" width="400" height="600" frameborder="0"&gt;&lt;/iframe&gt;</textarea>
         <button onclick="copyToClipboard('embedCode')" style="margin-top: 8px;">📋 Copy Embed Code</button>
       </div>
     </details>
@@ -289,6 +300,34 @@
       btn.textContent = '✅ Copied!';
       setTimeout(() => { btn.textContent = originalText; }, 2000);
     }
+  }
+
+  // Toggle kiosk suspension from admin page
+  async function toggleSuspend() {
+    const btn = document.getElementById('suspendBtn');
+    const originalText = btn.textContent;
+    const isSuspended = originalText.includes('Resume');  // Check BEFORE changing text
+    btn.disabled = true;
+    btn.textContent = 'Working...';
+
+    try {
+      const endpoint = isSuspended ? '/api/resume_kiosk' : '/api/suspend_kiosk';
+
+      const r = await fetch(endpoint, { method: 'POST' });
+      const j = await r.json();
+
+      if (j.ok) {
+        btn.textContent = j.suspended ? '▶️ Resume Kiosk' : '⏸️ Suspend Kiosk';
+        btn.style.background = j.suspended ? 'var(--md-sys-color-error)' : 'var(--md-sys-color-primary)';
+      } else {
+        alert(j.message || 'Failed to toggle');
+        btn.textContent = originalText;
+      }
+    } catch (e) {
+      alert('Network error');
+      btn.textContent = originalText;
+    }
+    btn.disabled = false;
   }
 
   // Slug Update

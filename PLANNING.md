@@ -15,9 +15,13 @@
 - [ ] Rebrand "HalllDay" → "IDK Can You?"
 - [ ] Remove legacy passcode login
 
+
 ### P2 - Pending
 - [ ] Developer dashboard (view users, rosters)
+- [ ] Default Landing Page for the website for sign in/sign up/FAQ what is the app/Joke on "Can I use the restroom;IDK Can You?" currently at halllday.onrender.com but will be moved to idkcanyou.com. 
 - [ ] Move "Database Maintenance" button to /dev (not /admin)
+- [ ] Make suspend kiosk button on admin page more prominent towards the top, have tip for command shortcut next to it or under.
+- [ ] Embed Code for iframe generation should be for /display and not for /kiosk 
 
 ### P3 - Cleanup
 - [ ] Full code audit
