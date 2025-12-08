@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="admin" style="max-width: 400px; text-align: center;">
+    <h2>🔧 Developer Access</h2>
+    <p style="color: var(--md-sys-color-on-surface-variant); margin-bottom: 24px;">
+        Enter the developer passcode to access system tools.
+    </p>
+
+    {% if error %}
+    <div
+        style="background: var(--md-sys-color-error-container); color: var(--md-sys-color-on-error-container); padding: 12px; border-radius: 8px; margin-bottom: 24px;">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="POST" style="display: flex; flex-direction: column; gap: 16px;">
+        <input type="password" name="passcode" placeholder="Developer Passcode" required autofocus
+            style="width: 100%; padding: 12px; font-size: 16px;">
+        <button type="submit" class="primary-btn">Access Dev Tools</button>
+    </form>
+
+    <div style="margin-top: 32px;">
+        <a href="{{ url_for('admin') }}"
+            style="color: var(--md-sys-color-secondary); text-decoration: none; font-size: 14px;">
+            ← Back to Admin
+        </a>
+    </div>
+</section>
+{% endblock %}

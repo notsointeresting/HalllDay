@@ -547,19 +547,27 @@ def admin():
         return f"Admin Page Error: {str(e)} <br><pre>{traceback.format_exc()}</pre>", 500
 
 
+@app.route("/dev/login", methods=["GET", "POST"])
+def dev_login():
+    """Developer login page - requires HALLPASS_ADMIN_PASSCODE"""
+    if session.get('dev_authenticated'):
+        return redirect(url_for('dev'))
+    
+    if request.method == "POST":
+        passcode = request.form.get("passcode", "").strip()
+        if passcode == config.ADMIN_PASSCODE:
+            session['dev_authenticated'] = True
+            session.permanent = True
+            return redirect(url_for('dev'))
+        else:
+            return render_template("dev_login.html", error="Invalid passcode")
+    return render_template("dev_login.html")
+
 @app.route("/dev")
-@require_admin_auth
 def dev():
-    """Developer-only admin page with database tools and debugging"""
-    # Check if user is actually the developer (legacy auth or admin flag)
-    current_user = None
-    user_id = session.get('user_id')
-    if user_id:
-        current_user = User.query.get(user_id)
-        # Only allow if user has is_admin flag or is using legacy auth
-        if current_user and not current_user.is_admin:
-            if not session.get('admin_authenticated'):
-                return redirect(url_for('admin'))
+    """Developer-only page with database tools - requires passcode"""
+    if not session.get('dev_authenticated'):
+        return redirect(url_for('dev_login'))
     
     total = Session.query.count()
     open_count = Session.query.filter_by(end_ts=None).count()
