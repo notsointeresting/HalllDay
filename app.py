@@ -31,6 +31,8 @@ from services.session import SessionService
 from models.user import create_user_model
 
 app = Flask(__name__)
+# Fix for Render/Heroku: Trust X-Forwarded-Proto header for HTTPS
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 # Prefer DATABASE_URL from env (Render), else config.py
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", config.DATABASE_URL)
