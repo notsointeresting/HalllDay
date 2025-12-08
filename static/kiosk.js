@@ -143,19 +143,8 @@ class Bubble {
     this.ySpring.update(dt);
     this.rotateSpring.update(dt);
 
-    // Shape morphing for available state (expressive cycling)
-    if (this.type === 'available') {
-      const now = Date.now();
-      const shapeIndex = Math.floor(now / MORPH_DURATION) % AVAILABLE_SHAPES.length;
-      const targetShape = AVAILABLE_SHAPES[shapeIndex];
-
-      // Only update if shape changed
-      if (this.currentPath !== targetShape) {
-        this.currentPath = targetShape;
-        // Add subtle rotation on shape change for organic feel
-        this.rotateSpring.target = this.rotateSpring.current + (Math.random() * 6 - 3);
-      }
-    }
+    // Shape morphing now only happens on state changes (in setTarget)
+    // No continuous cycling - keeps UI calm and purposeful
 
     // Update DOM Transforms
     const scale = this.scaleSpring.current;
