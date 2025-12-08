@@ -1374,6 +1374,27 @@ def run_migrations():
                 messages.append(f"Added {column_name} to {table_name}")
         except Exception as e:
             messages.append(f"User column {column_name}: {e}")
+            
+    # Migration 5c: Cleanup legacy display_name column if it exists (causes NOT NULL errors)
+    try:
+        res = db.session.execute(text("""
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'user' AND column_name = 'display_name'
+        """))
+        if res.scalar() is not None:
+            messages.append("Found legacy display_name column. Cleaning up...")
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+            with db.engine.begin() as conn:
+                # Copy display_name to name if name is null
+                conn.execute(text('UPDATE "user" SET name = display_name WHERE name IS NULL'))
+                # Drop the legacy column
+                conn.execute(text('ALTER TABLE "user" DROP COLUMN display_name'))
+            messages.append("Removed legacy display_name column")
+    except Exception as e:
+        messages.append(f"Warning: display_name cleanup: {e}")
     
     # Migration 6: Add user_id columns to existing tables
     user_id_migrations = [
