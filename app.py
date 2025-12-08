@@ -11,6 +11,7 @@ from typing import Dict, Optional, List, Any
 from functools import wraps
 
 from flask import Flask, jsonify, render_template, request, redirect, url_for, send_file, Response, stream_with_context, session
+from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
 
