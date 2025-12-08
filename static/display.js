@@ -68,6 +68,7 @@ class Bubble {
     el.style.height = '100%';
     el.style.pointerEvents = 'none';
 
+    // Inner structure: SVG + Content Overlay
     // Removed 'background-shape' class to avoid CSS transform conflicts
     el.innerHTML = `
       <svg class="bubble-svg" viewBox="0 0 380 380" fill="none"
@@ -81,7 +82,7 @@ class Bubble {
         left: 50%; 
         transform: translate(-50%, -50%); 
         text-align: center; 
-        width: 250px; 
+        width: 280px; 
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -90,10 +91,25 @@ class Bubble {
         opacity: 0;
         transition: opacity 0.3s ease;
         pointer-events: none;
+        font-family: 'Outfit', sans-serif;
       ">
-        <div class="bubble-icon" style="font-family: 'Material Symbols Outlined'; font-size: 32px; margin-bottom: 8px;"></div>
-        <div class="bubble-name" style="font-size: 1.4rem; font-weight: 700; line-height: 1.2; word-break: break-word; text-shadow: 0 1px 4px rgba(0,0,0,0.1);"></div>
-        <div class="bubble-timer" style="font-size: 1.1rem; font-family: monospace; font-variant-numeric: tabular-nums; opacity: 0.9; margin-top: 4px; font-weight: 500;"></div>
+        <div class="bubble-icon" style="font-family: 'Material Symbols Outlined'; font-size: 42px; margin-bottom: 8px;"></div>
+        <div class="bubble-name" style="
+          font-family: 'Outfit', sans-serif;
+          font-size: 2rem; 
+          font-weight: 700; 
+          line-height: 1.1; 
+          word-break: break-word; 
+          text-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        "></div>
+        <div class="bubble-timer" style="
+          font-size: 1.5rem; 
+          font-family: 'Outfit', monospace; 
+          font-variant-numeric: tabular-nums; 
+          opacity: 0.9; 
+          margin-top: 6px; 
+          font-weight: 600;
+        "></div>
       </div>
     `;
     return el;
@@ -335,19 +351,6 @@ function setDisplay(j) {
   let title = 'Available';
   let subtitle = 'Scan to check out';
 
-  if (kioskSuspended) {
-    state = 'red';
-  } else if (active.length > 0) {
-    if (active.length >= capacity) {
-      state = 'red';
-    } else {
-      state = 'green';
-    }
-    if (active.some(s => s.overdue)) {
-      state = 'yellow';
-    }
-  }
-
   // Determine Overall State for panel text/bg
   if (kioskSuspended) {
     state = 'red';
@@ -358,20 +361,19 @@ function setDisplay(j) {
     if (active.length >= capacity) {
       // Full
       state = 'red';
-      title = ''; // Hide title
+      title = ''; // Hide
       subtitle = 'Hall Pass Full';
-      icon = ''; // Hide icon
+      icon = ''; // Hide
     } else {
       // Partial
       state = 'green';
-      title = ''; // Hide title
+      title = ''; // Hide
       subtitle = `${active.length} / ${capacity} In Use`;
-      icon = ''; // Hide icon
+      icon = ''; // Hide
     }
 
     if (active.some(s => s.overdue)) {
       state = 'yellow';
-      // Keep title hidden, but update subtitle if needed?
     }
   } else {
     // Available (0)
@@ -384,15 +386,35 @@ function setDisplay(j) {
   document.body.classList.add(`bg-${state}`);
 
   // Update Content
-  document.getElementById('displayIcon').textContent = icon;
-  document.getElementById('displayTitle').textContent = title;
-  document.getElementById('displaySubtitle').textContent = subtitle;
+  const titleEl = document.getElementById('displayTitle');
+  const subtitleEl = document.getElementById('displaySubtitle');
+  const iconEl = document.getElementById('displayIcon');
+
+  // Reset Layout
+  subtitleEl.style.position = 'static';
+  subtitleEl.style.bottom = 'auto';
+  subtitleEl.style.left = 'auto';
+  subtitleEl.style.width = 'auto';
+  subtitleEl.style.transform = 'none';
+
+  iconEl.textContent = icon;
+  titleEl.textContent = title;
+  subtitleEl.textContent = subtitle;
 
   // Handle icon visibility
   if (!icon) {
-    document.getElementById('displayIcon').style.display = 'none';
+    iconEl.style.display = 'none';
   } else {
-    document.getElementById('displayIcon').style.display = 'block';
+    iconEl.style.display = 'block';
+  }
+
+  // --- OVERLAP FIX DISPLAY ---
+  if (active.length > 0) {
+    subtitleEl.style.position = 'fixed';
+    subtitleEl.style.bottom = '40px';
+    subtitleEl.style.left = '0';
+    subtitleEl.style.width = '100%';
+    subtitleEl.style.textAlign = 'center';
   }
 }
 
