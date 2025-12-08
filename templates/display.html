@@ -14,5 +14,8 @@
     <p id="displaySubtitle" class="status-subtitle">Scan to check out</p>
   </div>
 </div>
+<script>
+  window.HALLPASS_TOKEN = "{{ token if token is defined else '' }}";
+</script>
 <script src="{{ url_for('static', filename='display.js') }}?v={{ static_version }}"></script>
 {% endblock %}

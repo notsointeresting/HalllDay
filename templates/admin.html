@@ -64,6 +64,21 @@
       </div>
     </details>
   </div>
+  </details>
+
+  <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--md-sys-color-outline);">
+    <h4 style="margin: 0 0 8px 0;">Customize URL</h4>
+    <p style="margin: 0 0 8px 0; font-size: 12px; color: var(--md-sys-color-on-surface-variant);">Create a friendly URL
+      like <code>halllday.com/k/mr-smith</code></p>
+    <form id="slugForm" style="display: flex; gap: 8px;">
+      <input type="text" name="slug" placeholder="Enter custom slug" value="{{ current_user.kiosk_slug or '' }}"
+        pattern="[a-zA-Z0-9-_]+" minlength="3" required
+        style="flex: 1; padding: 8px; border: 1px solid var(--md-sys-color-outline); border-radius: 4px;">
+      <button type="submit" class="primary-btn">Save Slug</button>
+    </form>
+    <div id="slugResult" style="margin-top: 8px; font-size: 13px;"></div>
+  </div>
+  </div>
   {% endif %}
 
 
@@ -278,6 +293,44 @@
       btn.textContent = '✅ Copied!';
       setTimeout(() => { btn.textContent = originalText; }, 2000);
     }
+  }
+
+  // Slug Update
+  const slugForm = document.getElementById('slugForm');
+  if (slugForm) {
+    slugForm.onsubmit = async (e) => {
+      e.preventDefault();
+      const btn = slugForm.querySelector('button[type="submit"]');
+      const input = slugForm.querySelector('input[name="slug"]');
+      const res = document.getElementById('slugResult');
+
+      const originalText = btn.textContent;
+      btn.textContent = 'Saving...';
+      btn.disabled = true;
+      res.textContent = '';
+
+      try {
+        const r = await fetch('/api/settings/kiosk-slug', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slug: input.value })
+        });
+        const j = await r.json();
+
+        if (j.ok) {
+          res.innerHTML = '<span style="color:green">✅ Saved! Reloading...</span>';
+          setTimeout(() => location.reload(), 1000);
+        } else {
+          res.innerHTML = `<span style="color:var(--md-sys-color-error)">❌ ${j.message}</span>`;
+          btn.textContent = originalText;
+          btn.disabled = false;
+        }
+      } catch (err) {
+        res.innerHTML = `<span style="color:var(--md-sys-color-error)">❌ ${err.message}</span>`;
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }
+    };
   }
 
   document.getElementById('override').onclick = async () => {

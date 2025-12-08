@@ -1,6 +1,6 @@
 """
 Ban Service: Handles student ban management
-Refactored for 2.0 multi-tenancy with user_id scoping (via RosterService)
+Refactored for 2.0 multi-tenancy with stateless user_id scoping
 """
 from typing import Dict, List, Any, Optional
 
@@ -9,42 +9,35 @@ class BanService:
     def __init__(self, db, student_name_model, roster_service):
         """
         Initialize BanService.
-        
-        User scoping is inherited from the roster_service's user_id.
         """
         self.db = db
         self.StudentName = student_name_model
         self.roster_service = roster_service
     
-    @property
-    def _user_id(self) -> Optional[int]:
-        """Get user_id from roster_service for consistent scoping"""
-        return self.roster_service._user_id
-    
-    def is_student_banned(self, student_id: str) -> bool:
+    def is_student_banned(self, user_id: Optional[int], student_id: str) -> bool:
         """Check if a student is banned from using the restroom"""
         try:
             name_hash = self.roster_service._hash_student_id(student_id)
             
             # Build query with optional user_id scoping
             query = self.StudentName.query.filter_by(name_hash=name_hash)
-            if self._user_id is not None:
-                query = query.filter_by(user_id=self._user_id)
+            if user_id is not None:
+                query = query.filter_by(user_id=user_id)
             
             student_name = query.first()
             return student_name.banned if student_name else False
         except Exception:
             return False
     
-    def set_student_banned(self, student_id: str, banned_status: bool) -> bool:
+    def set_student_banned(self, user_id: Optional[int], student_id: str, banned_status: bool) -> bool:
         """Ban or unban a student from using the restroom"""
         try:
             name_hash = self.roster_service._hash_student_id(student_id)
             
             # Build query with optional user_id scoping
             query = self.StudentName.query.filter_by(name_hash=name_hash)
-            if self._user_id is not None:
-                query = query.filter_by(user_id=self._user_id)
+            if user_id is not None:
+                query = query.filter_by(user_id=user_id)
             
             student_name = query.first()
             if student_name:
@@ -59,7 +52,7 @@ class BanService:
                 pass
             return False
     
-    def get_overdue_students(self, open_sessions: list, overdue_minutes: int) -> List[Dict[str, Any]]:
+    def get_overdue_students(self, user_id: Optional[int], open_sessions: list, overdue_minutes: int) -> List[Dict[str, Any]]:
         """Get list of students who are currently overdue"""
         try:
             overdue_seconds = overdue_minutes * 60
@@ -67,15 +60,16 @@ class BanService:
             
             for session_obj in open_sessions:
                 # Filter by user_id if set
-                if self._user_id is not None and hasattr(session_obj, 'user_id'):
-                    if session_obj.user_id != self._user_id:
+                if user_id is not None and hasattr(session_obj, 'user_id'):
+                    if session_obj.user_id != user_id:
                         continue
                 
                 if session_obj.duration_seconds > overdue_seconds:
+                    # Pass user_id to roster service
                     student_name = self.roster_service.get_student_name(
-                        session_obj.student_id, "Student"
+                        user_id, session_obj.student_id, "Student"
                     )
-                    is_banned = self.is_student_banned(session_obj.student_id)
+                    is_banned = self.is_student_banned(user_id, session_obj.student_id)
                     
                     overdue_list.append({
                         'student_id': session_obj.student_id,
@@ -91,16 +85,16 @@ class BanService:
         except Exception:
             return []
     
-    def auto_ban_overdue_students(self, open_sessions: list, overdue_minutes: int) -> Dict[str, Any]:
+    def auto_ban_overdue_students(self, user_id: Optional[int], open_sessions: list, overdue_minutes: int) -> Dict[str, Any]:
         """Automatically ban students who are currently overdue"""
         try:
-            overdue_list = self.get_overdue_students(open_sessions, overdue_minutes)
+            overdue_list = self.get_overdue_students(user_id, open_sessions, overdue_minutes)
             banned_count = 0
             banned_students = []
             
             for student in overdue_list:
                 if not student['banned']:
-                    success = self.set_student_banned(student['student_id'], True)
+                    success = self.set_student_banned(user_id, student['student_id'], True)
                     if success:
                         banned_count += 1
                         banned_students.append(student['name'])

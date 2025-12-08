@@ -160,7 +160,9 @@ function startSSE() {
 
   function connect() {
     try {
-      es = new EventSource('/events');
+      const token = window.HALLPASS_TOKEN || '';
+      const query = token ? `?token=${encodeURIComponent(token)}` : '';
+      es = new EventSource('/events' + query);
       es.onmessage = (evt) => {
         backoff = 1000;
         const j = JSON.parse(evt.data || '{}');
@@ -197,7 +199,9 @@ if ('EventSource' in window) {
 } else {
   (async function poll() {
     try {
-      const r = await fetch('/api/status');
+      const token = window.HALLPASS_TOKEN || '';
+      const query = token ? `?token=${encodeURIComponent(token)}` : '';
+      const r = await fetch('/api/status' + query);
       const j = await r.json();
       setDisplay(j.in_use, j.name || '', j.elapsed || 0, !!j.overdue, !!j.kiosk_suspended);
     } catch (e) { }

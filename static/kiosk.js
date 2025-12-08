@@ -251,9 +251,11 @@ let resetTimeout;
 
 async function toggleKioskSuspension() {
   try {
+    const token = window.HALLPASS_TOKEN || '';
     const response = await fetch('/api/toggle_kiosk_suspend_quick', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token })
     });
 
     const result = await response.json();
@@ -294,10 +296,11 @@ function processCode(code) {
   document.querySelector('.icon').classList.add('processing-spin');
   SoundSystem.playProcessing();
 
+  const token = window.HALLPASS_TOKEN || '';
   fetch('/api/scan', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code })
+    body: JSON.stringify({ code, token })
   }).then(async r => {
     let j = {};
     try { j = await r.json(); } catch (e) { }
@@ -351,7 +354,9 @@ function processCode(code) {
 
 async function fetchStatus() {
   try {
-    const sr = await fetch('/api/status');
+    const token = window.HALLPASS_TOKEN || '';
+    const query = token ? `?token=${encodeURIComponent(token)}` : '';
+    const sr = await fetch('/api/status' + query);
     const sj = await sr.json();
     setFromStatus(sj);
   } catch (e) { }
@@ -398,7 +403,9 @@ function setFromStatus(j) {
 
 if ('EventSource' in window) {
   try {
-    const es = new EventSource('/events');
+    const token = window.HALLPASS_TOKEN || '';
+    const query = token ? `?token=${encodeURIComponent(token)}` : '';
+    const es = new EventSource('/events' + query);
     es.onmessage = (evt) => {
       const j = JSON.parse(evt.data || '{}');
       setFromStatus(j);
