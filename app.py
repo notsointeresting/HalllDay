@@ -1341,6 +1341,37 @@ def run_migrations():
     except Exception as e:
         messages.append(f"Warning: User table creation: {e}")
     
+    # Migration 5b: Ensure all User table columns exist (fixes partial table creation)
+    user_columns = [
+        ("user", "google_id", "VARCHAR"),
+        ("user", "email", "VARCHAR"),
+        ("user", "name", "VARCHAR"),
+        ("user", "picture_url", "VARCHAR"),
+        ("user", "kiosk_token", "VARCHAR"),
+        ("user", "kiosk_slug", "VARCHAR"),
+        ("user", "created_at", "TIMESTAMP WITH TIME ZONE"),
+        ("user", "last_login", "TIMESTAMP WITH TIME ZONE"),
+        ("user", "is_admin", "BOOLEAN DEFAULT FALSE"),
+    ]
+    
+    for table_name, column_name, column_type in user_columns:
+        try:
+            res = db.session.execute(text(f"""
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = '{table_name}' AND column_name = '{column_name}'
+            """))
+            if res.scalar() is None:
+                messages.append(f"Adding {column_name} to {table_name}")
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
+                with db.engine.begin() as conn:
+                    conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN IF NOT EXISTS {column_name} {column_type}'))
+                messages.append(f"Added {column_name} to {table_name}")
+        except Exception as e:
+            messages.append(f"User column {column_name}: {e}")
+    
     # Migration 6: Add user_id columns to existing tables
     user_id_migrations = [
         ("settings", "user_id"),
