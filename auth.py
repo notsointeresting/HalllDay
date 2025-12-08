@@ -64,6 +64,27 @@ def require_auth_api(f):
     return decorated_function
 
 
+@auth_bp.route('/debug')
+def debug_auth():
+    """Debug OAuth configuration (Temporary)"""
+    # Check what Flask thinks the callback URL is
+    callback_url = url_for('auth.callback', _external=True)
+    
+    # Check config presence
+    client_id = current_app.config.get('GOOGLE_CLIENT_ID')
+    client_secret = current_app.config.get('GOOGLE_CLIENT_SECRET')
+    
+    return jsonify({
+        "callback_url_generated": callback_url,
+        "client_id_configured": bool(client_id),
+        "client_id_prefix": client_id[:5] + "..." if client_id else None,
+        "client_secret_configured": bool(client_secret),
+        "client_secret_length": len(client_secret) if client_secret else 0,
+        "scheme": request.scheme,
+        "headers": dict(request.headers)
+    })
+
+
 @auth_bp.route('/login')
 def login():
     """Redirect to Google OAuth login"""
