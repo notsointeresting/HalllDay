@@ -651,6 +651,17 @@ def _keep_alive_loop(base_url: str):
 
 
 @app.before_request
+def _redirect_https():
+    """Redirect HTTP to HTTPS in production (Render, etc.)"""
+    # Only redirect if we're behind a proxy (production) and request is HTTP
+    # The X-Forwarded-Proto header is set by Render's load balancer
+    if request.headers.get('X-Forwarded-Proto') == 'http':
+        # Build HTTPS URL and redirect permanently
+        url = request.url.replace('http://', 'https://', 1)
+        return redirect(url, code=301)
+
+
+@app.before_request
 def _start_keepalive_thread():
     global _keepalive_started
     if _keepalive_started:
