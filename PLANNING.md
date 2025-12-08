@@ -27,8 +27,7 @@
 
 ## Notes
 
-### Known Issues
-- **Ctrl+Shift+S double-registers**: Keyboard event may fire twice. Need to add debounce or check in `kiosk.js`
+
 
 ### Architecture Decisions
 - **Database Maintenance**: Should be dev-only, not shown to teachers
