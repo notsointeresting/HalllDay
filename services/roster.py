@@ -79,6 +79,7 @@ class RosterService:
         """
         Store multiple student names in database efficiently (single commit).
         Returns the count of successfully stored students.
+        Handles legacy data by updating existing records regardless of user_id.
         """
         stored_count = 0
         try:
@@ -86,16 +87,17 @@ class RosterService:
                 name_hash = self._hash_student_id(student_id)
                 encrypted_id = self.cipher_suite.encrypt(student_id.encode()).decode()
                 
-                # Build query with user_id scoping
-                query = self.StudentName.query.filter_by(name_hash=name_hash)
-                if user_id is not None:
-                    query = query.filter_by(user_id=user_id)
+                # First check if any record with this name_hash exists (including legacy)
+                existing = self.StudentName.query.filter_by(name_hash=name_hash).first()
                 
-                existing = query.first()
                 if existing:
+                    # Update existing record, claim it for this user if needed
                     existing.display_name = name
                     existing.encrypted_id = encrypted_id
+                    if user_id is not None:
+                        existing.user_id = user_id  # Claim legacy record for this user
                 else:
+                    # Create new record
                     student_name = self.StudentName(
                         name_hash=name_hash, 
                         display_name=name, 
