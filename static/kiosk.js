@@ -577,14 +577,26 @@ function setFromStatus(j) {
     return;
   }
 
+  // --- LOGIC GAP FIX: Check for OVERDUE items first ---
+  const hasOverdue = active.some(s => s.overdue);
+
   if (active.length === 0) {
-    setPanel('green', 'Scan Badge', 'Ready', 'check_circle');
+    // Available
+    setPanel('green', 'Ready to Scan', 'Place ID badge on scanner', 'pass_circle');
   } else if (active.length < capacity) {
-    // In use but available
-    setPanel('green', '', `${active.length} / ${capacity} In Use`, '');
+    // Active (Check Overdue First)
+    if (hasOverdue) {
+      setPanel('yellow', '', `${active.length} / ${capacity} In Use`, 'alarm');
+    } else {
+      setPanel('green', '', `${active.length} / ${capacity} In Use`, '');
+    }
   } else {
-    // Full
-    setPanel('red', '', '', ''); // Removed "Hall Pass Full" text
+    // Full (Check Overdue First)
+    if (hasOverdue) {
+      setPanel('yellow', '', '', 'alarm');
+    } else {
+      setPanel('red', '', '', '');
+    }
   }
 
   // --- OVERLAP FIX: Move subtitle to bottom if active bubbles exist ---

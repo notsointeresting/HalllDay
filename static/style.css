@@ -37,19 +37,25 @@
   --md-sys-color-on-surface-variant: #424940;
   --md-sys-color-outline: #72796f;
 
-  /* Custom Status Colors mapped to M3 roles or extensions */
-  --color-green-primary: var(--md-sys-color-primary);
-  --color-green-container: var(--md-sys-color-primary-container);
-  --color-green-on-container: var(--md-sys-color-on-primary-container);
+  /* Custom Status Colors - BOLD / SATURATED as requested */
+  /* Green: Deep, vibrant forest/emerald */
+  --color-green-primary: #1b5e20;
+  --color-green-container: #4caf50;
+  /* Bold Green (Material 500) */
+  --color-green-on-container: #ffffff;
+  /* White text on bold BG */
 
-  --color-red-primary: var(--md-sys-color-error);
-  --color-red-container: var(--md-sys-color-error-container);
-  --color-red-on-container: var(--md-sys-color-on-error-container);
+  /* Red: Strong, alert red */
+  --color-red-primary: #b71c1c;
+  --color-red-container: #ef5350;
+  /* Bold Red (Material 400) */
+  --color-red-on-container: #ffffff;
 
-  /* Yellow / Warning */
-  --color-yellow-primary: #7d5700;
-  --color-yellow-container: #ffdea7;
-  --color-yellow-on-container: #271900;
+  /* Yellow: Vibrant Gold/Amber */
+  --color-yellow-primary: #f57f17;
+  --color-yellow-container: #ffca28;
+  /* Bold Amber (Material 400) */
+  --color-yellow-on-container: #3e2723;
 
   /* Shared High-Contrast Status Text */
   --color-overdue-text: #b24000;
