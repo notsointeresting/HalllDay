@@ -133,17 +133,6 @@
   <!-- Settings -->
   <h3>Settings</h3>
   <div class="card-surface">
-    <div style="margin-bottom: 16px;">
-      {% if sheets_status == 'ok' %}
-      <span class="chip" style="background: #e6ffed; color: #1f7a1f;">Sheets: OK</span>
-      {% elif sheets_status == 'degraded' %}
-      <span class="chip" style="background: #fffbea; color: #975a16;">Sheets: Degraded</span>
-      {% else %}
-      <span class="chip" style="background: #edf2f7; color: #4a5568;">Sheets: Off</span>
-      {% endif %}
-      {% if sheets_link %}<a href="{{ sheets_link }}" target="_blank" style="margin-left: 8px; font-size: 14px;">Open
-        Logs</a>{% endif %}
-    </div>
 
     <form id="settingsForm"
       style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">

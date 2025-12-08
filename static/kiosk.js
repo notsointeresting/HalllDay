@@ -274,7 +274,8 @@ async function toggleKioskSuspension() {
 
       setTimeout(async () => {
         try {
-          const sr = await fetch('/api/status');
+          const token = window.HALLPASS_TOKEN || '';
+          const sr = await fetch('/api/status?token=' + encodeURIComponent(token));
           const sj = await sr.json();
           setFromStatus(sj);
         } catch (e) { }
