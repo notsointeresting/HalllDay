@@ -161,9 +161,8 @@ main {
 }
 
 .background-shape path {
-  /* No CSS transition for d - handled by JS or instant swap with elastic recoil */
-  transition: fill 0.3s ease;
-  /* Color can still be CSS interpolated or JS */
+  /* No CSS transition for d - handled by JS state-based changes only */
+  /* Color transitions use Material 3 timing (handled in JS) */
 }
 
 .content-container {
@@ -309,7 +308,7 @@ button {
   /* Fully rounded */
   border: none;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
   display: inline-flex;
   align-items: center;
   justify-content: center;
