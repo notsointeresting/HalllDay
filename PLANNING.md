@@ -11,7 +11,7 @@
 - [x] Kiosk suspend keyboard shortcut working per user
 
 ### P1 - In Progress 🔄
-- [ ] Remove Google Sheets integration
+- [x] Remove Google Sheets integration
 - [ ] Rebrand "HalllDay" → "IDK Can You?"
 - [ ] Remove legacy passcode login
 

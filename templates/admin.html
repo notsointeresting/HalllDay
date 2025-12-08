@@ -302,18 +302,19 @@
     }
   }
 
-  // Toggle kiosk suspension from admin page
+  // Toggle kiosk suspension from admin page (same API as Ctrl+Shift+S)
   async function toggleSuspend() {
     const btn = document.getElementById('suspendBtn');
     const originalText = btn.textContent;
-    const isSuspended = originalText.includes('Resume');  // Check BEFORE changing text
     btn.disabled = true;
     btn.textContent = 'Working...';
 
     try {
-      const endpoint = isSuspended ? '/api/resume_kiosk' : '/api/suspend_kiosk';
-
-      const r = await fetch(endpoint, { method: 'POST' });
+      const r = await fetch('/api/toggle_kiosk_suspend_quick', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
       const j = await r.json();
 
       if (j.ok) {
