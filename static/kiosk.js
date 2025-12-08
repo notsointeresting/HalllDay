@@ -76,8 +76,10 @@ class Bubble {
     el.style.pointerEvents = 'none'; // Keep background interaction-free
 
     // Inner structure: SVG + Content Overlay
+    // Removed 'background-shape' class to avoid CSS transform conflicts
     el.innerHTML = `
-      <svg class="background-shape" viewBox="0 0 380 380" fill="none"
+      <svg class="bubble-svg" viewBox="0 0 380 380" fill="none"
+        style="width: 100%; height: 100%; display: block;"
         xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
         <path d="${this.currentPath}" fill="${this.color}" />
       </svg>
@@ -87,7 +89,7 @@ class Bubble {
         left: 50%; 
         transform: translate(-50%, -50%); 
         text-align: center; 
-        width: 200px;
+        width: 250px; 
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -95,10 +97,11 @@ class Bubble {
         color: var(--md-sys-color-on-surface);
         opacity: 0;
         transition: opacity 0.3s ease;
+        pointer-events: none;
       ">
-        <div class="bubble-icon" style="font-family: 'Material Symbols Outlined'; font-size: 24px; margin-bottom: 4px;"></div>
-        <div class="bubble-name" style="font-size: 1.1rem; font-weight: 600; line-height: 1.2; word-break: break-word;"></div>
-        <div class="bubble-timer" style="font-size: 0.9rem; font-family: monospace; font-variant-numeric: tabular-nums; opacity: 0.8; margin-top: 2px;"></div>
+        <div class="bubble-icon" style="font-family: 'Material Symbols Outlined'; font-size: 32px; margin-bottom: 8px;"></div>
+        <div class="bubble-name" style="font-size: 1.4rem; font-weight: 700; line-height: 1.2; word-break: break-word; text-shadow: 0 1px 4px rgba(0,0,0,0.1);"></div>
+        <div class="bubble-timer" style="font-size: 1.1rem; font-family: monospace; font-variant-numeric: tabular-nums; opacity: 0.9; margin-top: 4px; font-weight: 500;"></div>
       </div>
     `;
     return el;
@@ -150,7 +153,7 @@ class Bubble {
 
     this.element.style.transform = `translate(calc(${x}% - 50%), calc(${y}% - 50%)) scale(${scale})`;
 
-    const svgEl = this.element.querySelector('.background-shape');
+    const svgEl = this.element.querySelector('.bubble-svg');
     if (svgEl) {
       svgEl.style.transform = `rotate(${rot}deg)`;
       svgEl.style.transformOrigin = 'center';
@@ -530,9 +533,13 @@ function setFromStatus(j) {
   if (active.length === 0) {
     setPanel('green', 'Scan Badge', 'Ready', 'check_circle');
   } else if (active.length < capacity) {
-    setPanel('green', 'Scan Badge', `${active.length} / ${capacity} In Use`, 'check_circle');
+    // In use but available
+    // HIDE Main Title/Icon to prevent overlap, but show subtitle status
+    setPanel('green', '', `${active.length} / ${capacity} In Use`, '');
   } else {
-    setPanel('red', 'Busy', 'Hall Pass Full', 'timer');
+    // Full
+    // HIDE Main Title/Icon
+    setPanel('red', '', 'Hall Pass Full', '');
   }
 }
 
