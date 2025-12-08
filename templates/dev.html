@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="admin">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
+    <h2>🔧 Developer Console</h2>
+    <div style="display: flex; gap: 16px; align-items: center;">
+      <a href="{{ url_for('admin') }}"
+        style="color: var(--md-sys-color-primary); font: var(--md-sys-typescale-label-large); text-decoration: none;">
+        ← Back to Admin
+      </a>
+      <a href="{{ url_for('admin_logout') }}"
+        style="color: var(--md-sys-color-error); font: var(--md-sys-typescale-label-large); text-decoration: none;">
+        Logout
+      </a>
+    </div>
+  </div>
+
+  <!-- Global Stats -->
+  <div style="display: flex; gap: 16px; margin-bottom: 32px; flex-wrap: wrap;">
+    <div class="chip"
+      style="background: var(--md-sys-color-tertiary-container); color: var(--md-sys-color-on-tertiary-container);">
+      Users: <strong>{{ user_count }}</strong>
+    </div>
+    <div class="chip"
+      style="background: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container);">
+      Total Sessions (All Users): <strong>{{ total }}</strong>
+    </div>
+    <div class="chip"
+      style="background: var(--md-sys-color-surface-variant); color: var(--md-sys-color-on-surface-variant);">
+      Open Sessions: <strong>{{ open_count }}</strong>
+    </div>
+    <div class="chip"
+      style="background: var(--md-sys-color-surface-variant); color: var(--md-sys-color-on-surface-variant);">
+      DB Roster (All): <strong>{{ db_roster_count }}</strong>
+    </div>
+  </div>
+
+  <!-- Database Maintenance -->
+  <h3>Database Maintenance</h3>
+  <div class="card-surface">
+    <div style="margin-bottom: 24px;">
+      <h4 style="margin-top: 0;">Run Migrations</h4>
+      <p style="font-size: 13px; margin-bottom: 12px;">Applies schema updates for new columns and tables.</p>
+      <button id="runMigration" style="background: var(--md-sys-color-secondary); color: white;">Run Migrations</button>
+      <div id="migrationResult" style="margin-top: 8px; font-size: 13px; white-space: pre-wrap;"></div>
+    </div>
+
+    <div style="margin-bottom: 24px;">
+      <h4 style="margin-top: 0;">Database Info</h4>
+      <button id="loadDbInfo">Load Database Info</button>
+      <div id="dbInfoResult" style="margin-top: 8px; font-size: 13px; white-space: pre-wrap;"></div>
+    </div>
+
+    <div style="background: var(--md-sys-color-error-container); padding: 16px; border-radius: 12px;">
+      <h4 style="margin-top: 0; color: var(--md-sys-color-on-error-container);">⚠️ Danger Zone</h4>
+      <p style="color: var(--md-sys-color-on-error-container); font-size: 13px;">Permanently delete ALL session history
+        (all users).</p>
+      <button id="resetDbBtn" style="background: var(--md-sys-color-error); color: white;">Delete ALL History</button>
+      <span id="resetDbResult" style="margin-left: 8px; color: var(--md-sys-color-on-error-container);"></span>
+    </div>
+  </div>
+
+  <!-- User Management -->
+  <h3>User Management</h3>
+  <div class="card-surface">
+    <button id="loadUsersBtn" class="primary-btn" style="margin-bottom: 16px;">Load All Users</button>
+    <div id="userListContainer" style="display: none;">
+      <div id="userList"
+        style="max-height: 300px; overflow-y: auto; background: var(--md-sys-color-background); padding: 8px; border-radius: 8px;">
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Debug -->
+  <h3>Settings Debug</h3>
+  <div class="card-surface">
+    <button id="loadSettingsDebug">Load Settings Debug</button>
+    <div id="settingsDebugResult" style="margin-top: 8px; font-size: 13px; white-space: pre-wrap;"></div>
+  </div>
+</section>
+
+<script>
+  // Migration
+  document.getElementById('runMigration').onclick = async () => {
+    const btn = document.getElementById('runMigration');
+    const result = document.getElementById('migrationResult');
+    btn.disabled = true;
+    result.textContent = 'Running migrations...';
+    try {
+      const r = await fetch('/api/migrate', { method: 'POST' });
+      const j = await r.json();
+      if (j.ok) {
+        result.textContent = 'Success!\n' + (j.messages || []).join('\n');
+      } else {
+        result.textContent = 'Error: ' + j.message;
+      }
+    } catch (e) {
+      result.textContent = 'Error: ' + e.message;
+    } finally {
+      btn.disabled = false;
+    }
+  };
+
+  // Database Info
+  document.getElementById('loadDbInfo').onclick = async () => {
+    try {
+      const r = await fetch('/api/debug/database');
+      const j = await r.json();
+      document.getElementById('dbInfoResult').textContent = JSON.stringify(j, null, 2);
+    } catch (e) {
+      document.getElementById('dbInfoResult').textContent = 'Error: ' + e.message;
+    }
+  };
+
+  // Settings Debug
+  document.getElementById('loadSettingsDebug').onclick = async () => {
+    try {
+      const r = await fetch('/api/debug/settings');
+      const j = await r.json();
+      document.getElementById('settingsDebugResult').textContent = JSON.stringify(j, null, 2);
+    } catch (e) {
+      document.getElementById('settingsDebugResult').textContent = 'Error: ' + e.message;
+    }
+  };
+
+  // Reset Database
+  document.getElementById('resetDbBtn').onclick = async () => {
+    if (!confirm('DELETE ALL HISTORY FOR ALL USERS?')) return;
+    if (!confirm('REALLY? This cannot be undone!')) return;
+    try {
+      const r = await fetch('/api/reset_database', { method: 'POST' });
+      const j = await r.json();
+      document.getElementById('resetDbResult').textContent = j.message;
+    } catch (e) {
+      document.getElementById('resetDbResult').textContent = 'Error: ' + e.message;
+    }
+  };
+
+  // Load Users
+  document.getElementById('loadUsersBtn').onclick = async () => {
+    const btn = document.getElementById('loadUsersBtn');
+    const container = document.getElementById('userListContainer');
+    const list = document.getElementById('userList');
+    btn.disabled = true;
+    btn.textContent = 'Loading...';
+    try {
+      const r = await fetch('/api/dev/users');
+      const j = await r.json();
+      if (j.ok) {
+        container.style.display = 'block';
+        list.innerHTML = j.users.map(u => `
+          <div style="display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #eee;">
+            <div>
+              <strong>${u.name}</strong> (${u.email})
+              ${u.is_admin ? '<span style="color: orange;">👑 Admin</span>' : ''}
+            </div>
+            <div style="font-size: 12px; opacity: 0.7;">
+              ID: ${u.id} | Sessions: ${u.session_count || 0} | Roster: ${u.roster_count || 0}
+            </div>
+          </div>
+        `).join('');
+        btn.textContent = `Loaded ${j.users.length} users`;
+      } else {
+        list.innerHTML = 'Error: ' + j.message;
+      }
+    } catch (e) {
+      list.innerHTML = 'Error: ' + e.message;
+    } finally {
+      btn.disabled = false;
+    }
+  };
+</script>
+{% endblock %}

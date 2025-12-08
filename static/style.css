@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 :root {
   /* 
    * Material 3 Color Tokens (Green Theme Source #2e7d32)
@@ -37,40 +39,51 @@
   --md-sys-color-on-surface-variant: #424940;
   --md-sys-color-outline: #72796f;
 
-  /* Custom Status Colors mapped to M3 roles or extensions */
-  --color-green-primary: var(--md-sys-color-primary);
-  --color-green-container: var(--md-sys-color-primary-container);
-  --color-green-on-container: var(--md-sys-color-on-primary-container);
+  /* Custom Status Colors - BOLD / SATURATED as requested */
+  /* Green: Deep, vibrant forest/emerald */
+  --color-green-primary: #1b5e20;
+  --color-green-container: #4caf50;
+  /* Bold Green (Material 500) */
+  --color-green-on-container: #ffffff;
+  /* White text on bold BG */
 
-  --color-red-primary: var(--md-sys-color-error);
-  --color-red-container: var(--md-sys-color-error-container);
-  --color-red-on-container: var(--md-sys-color-on-error-container);
+  /* Red: Strong, alert red */
+  --color-red-primary: #b71c1c;
+  --color-red-container: #ef5350;
+  /* Bold Red (Material 400) */
+  --color-red-on-container: #ffffff;
 
-  /* Yellow / Warning */
-  --color-yellow-primary: #7d5700;
-  --color-yellow-container: #ffdea7;
-  --color-yellow-on-container: #271900;
+  /* Yellow: Vibrant Gold/Amber */
+  --color-yellow-primary: #f57f17;
+  --color-yellow-container: #ffca28;
+  /* Bold Amber (Material 400) */
+  --color-yellow-on-container: #3e2723;
+
+  /* Shared High-Contrast Status Text */
+  --color-overdue-text: #b24000;
+  /* Dark Orange/Red-Orange for white bubbles */
 
   /* Typography - Material 3 Typescale */
-  --md-sys-typescale-display-large: 400 57px/64px 'Outfit', sans-serif;
-  --md-sys-typescale-display-medium: 400 45px/52px 'Outfit', sans-serif;
-  --md-sys-typescale-display-small: 400 36px/44px 'Outfit', sans-serif;
+  /* Switched to Inter as requested for cleaner look */
+  --md-sys-typescale-display-large: 400 57px/64px 'Inter', sans-serif;
+  --md-sys-typescale-display-medium: 400 45px/52px 'Inter', sans-serif;
+  --md-sys-typescale-display-small: 400 36px/44px 'Inter', sans-serif;
 
-  --md-sys-typescale-headline-large: 400 32px/40px 'Outfit', sans-serif;
-  --md-sys-typescale-headline-medium: 400 28px/36px 'Outfit', sans-serif;
-  --md-sys-typescale-headline-small: 400 24px/32px 'Outfit', sans-serif;
+  --md-sys-typescale-headline-large: 400 32px/40px 'Inter', sans-serif;
+  --md-sys-typescale-headline-medium: 400 28px/36px 'Inter', sans-serif;
+  --md-sys-typescale-headline-small: 400 24px/32px 'Inter', sans-serif;
 
-  --md-sys-typescale-title-large: 400 22px/28px 'Outfit', sans-serif;
-  --md-sys-typescale-title-medium: 500 16px/24px 'Outfit', sans-serif;
-  --md-sys-typescale-title-small: 500 14px/20px 'Outfit', sans-serif;
+  --md-sys-typescale-title-large: 400 22px/28px 'Inter', sans-serif;
+  --md-sys-typescale-title-medium: 500 16px/24px 'Inter', sans-serif;
+  --md-sys-typescale-title-small: 500 14px/20px 'Inter', sans-serif;
 
-  --md-sys-typescale-label-large: 500 14px/20px 'Outfit', sans-serif;
-  --md-sys-typescale-label-medium: 500 12px/16px 'Outfit', sans-serif;
-  --md-sys-typescale-label-small: 500 11px/16px 'Outfit', sans-serif;
+  --md-sys-typescale-label-large: 500 14px/20px 'Inter', sans-serif;
+  --md-sys-typescale-label-medium: 500 12px/16px 'Inter', sans-serif;
+  --md-sys-typescale-label-small: 500 11px/16px 'Inter', sans-serif;
 
-  --md-sys-typescale-body-large: 400 16px/24px 'Outfit', sans-serif;
-  --md-sys-typescale-body-medium: 400 14px/20px 'Outfit', sans-serif;
-  --md-sys-typescale-body-small: 400 12px/16px 'Outfit', sans-serif;
+  --md-sys-typescale-body-large: 400 16px/24px 'Inter', sans-serif;
+  --md-sys-typescale-body-medium: 400 14px/20px 'Inter', sans-serif;
+  --md-sys-typescale-body-small: 400 12px/16px 'Inter', sans-serif;
 
   /* Shape Paths (referenced by URL in usage, but can be variables if needed) */
 }
@@ -93,18 +106,18 @@ body {
 
 /* Background State Overrides - More saturated for visibility */
 body.bg-green {
-  background-color: #d7f5dd;
-  /* Lighter but more visible green */
+  background-color: var(--color-green-container);
+  /* Stronger Green */
 }
 
 body.bg-red {
-  background-color: #ffe6e2;
-  /* Lighter but more visible red */
+  background-color: var(--color-red-container);
+  /* Stronger Red */
 }
 
 body.bg-yellow {
-  background-color: #fff8c4;
-  /* Lighter but more visible yellow */
+  background-color: var(--color-yellow-container);
+  /* Stronger Yellow */
 }
 
 header {
@@ -161,9 +174,8 @@ main {
 }
 
 .background-shape path {
-  /* No CSS transition for d - handled by JS or instant swap with elastic recoil */
-  transition: fill 0.3s ease;
-  /* Color can still be CSS interpolated or JS */
+  /* No CSS transition for d - handled by JS state-based changes only */
+  /* Color transitions use Material 3 timing (handled in JS) */
 }
 
 .content-container {
@@ -309,7 +321,7 @@ button {
   /* Fully rounded */
   border: none;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
   display: inline-flex;
   align-items: center;
   justify-content: center;
