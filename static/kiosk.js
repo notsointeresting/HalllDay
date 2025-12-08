@@ -2,31 +2,28 @@ const hidden = document.getElementById('hiddenInput');
 hidden.focus();
 
 // --- SPRING PHYSICS ENGINE ---
-// Based on simple Hooke's Law with damping: F = -k*x - c*v
 class Spring {
   constructor(stiffness = 120, damping = 16, mass = 1) {
-    this.stiffness = stiffness; // k
-    this.damping = damping;     // c
-    this.mass = mass;           // m
+    this.stiffness = stiffness;
+    this.damping = damping;
+    this.mass = mass;
     this.current = 0;
     this.target = 0;
     this.velocity = 0;
   }
 
   update(dt) {
-    // Semi-implicit Euler integration
     const displacement = this.current - this.target;
-    const force = -this.stiffness * displacement - this.damping * this.velocity;
-    const acceleration = force / this.mass;
-
-    this.velocity += acceleration * dt;
-    this.current += this.velocity * dt;
-
-    // Check for rest (optional optimization)
-    if (Math.abs(this.velocity) < 0.001 && Math.abs(displacement) < 0.001) {
+    // Apply epsilon to avoid endless micro-jitters
+    if (Math.abs(displacement) < 0.001 && Math.abs(this.velocity) < 0.001) {
       this.current = this.target;
       this.velocity = 0;
+      return;
     }
+    const force = -this.stiffness * displacement - this.damping * this.velocity;
+    const acceleration = force / this.mass;
+    this.velocity += acceleration * dt;
+    this.current += this.velocity * dt;
   }
 
   set(val) {
@@ -44,77 +41,232 @@ const PATH_BURST = "M187.293 26.6421C188.056 25.2785 188.437 24.5966 188.902 24.
 
 let buffer = '';
 
-// Springs
-const scaleSpring = new Spring(120, 14);
-const rotateSpring = new Spring(100, 12);
+// --- MULTI-BUBBLE SYSTEM ---
 
-// Animation State
-let currentPath = PATH_COOKIE;
-let targetPath = PATH_COOKIE;
-let lastState = 'green';
-let pathSwapPending = false;
+class Bubble {
+  constructor(id, type = 'available') {
+    this.id = id;
+    this.type = type; // 'available', 'used', 'processing', 'banned', 'suspended'
+    this.scaleSpring = new Spring(120, 14);
+    this.xSpring = new Spring(100, 14); // Position X %
+    this.ySpring = new Spring(100, 14); // Position Y %
+    this.rotateSpring = new Spring(100, 12);
 
-// Initialize animation
-scaleSpring.set(1);
-rotateSpring.set(0);
+    // Initial state
+    this.scaleSpring.set(0); // Start scale 0 to pop in
+    this.xSpring.set(50);
+    this.ySpring.set(50);
 
-// Animation Loop
+    this.currentPath = PATH_COOKIE;
+    this.color = 'var(--color-green-container)';
+
+    // DOM Element
+    this.element = this.createDOM();
+    document.getElementById('shape-container').appendChild(this.element);
+  }
+
+  createDOM() {
+    const el = document.createElement('div');
+    el.className = 'bubble-wrapper';
+    el.style.position = 'absolute';
+    el.style.left = '0';
+    el.style.top = '0';
+    el.style.width = '100%';
+    el.style.height = '100%';
+    el.style.pointerEvents = 'none'; // Background only
+
+    el.innerHTML = `
+      <svg class="background-shape" viewBox="0 0 380 380" fill="none"
+        xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+        <path d="${this.currentPath}" fill="${this.color}" />
+      </svg>
+    `;
+    return el;
+  }
+
+  remove() {
+    this.element.remove();
+  }
+
+  update(dt) {
+    this.scaleSpring.update(dt);
+    this.xSpring.update(dt);
+    this.ySpring.update(dt);
+    this.rotateSpring.update(dt);
+
+    // Update DOM
+    const scale = this.scaleSpring.current;
+
+    const x = this.xSpring.current;
+    const y = this.ySpring.current;
+    const rot = this.rotateSpring.current;
+
+    this.element.style.transform = `translate(calc(${x}% - 50%), calc(${y}% - 50%)) scale(${scale}) rotate(${rot}deg)`;
+
+    // Color/Path update
+    const pathDom = this.element.querySelector('path');
+    if (pathDom) {
+      pathDom.setAttribute('d', this.currentPath);
+      pathDom.style.fill = this.color;
+      pathDom.style.transition = 'fill 0.3s ease'; // Smooth color blend
+    }
+  }
+
+  setTarget(x, y, scale, type, sessionData = null) {
+    this.xSpring.target = x;
+    this.ySpring.target = y;
+    this.scaleSpring.target = scale;
+    this.type = type;
+
+    let targetPath = PATH_COOKIE;
+    let targetColor = 'var(--color-green-container)';
+
+    // Determine visuals based on type
+    if (type === 'available') {
+      targetPath = PATH_COOKIE;
+      targetColor = 'var(--color-green-container)';
+    } else if (type === 'used') {
+      targetPath = PATH_COOKIE;
+      if (sessionData && sessionData.overdue) {
+        targetColor = 'var(--color-yellow-container)';
+      } else {
+        targetColor = 'var(--color-red-container)';
+      }
+    } else if (type === 'banned') {
+      targetPath = PATH_BURST;
+      targetColor = 'var(--color-red-container)';
+    } else if (type === 'processing') {
+      targetPath = PATH_COOKIE;
+      targetColor = 'var(--md-sys-color-surface-variant)';
+    } else if (type === 'suspended') {
+      targetPath = PATH_BURST;
+      targetColor = 'var(--color-red-container)';
+    }
+
+    // Just update properties, update() handles DOM
+    this.currentPath = targetPath;
+    this.color = targetColor;
+
+    // Breathing for available
+    if (type === 'available' && Math.abs(this.scaleSpring.velocity) < 0.01) {
+      const t = Date.now() / 2000;
+      this.scaleSpring.target = scale + Math.sin(t) * 0.03;
+    }
+  }
+}
+
+// Global Manager
+const bubbleManager = {
+  bubbles: [], // Array of Bubble instances
+
+  // Sync bubbles with state
+  sync(capacity, activeSessions, isSuspended, isBannedUser) {
+    // If suspended or banned, we essentially go to single-bubble mode
+    if (isSuspended || isBannedUser) {
+      this.ensureBubbleCount(1);
+      const b = this.bubbles[0];
+      b.setTarget(50, 50, 1.0, isSuspended ? 'suspended' : 'banned');
+      return;
+    }
+
+    // Normal Mode
+    const usedCount = activeSessions.length;
+    // Ensure we have 'Available' bubble if capacity not reached
+    const showAvailable = usedCount < capacity;
+    const totalBubbles = usedCount + (showAvailable ? 1 : 0);
+
+    this.ensureBubbleCount(totalBubbles);
+
+    const layout = this.getLayout(totalBubbles);
+
+    // Assign targets
+
+    // Update Used bubbles first
+    activeSessions.forEach((sess, i) => {
+      const b = this.bubbles[i];
+      const pos = layout[i];
+      b.setTarget(pos.x, pos.y, pos.scale, 'used', sess);
+    });
+
+    // Update Available bubble
+    if (showAvailable) {
+      const idx = activeSessions.length;
+      const b = this.bubbles[idx];
+      const pos = layout[idx];
+
+      // Spawn logic: If new, inherit pos from parent
+      if (b.scaleSpring.current === 0 && totalBubbles > 1) {
+        const parent = this.bubbles[idx - 1] || this.bubbles[0];
+        if (parent) {
+          b.xSpring.current = parent.xSpring.current;
+          b.ySpring.current = parent.ySpring.current;
+        }
+      }
+
+      b.setTarget(pos.x, pos.y, pos.scale, 'available');
+    }
+  },
+
+  ensureBubbleCount(count) {
+    while (this.bubbles.length < count) {
+      const b = new Bubble(Date.now() + Math.random());
+      this.bubbles.push(b);
+    }
+    while (this.bubbles.length > count) {
+      const b = this.bubbles.pop();
+      b.remove();
+    }
+  },
+
+  getLayout(count) {
+    if (count <= 1) return [{ x: 50, y: 50, scale: 1.0 }];
+    if (count === 2) return [
+      { x: 35, y: 50, scale: 0.75 }, // L
+      { x: 65, y: 50, scale: 0.75 }  // R
+    ];
+    if (count === 3) return [
+      { x: 50, y: 35, scale: 0.6 }, // Top
+      { x: 35, y: 65, scale: 0.6 }, // BL
+      { x: 65, y: 65, scale: 0.6 }  // BR
+    ];
+    // Generic Grid for 4+
+    const result = [];
+    const cols = Math.ceil(Math.sqrt(count));
+    const rows = Math.ceil(count / cols);
+    const scale = 1.6 / Math.max(cols, rows); // Auto scale
+
+    for (let i = 0; i < count; i++) {
+      const r = Math.floor(i / cols);
+      const c = i % cols;
+      const rowHeight = 100 / rows;
+      const colWidth = 100 / cols;
+      const x = (c + 0.5) * colWidth;
+      const y = (r + 0.5) * rowHeight;
+      result.push({ x, y, scale });
+    }
+    return result;
+  },
+
+  update(dt) {
+    this.bubbles.forEach(b => b.update(dt));
+  }
+};
+
+
+// --- ANIMATION LOOP ---
 let lastTime = 0;
 function animate(time) {
   if (!lastTime) lastTime = time;
   const dt = (time - lastTime) / 1000;
   lastTime = time;
-
-  // Max Step to avoid explosion on tab switch
   const safeDt = Math.min(dt, 0.05);
 
-  // Update Springs
-  scaleSpring.update(safeDt);
-  rotateSpring.update(safeDt);
-
-  // Apply Transforms
-  const pathEl = document.getElementById('background-shape');
-  if (pathEl) {
-    const scale = scaleSpring.current;
-    const rotate = rotateSpring.current;
-
-    // Smooth transform
-    pathEl.style.transform = `translate(-50%, -50%) scale(${scale}) rotate(${rotate}deg)`;
-
-    // Path Swapping Logic (Elastic Swap)
-    // When shrinking (scale < 0.5), we can swap the path invisibly or smoothly
-    // Here we use the trigger logic: if a swap is pending, trigger an impulse.
-    if (pathSwapPending) {
-      // Trigger Impulse: Compress
-      scaleSpring.target = 0.8;
-
-      // Wait till we are somewhat compressed to swap, then spring back
-      if (scaleSpring.current < 0.85) {
-        const el = document.getElementById('blob-path');
-        el.setAttribute('d', targetPath);
-        currentPath = targetPath;
-        pathSwapPending = false;
-
-        // Spring Back
-        scaleSpring.target = 1.0;
-        // Add a little spin for flair
-        rotateSpring.velocity += 10;
-      }
-    } else {
-      // Idle Animation (Breathing)
-      // Gently oscillate target around 1.0 if settled
-      if (Math.abs(scaleSpring.velocity) < 0.01) {
-        const t = Date.now() / 2000;
-        scaleSpring.target = 1.0 + Math.sin(t) * 0.03; // Breathe
-        rotateSpring.target = Math.sin(t * 0.5) * 2; // Sway
-      }
-    }
-  }
-
+  bubbleManager.update(safeDt);
   requestAnimationFrame(animate);
 }
 requestAnimationFrame(animate);
 
+// --- UI LOGIC ---
 
 function setPanel(state, title, subtitle, icon) {
   // Update Body Background
@@ -122,39 +274,6 @@ function setPanel(state, title, subtitle, icon) {
   if (state === 'green') document.body.classList.add('bg-green');
   if (state === 'red') document.body.classList.add('bg-red');
   if (state === 'yellow') document.body.classList.add('bg-yellow');
-
-  // Determine Target Path
-  let nextPath = PATH_COOKIE;
-  let targetColor = 'var(--color-green-container)';
-
-  if (state === 'red') {
-    nextPath = PATH_BURST;
-    targetColor = 'var(--color-red-container)';
-  } else if (state === 'yellow') {
-    nextPath = PATH_COOKIE;
-    targetColor = 'var(--color-yellow-container)';
-  } else if (state === 'processing') {
-    nextPath = PATH_COOKIE;
-    targetColor = 'var(--md-sys-color-surface-variant)';
-  }
-
-  // Trigger Transition if state changed
-  if (nextPath !== currentPath) {
-    targetPath = nextPath;
-    pathSwapPending = true;
-    // Start compression immediately
-    scaleSpring.target = 0.6; // Deep compress for swap
-    scaleSpring.velocity = 0;
-  } else if (state !== lastState) {
-    // Just color/state change? Punch it a bit
-    scaleSpring.velocity += 5;
-  }
-
-  lastState = state;
-
-  // Set Color (CSS Transition handles smooth color)
-  const pathEl = document.getElementById('blob-path');
-  pathEl.style.fill = targetColor;
 
   // Update Content
   document.getElementById('statusTitle').textContent = title;
@@ -167,16 +286,16 @@ function setPanel(state, title, subtitle, icon) {
   if (icon) {
     iconEl.textContent = icon;
   } else {
+    // Default icons
     if (state === 'green') iconEl.textContent = 'check_circle';
     if (state === 'red') iconEl.textContent = 'do_not_disturb_on';
     if (state === 'yellow') iconEl.textContent = 'hourglass_empty';
   }
 }
 
-// Sound System (Unchanged)
+// Sound System
 const SoundSystem = {
   ctx: null,
-
   init() {
     if (!this.ctx) {
       this.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -185,44 +304,35 @@ const SoundSystem = {
       this.ctx.resume();
     }
   },
-
   playTone(freq, type, duration, startTime = 0, volume = 0.1) {
     this.init();
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
-
     osc.type = type;
     osc.frequency.setValueAtTime(freq, this.ctx.currentTime + startTime);
-
     gain.gain.setValueAtTime(0, this.ctx.currentTime + startTime);
-    gain.gain.linearRampToValueAtTime(volume, this.ctx.currentTime + startTime + 0.05); // Attack
-    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + startTime + duration); // Decay
-
+    gain.gain.linearRampToValueAtTime(volume, this.ctx.currentTime + startTime + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + startTime + duration);
     osc.connect(gain);
     gain.connect(this.ctx.destination);
-
     osc.start(this.ctx.currentTime + startTime);
     osc.stop(this.ctx.currentTime + startTime + duration);
   },
-
   playSuccessOut() {
     this.playTone(523.25, 'sine', 0.6, 0.0); // C5
     this.playTone(659.25, 'sine', 0.6, 0.1); // E5
     this.playTone(783.99, 'sine', 0.8, 0.2); // G5
   },
-
   playSuccessIn() {
     this.playTone(783.99, 'sine', 0.5, 0.0); // G5
     this.playTone(659.25, 'sine', 0.5, 0.1); // E5
     this.playTone(523.25, 'sine', 0.8, 0.2); // C5
   },
-
   playError() {
     this.init();
     this.playTone(300, 'triangle', 0.4, 0.0, 0.15);
     this.playTone(350, 'triangle', 0.4, 0.05, 0.15);
   },
-
   playAlert() {
     this.init();
     const osc = this.ctx.createOscillator();
@@ -230,21 +340,17 @@ const SoundSystem = {
     osc.type = 'sawtooth';
     osc.frequency.setValueAtTime(150, this.ctx.currentTime);
     osc.frequency.linearRampToValueAtTime(100, this.ctx.currentTime + 0.5);
-
     gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.8);
-
     osc.connect(gain);
     gain.connect(this.ctx.destination);
     osc.start();
     osc.stop(this.ctx.currentTime + 0.8);
   },
-
   playProcessing() {
     this.playTone(800, 'sine', 0.1, 0, 0.05);
   }
 };
-
 
 let denyTimeout;
 let resetTimeout;
@@ -257,43 +363,17 @@ async function toggleKioskSuspension() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token })
     });
-
     const result = await response.json();
-
     if (response.ok && result.ok) {
-      const status = result.suspended ? 'SUSPENDED' : 'RESUMED';
-      setPanel(result.suspended ? 'red' : 'green',
-        result.suspended ? 'Suspended' : 'Resumed',
-        result.message || `Kiosk is ${status.toLowerCase()}`,
-        result.suspended ? 'block' : 'check_circle');
-
       if (result.suspended) SoundSystem.playError();
       else SoundSystem.playSuccessIn();
-
-      SoundSystem.playTone(600, 'sine', 0.1); // UI Feedback
-
-      setTimeout(async () => {
-        try {
-          const token = window.HALLPASS_TOKEN || '';
-          const sr = await fetch('/api/status?token=' + encodeURIComponent(token));
-          const sj = await sr.json();
-          setFromStatus(sj);
-        } catch (e) { }
-      }, 2000);
-    } else {
-      alert(result.message || 'Failed to toggle kiosk suspension');
+      fetchStatus();
     }
-  } catch (e) {
-    console.error('Error toggling kiosk suspension:', e);
-    alert('Network error - could not toggle kiosk suspension');
-  }
+  } catch (e) { console.error(e); }
 }
 
 function processCode(code) {
   if (!code) return;
-
-  // Processing state
-  setPanel('processing', '', 'Scanning...', 'hourglass_top');
   document.querySelector('.icon').classList.add('processing-spin');
   SoundSystem.playProcessing();
 
@@ -305,52 +385,65 @@ function processCode(code) {
   }).then(async r => {
     let j = {};
     try { j = await r.json(); } catch (e) { }
+
     if (!r.ok) {
-      console.error('scan error', r.status, j);
       if (r.status === 403 && j.action === 'banned') {
-        clearTimeout(resetTimeout);
         setPanel('red', 'BANNED', j.message || 'See Teacher', 'block');
         SoundSystem.playAlert();
-        setTimeout(() => SoundSystem.playAlert(), 600);
-        resetTimeout = setTimeout(fetchStatus, 5000);
       } else if (r.status === 403) {
         setPanel('red', 'Suspended', j.message || 'Ask Admin', 'block');
         SoundSystem.playError();
       } else if (r.status === 404) {
-        clearTimeout(resetTimeout);
-        setPanel('yellow', 'Not Found', (j.message || 'Try again'), 'help');
+        setPanel('yellow', 'Not Found', 'Try again', 'help');
         SoundSystem.playError();
-        resetTimeout = setTimeout(fetchStatus, 3500);
       } else {
-        clearTimeout(resetTimeout);
-        setPanel('yellow', 'Service issue', j.message || `Status ${r.status}`, 'warning');
+        setPanel('yellow', 'Error', j.message || 'Service issue', 'warning');
         SoundSystem.playError();
-        resetTimeout = setTimeout(fetchStatus, 3500);
       }
+      setTimeout(fetchStatus, 3500);
       return;
     }
-    if (!j.ok && j.action === 'denied') {
-      clearTimeout(denyTimeout);
-      setPanel('red', 'In Use', 'Wait for return', 'timer');
-      SoundSystem.playError();
-      return;
-    }
-    if (j.ok && j.action === 'started') {
-      setPanel('red', 'In Use', `${j.name} is out`, 'timer'); // Scanned out -> show red (away)
-      SoundSystem.playSuccessOut();
-    } else if (j.ok && j.action === 'ended') {
-      setPanel('green', 'Returned', `${j.name} is back`, 'check_circle');
-      SoundSystem.playSuccessIn();
-      resetTimeout = setTimeout(fetchStatus, 5000);
+
+    if (j.ok) {
+      if (j.action === 'started') {
+        setPanel('red', 'Scanned Out', j.name, 'timer');
+        SoundSystem.playSuccessOut();
+      } else if (j.action === 'ended') {
+        setPanel('green', 'Returned', j.name, 'check_circle');
+        SoundSystem.playSuccessIn();
+      }
+      fetchStatus();
     } else {
-      setPanel('yellow', 'Check Scanner', j.message || 'Unknown response', 'help');
+      setPanel('yellow', 'Denied', j.message, 'block');
       SoundSystem.playError();
+      setTimeout(fetchStatus, 3000);
     }
   }).catch(e => {
-    console.error('network error', e);
-    setPanel('yellow', 'Network issue', 'Try again.', 'wifi_off');
+    console.error(e);
+    setPanel('yellow', 'Network', 'Check connection', 'wifi_off');
     SoundSystem.playError();
   });
+}
+
+function setFromStatus(j) {
+  const capacity = j.capacity || 1;
+  const active = j.active_sessions || [];
+  const kioskSuspended = j.kiosk_suspended;
+
+  bubbleManager.sync(capacity, active, kioskSuspended, false);
+
+  if (kioskSuspended) {
+    setPanel('red', 'Suspended', 'Ask Teacher', 'block');
+    return;
+  }
+
+  if (active.length === 0) {
+    setPanel('green', 'Scan Badge', 'Ready', 'check_circle');
+  } else if (active.length < capacity) {
+    setPanel('green', 'Scan Badge', `${active.length} / ${capacity} In Use`, 'check_circle');
+  } else {
+    setPanel('red', 'Busy', 'Hall Pass Full', 'timer');
+  }
 }
 
 async function fetchStatus() {
@@ -363,18 +456,7 @@ async function fetchStatus() {
   } catch (e) { }
 }
 
-let suspendDebounce = false;
-
 document.addEventListener('keydown', (e) => {
-  if (e.ctrlKey && e.shiftKey && e.key === 'S') {
-    e.preventDefault();
-    if (suspendDebounce) return; // Prevent double-register
-    suspendDebounce = true;
-    toggleKioskSuspension();
-    setTimeout(() => { suspendDebounce = false; }, 1000); // 1s cooldown
-    return;
-  }
-
   if (e.key === 'Enter') {
     const code = buffer.trim();
     buffer = '';
@@ -388,25 +470,6 @@ document.addEventListener('keydown', (e) => {
 
 setInterval(() => hidden.focus(), 3000);
 
-function setFromStatus(j) {
-  if (j.kiosk_suspended) {
-    setPanel('red', 'Suspended', 'Ask Admin', 'block');
-    return;
-  }
-
-  if (j.in_use) {
-    const mins = Math.floor((j.elapsed || 0) / 60);
-    const secs = (j.elapsed || 0) % 60;
-    if (j.overdue) {
-      setPanel('yellow', 'Overdue', `${j.name} • ${mins}:${secs.toString().padStart(2, '0')}`, 'alarm');
-    } else {
-      setPanel('red', 'In Use', `${j.name} • ${mins}:${secs.toString().padStart(2, '0')}`, 'timer');
-    }
-  } else {
-    setPanel('green', 'Scan Badge', '', 'check_circle');
-  }
-}
-
 if ('EventSource' in window) {
   try {
     const token = window.HALLPASS_TOKEN || '';
@@ -416,7 +479,7 @@ if ('EventSource' in window) {
       const j = JSON.parse(evt.data || '{}');
       setFromStatus(j);
     };
-  } catch (e) {/* no-op */ }
+  } catch (e) { }
 } else {
   (async function poll() {
     await fetchStatus();

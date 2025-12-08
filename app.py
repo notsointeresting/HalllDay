@@ -751,9 +751,35 @@ def api_status():
         # FERPA Compliance: Get name from session or memory roster
         student_name = get_student_name(s.student_id, "Student", user_id=user_id)
         
-        return jsonify(in_use=True, name=student_name, start=to_local(s.start_ts).isoformat(), elapsed=s.duration_seconds, overdue=is_overdue, overdue_minutes=overdue_minutes, kiosk_suspended=kiosk_suspended, auto_ban_overdue=auto_ban_overdue)
+        return jsonify(
+            in_use=True, 
+            name=student_name, 
+            start=to_local(s.start_ts).isoformat(), 
+            elapsed=s.duration_seconds, 
+            overdue=is_overdue, 
+            overdue_minutes=overdue_minutes, 
+            kiosk_suspended=kiosk_suspended, 
+            auto_ban_overdue=auto_ban_overdue,
+            # Multi-pass support
+            capacity=settings["capacity"],
+            active_sessions=[{
+                "id": sess.id,
+                "name": get_student_name(sess.student_id, "Student", user_id=user_id),
+                "elapsed": sess.duration_seconds,
+                "overdue": sess.duration_seconds > overdue_minutes * 60,
+                "start": to_local(sess.start_ts).isoformat()
+            } for sess in get_open_sessions(user_id)]
+        )
     else:
-        return jsonify(in_use=False, overdue_minutes=overdue_minutes, kiosk_suspended=kiosk_suspended, auto_ban_overdue=auto_ban_overdue)
+        return jsonify(
+            in_use=False, 
+            overdue_minutes=overdue_minutes, 
+            kiosk_suspended=kiosk_suspended, 
+            auto_ban_overdue=auto_ban_overdue,
+             # Multi-pass support
+            capacity=settings["capacity"],
+            active_sessions=[]
+        )
 
 @app.get("/events")
 def sse_events():
@@ -788,9 +814,24 @@ def sse_events():
                     "overdue_minutes": overdue_minutes,
                     "kiosk_suspended": kiosk_suspended,
                     "auto_ban_overdue": auto_ban_overdue,
+                    "capacity": settings["capacity"],
+                    "active_sessions": [{
+                        "id": sess.id,
+                        "name": get_student_name(sess.student_id, "Student", user_id=user_id),
+                        "elapsed": sess.duration_seconds,
+                        "overdue": sess.duration_seconds > overdue_minutes * 60,
+                        "start": to_local(sess.start_ts).isoformat()
+                    } for sess in get_open_sessions(user_id)]
                 }
             else:
-                payload = {"in_use": False, "overdue_minutes": overdue_minutes, "kiosk_suspended": kiosk_suspended, "auto_ban_overdue": auto_ban_overdue}
+                payload = {
+                    "in_use": False, 
+                    "overdue_minutes": overdue_minutes, 
+                    "kiosk_suspended": kiosk_suspended, 
+                    "auto_ban_overdue": auto_ban_overdue,
+                    "capacity": settings["capacity"],
+                    "active_sessions": []
+                }
             if payload != last_payload:
                 yield f"data: {json.dumps(payload)}\n\n"
                 last_payload = payload
