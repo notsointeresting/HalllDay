@@ -651,6 +651,39 @@ def _keep_alive_loop(base_url: str):
 
 
 @app.before_request
+def _enforce_https():
+    """Force HTTPS redirects for SSL/TLS security."""
+    # Only enforce HTTPS in production (not localhost)
+    # Check if we're behind a proxy (Render) using X-Forwarded-Proto
+    is_https = (
+        request.is_secure or 
+        request.headers.get('X-Forwarded-Proto') == 'https' or
+        request.headers.get('X-Forwarded-Ssl') == 'on'
+    )
+    
+    if not is_https and request.url.startswith('http://'):
+        # Only redirect if not localhost
+        if not request.url.startswith('http://localhost') and not request.url.startswith('http://127.0.0.1'):
+            # Redirect HTTP to HTTPS
+            url = request.url.replace('http://', 'https://', 1)
+            return redirect(url, code=301)
+
+@app.after_request
+def _set_security_headers(response):
+    """Set security headers for SSL/TLS and general security."""
+    # HSTS: Force browsers to always use HTTPS for this domain
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
+    # Prevent MIME type sniffing
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    # XSS protection
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    # Prevent clickjacking (allow same-origin for iframe embedding)
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    # Referrer policy
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    return response
+
+@app.before_request
 def _start_keepalive_thread():
     global _keepalive_started
     if _keepalive_started:
