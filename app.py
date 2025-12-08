@@ -1159,10 +1159,8 @@ def api_upload_session_roster():
         
         # Update any Anonymous students with real names from the roster
         # This global update needs review for multi-tenancy as Student table is mixed
-        if user_id:
-             roster_service.set_memory_roster(user_id, memory_roster)
         
-        # 4. Retroactively update any "Anonymous_ID" entries in database
+        # Retroactively update any "Anonymous_ID" entries in database
         updated_count = roster_service.update_anonymous_students(user_id, Student)
             
         msg = f"Roster uploaded successfully ({count} students)."
