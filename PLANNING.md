@@ -39,9 +39,10 @@ This document tracks the planned development phases for HalllDay, moving from ve
 - [x] Legacy data migration (backfill `user_id`)
 
 ### Step 2: Google OAuth Setup ✅ COMPLETE
-- [x] Google Cloud OAuth credentials created (IDK Can You project)
-- [x] Environment variables ready (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`)
-- [ ] Test login flow on staging/production (pending deployment)
+- [x] Create Google Cloud OAuth credentials
+- [x] Set environment variables (Render: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`)
+- [x] Verified Redirect URI in Console (`https://halllday.onrender.com/auth/callback`)
+- [x] Test login flow (Authenticated! DB error pending fix)
 
 ### Step 3: Service Layer Scoping ✅ COMPLETE
 - [x] Scope `RosterService` queries by `user_id`
@@ -56,8 +57,9 @@ This document tracks the planned development phases for HalllDay, moving from ve
 - [x] Create `/admin` (teacher) separated from `/dev` (developer)
 - [x] Add developer API endpoints (`/api/dev/users`, `/api/dev/set_admin`)
 
-### Step 5: Cleanup & Polish ⏳ PENDING (after deployment test)
-- [ ] Remove legacy passcode login (after OAuth verified)
+### Step 5: Cleanup & Polish 🔄 IN PROGRESS
+- [x] Remove legacy `display_name` column from User table
+- [ ] Remove legacy passcode login
 - [ ] Add kiosk slug customization UI
 - [ ] Review and remove `update_anonymous_students()` if not needed
 
