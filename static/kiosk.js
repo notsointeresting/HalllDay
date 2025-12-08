@@ -184,7 +184,7 @@ class Bubble {
     this.xSpring.target = x;
     this.ySpring.target = y;
     this.scaleSpring.target = scale;
-    
+
     // Track state changes for purposeful morphing
     const stateChanged = this.type !== type;
     this.type = type;
@@ -448,14 +448,17 @@ const SoundSystem = {
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
     osc.type = 'sawtooth';
+    // Deep, dramatic drop for BANNED
     osc.frequency.setValueAtTime(150, this.ctx.currentTime);
-    osc.frequency.linearRampToValueAtTime(100, this.ctx.currentTime + 0.5);
-    gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.8);
+    osc.frequency.linearRampToValueAtTime(50, this.ctx.currentTime + 2.0); // Slow drop
+
+    gain.gain.setValueAtTime(0.3, this.ctx.currentTime); // Slightly louder
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 2.5); // Long decay
+
     osc.connect(gain);
     gain.connect(this.ctx.destination);
     osc.start();
-    osc.stop(this.ctx.currentTime + 0.8);
+    osc.stop(this.ctx.currentTime + 2.5);
   },
   playProcessing() {
     this.playTone(800, 'sine', 0.1, 0, 0.05);
@@ -511,7 +514,10 @@ function processCode(code) {
         setPanel('yellow', 'Error', j.message || 'Service issue', 'warning');
         SoundSystem.playError();
       }
-      setTimeout(fetchStatus, 3500);
+
+      // Dramatic pause for BANNED, standard for others
+      const timeoutDuration = (j.action === 'banned') ? 6000 : 3500;
+      setTimeout(fetchStatus, timeoutDuration);
       return;
     }
 
