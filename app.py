@@ -418,7 +418,7 @@ def public_kiosk(token):
         (User.kiosk_token == token) | (User.kiosk_slug == token)
     ).first()
     if not user:
-        return render_template("kiosk.html")  # Fallback to legacy
+        return "Kiosk not found", 404
     return render_template("kiosk.html", user_id=user.id, user_name=user.name, token=token)
 
 # Legacy display route (for backward compatibility)
@@ -441,7 +441,7 @@ def public_display(token):
         (User.kiosk_token == token) | (User.kiosk_slug == token)
     ).first()
     if not user:
-        return render_template("display.html")  # Fallback to legacy
+        return "Display not found", 404
     return render_template("display.html", user_id=user.id, user_name=user.name, token=token)
 
 @app.route("/admin/login", methods=["GET", "POST"])
