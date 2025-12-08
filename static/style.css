@@ -93,17 +93,17 @@ body {
 
 /* Background State Overrides - More saturated for visibility */
 body.bg-green {
-  background-color: #d7f5dd;
+  background-color: #cbfac5;
   /* Lighter but more visible green */
 }
 
 body.bg-red {
-  background-color: #ffe6e2;
+  background-color: #ffe0dd;
   /* Lighter but more visible red */
 }
 
 body.bg-yellow {
-  background-color: #fff8c4;
+  background-color: #ffe8c0;
   /* Lighter but more visible yellow */
 }
 

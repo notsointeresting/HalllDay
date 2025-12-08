@@ -180,7 +180,7 @@ class Bubble {
     this.xSpring.target = x;
     this.ySpring.target = y;
     this.scaleSpring.target = scale;
-    
+
     // Track state changes for purposeful morphing
     const stateChanged = this.type !== type;
     this.type = type;
@@ -250,8 +250,8 @@ class Bubble {
 
     const contentEl = this.element.querySelector('.bubble-content');
     if (contentEl) {
-      // Smooth content transitions using Material 3 timing
-      contentEl.style.transition = 'opacity 0.3s cubic-bezier(0.2, 0, 0, 1)';
+      // Smooth content transitions using Material 3 timing with DELAY to prevent flashing
+      contentEl.style.transition = 'opacity 0.3s cubic-bezier(0.2, 0, 0, 1) 0.2s';
       contentEl.style.opacity = showContent ? '1' : '0';
       contentEl.style.color = textColor;
       this.element.querySelector('.bubble-name').textContent = nameText;
@@ -450,6 +450,7 @@ function setDisplay(j) {
     subtitleEl.style.display = 'block';
     subtitleEl.style.margin = '0';
     subtitleEl.style.padding = '0';
+    subtitleEl.style.maxWidth = '100%'; // Override default restriction to ensure centering
   }
 }
 
