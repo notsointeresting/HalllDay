@@ -29,9 +29,15 @@ class RosterService:
             self._roster_cache[user_id] = {}
         return self._roster_cache[user_id]
         
-    def _hash_student_id(self, student_id: str) -> str:
-        """Create a hash of student ID for FERPA-compliant lookup"""
-        return hashlib.sha256(f"student_{student_id}".encode()).hexdigest()[:16]
+    def _hash_student_id(self, student_id: str, user_id: Optional[int] = None) -> str:
+        """
+        Create a hash of student ID for FERPA-compliant lookup.
+        Includes user_id in hash for multi-tenant isolation (same student ID 
+        can exist for different teachers without conflict).
+        """
+        # Include user_id in hash so same student ID creates different hashes per user
+        hash_input = f"student_{user_id}_{student_id}" if user_id else f"student_{student_id}"
+        return hashlib.sha256(hash_input.encode()).hexdigest()[:16]
     
     def get_memory_roster(self, user_id: Optional[int]) -> Dict[str, str]:
         """Get student roster from memory cache for specific user"""
@@ -48,7 +54,7 @@ class RosterService:
     def store_student_name(self, user_id: Optional[int], student_id: str, name: str) -> None:
         """Store student name in database using hash for lookup and encryption for retrieval"""
         try:
-            name_hash = self._hash_student_id(student_id)
+            name_hash = self._hash_student_id(student_id, user_id)
             encrypted_id = self.cipher_suite.encrypt(student_id.encode()).decode()
             
             # Build query with optional user_id scoping
@@ -84,7 +90,7 @@ class RosterService:
         stored_count = 0
         try:
             for student_id, name in roster.items():
-                name_hash = self._hash_student_id(student_id)
+                name_hash = self._hash_student_id(student_id, user_id)
                 encrypted_id = self.cipher_suite.encrypt(student_id.encode()).decode()
                 
                 # First check if any record with this name_hash exists (including legacy)
@@ -121,7 +127,7 @@ class RosterService:
     def get_student_name_from_db(self, user_id: Optional[int], student_id: str) -> Optional[str]:
         """Get student name from database using hash lookup"""
         try:
-            name_hash = self._hash_student_id(student_id)
+            name_hash = self._hash_student_id(student_id, user_id)
             
             # Build query with optional user_id scoping
             query = self.StudentName.query.filter_by(name_hash=name_hash)

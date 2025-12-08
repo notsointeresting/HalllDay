@@ -90,3 +90,74 @@ This document tracks the planned development phases for HalllDay, moving from ve
 6. **Run migrations** (`flask migrate` or via /dev page)
 7. **Test OAuth login** with Google account
 8. **Verify kiosk token URLs** work without login
+
+---
+
+## Multi-Tenancy Implementation Details (2025-12-07)
+
+### Data Isolation Strategy
+
+HalllDay uses a **single shared database** with **user_id scoping** for multi-tenancy:
+
+| Data Type | Isolation Level | Implementation |
+|-----------|-----------------|----------------|
+| Sessions | Per-User | `user_id` FK on Session table |
+| Rosters | Per-User | `user_id` FK + **user-scoped hash** |
+| Bans | Per-User | Same hash as roster (isolated) |
+| Settings | Per-User | `user_id` FK on Settings table |
+
+### Key Design Decision: User-Scoped Hashing
+
+**Problem:** Multiple teachers may have the same students (same ID numbers). A unique constraint on `name_hash` would cause conflicts.
+
+**Solution:** Include `user_id` in the hash:
+```python
+# Before (conflicting):
+hash("student_12345") → same for all teachers
+
+# After (isolated):
+hash("student_5_12345") → unique per teacher
+```
+
+**Result:** 
+- Teacher A bans "Student 12345" → only affects Teacher A's kiosk
+- Teacher B's "Student 12345" → completely separate record, unaffected
+
+### Issues Encountered During 2.0 Implementation
+
+| Issue | Cause | Resolution |
+|-------|-------|------------|
+| Admin login blocked after OAuth | `is_admin_authenticated()` didn't check `session['user_id']` | Updated to accept OAuth sessions |
+| `/kiosk` showed other user's data | Legacy route rendered functional kiosk without token | Created `kiosk_landing.html` landing page |
+| Invalid tokens loaded kiosk | No validation on `/kiosk/<token>` route | Added 404 for invalid tokens |
+| Roster upload failed silently | 138 individual DB commits caused timeouts | Created batch storage method |
+| Duplicate key on roster upload | Legacy data without `user_id` conflicted with unique constraint | User-scoped hashing (see above) |
+
+### Architecture Alternatives Considered
+
+#### Option A: Current Approach (User-Scoped Hashing) ✅ CHOSEN
+- **Pros:** Single database, simpler infrastructure, lower cost
+- **Cons:** Requires `user_id` in all queries, legacy data migration
+- **Status:** Implemented
+
+#### Option B: Per-User Databases
+- **Pros:** Complete isolation, simpler code, no scoping needed
+- **Cons:** Complex infrastructure, expensive, hard to deploy on Render
+- **Status:** Not recommended for current scale
+
+#### Option C: Schema-Based Isolation (PostgreSQL)
+- **Pros:** Database-level isolation, single connection
+- **Cons:** Requires PostgreSQL schema management, more complex
+- **Status:** Future consideration if scaling issues arise
+
+### Current Multi-Tenancy Status ✅
+
+All data is now properly isolated per teacher:
+- [x] Sessions scoped by `user_id`
+- [x] Rosters scoped by user-specific hash
+- [x] Bans scoped by user-specific hash  
+- [x] Settings scoped by `user_id`
+- [x] Public kiosk/display routes use token-based auth
+- [x] Legacy routes show landing page (no data leakage)
+
+**A ban in one teacher's class does NOT affect another teacher's class.**

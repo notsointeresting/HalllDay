@@ -17,7 +17,7 @@ class BanService:
     def is_student_banned(self, user_id: Optional[int], student_id: str) -> bool:
         """Check if a student is banned from using the restroom"""
         try:
-            name_hash = self.roster_service._hash_student_id(student_id)
+            name_hash = self.roster_service._hash_student_id(student_id, user_id)
             
             # Build query with optional user_id scoping
             query = self.StudentName.query.filter_by(name_hash=name_hash)
@@ -32,7 +32,7 @@ class BanService:
     def set_student_banned(self, user_id: Optional[int], student_id: str, banned_status: bool) -> bool:
         """Ban or unban a student from using the restroom"""
         try:
-            name_hash = self.roster_service._hash_student_id(student_id)
+            name_hash = self.roster_service._hash_student_id(student_id, user_id)
             
             # Build query with optional user_id scoping
             query = self.StudentName.query.filter_by(name_hash=name_hash)
