@@ -111,18 +111,18 @@ class Bubble {
         <div class="bubble-icon" style="font-family: 'Material Symbols Rounded'; font-size: 42px; margin-bottom: 8px;"></div>
         <div class="bubble-name" style="
           font-family: 'Outfit', sans-serif;
-          font-size: 2rem; 
+          font-size: 3rem; 
           font-weight: 700; 
           line-height: 1.1; 
           word-break: break-word; 
           text-shadow: 0 1px 2px rgba(0,0,0,0.05);
         "></div>
         <div class="bubble-timer" style="
-          font-size: 1.5rem; 
+          font-size: 2.2rem; 
           font-family: 'Outfit', sans-serif; 
           font-variant-numeric: tabular-nums; 
           opacity: 0.9; 
-          margin-top: 6px; 
+          margin-top: 12px; 
           font-weight: 600;
         "></div>
       </div>
@@ -294,14 +294,7 @@ const bubbleManager = {
       const b = this.bubbles[idx];
       const pos = layout[idx];
 
-      if (b.scaleSpring.current === 0 && totalBubbles > 1) {
-        const parent = this.bubbles[idx - 1] || this.bubbles[0];
-        if (parent) {
-          b.xSpring.current = parent.xSpring.current;
-          b.ySpring.current = parent.ySpring.current;
-        }
-      }
-
+      // Note: Creation logic handles initial position for fluidity
       b.setTarget(pos.x, pos.y, pos.scale, 'available');
     }
   },
@@ -309,6 +302,20 @@ const bubbleManager = {
   ensureBubbleCount(count) {
     while (this.bubbles.length < count) {
       const b = new Bubble(Date.now() + Math.random());
+
+      // FLUIDITY FIX: Spawn new bubble at the position of the last one (or center)
+      // This makes it 'split' from the existing group rather than popping in
+      if (this.bubbles.length > 0) {
+        const parent = this.bubbles[this.bubbles.length - 1];
+        b.xSpring.set(parent.xSpring.current);
+        b.ySpring.set(parent.ySpring.current);
+        b.scaleSpring.set(0); // Grow from 0
+      } else {
+        b.xSpring.set(50);
+        b.ySpring.set(50);
+        b.scaleSpring.set(0);
+      }
+
       this.bubbles.push(b);
     }
     while (this.bubbles.length > count) {
@@ -318,20 +325,22 @@ const bubbleManager = {
   },
 
   getLayout(count) {
-    if (count <= 1) return [{ x: 50, y: 50, scale: 1.0 }];
+    if (count <= 1) return [{ x: 50, y: 50, scale: 1.3 }]; // Single bubble larger
     if (count === 2) return [
-      { x: 35, y: 50, scale: 0.75 }, // L
-      { x: 65, y: 50, scale: 0.75 }  // R
+      { x: 25, y: 50, scale: 1.15 }, // L - Takes up full left half
+      { x: 75, y: 50, scale: 1.15 }  // R - Takes up full right half
     ];
+    // For 3+, keep grid but maybe larger
     if (count === 3) return [
-      { x: 50, y: 35, scale: 0.6 }, // Top
-      { x: 35, y: 65, scale: 0.6 }, // BL
-      { x: 65, y: 65, scale: 0.6 }  // BR
+      { x: 50, y: 30, scale: 0.8 }, // Top
+      { x: 25, y: 70, scale: 0.8 }, // BL
+      { x: 75, y: 70, scale: 0.8 }  // BR
     ];
+    // Generic Grid for 4+
     const result = [];
     const cols = Math.ceil(Math.sqrt(count));
     const rows = Math.ceil(count / cols);
-    const scale = 1.6 / Math.max(cols, rows);
+    const scale = 1.8 / Math.max(cols, rows); // Increased base scale
 
     for (let i = 0; i < count; i++) {
       const r = Math.floor(i / cols);
