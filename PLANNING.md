@@ -1,70 +1,47 @@
 # IDK Can You? Development Plan
 
-**App Name:** IDK Can You? (formerly HalllDay)  
 **Last Updated:** 2025-12-07
 
 ---
 
 ## Current Status: Phase 2.1 - Critical Fixes
 
-### Issues Identified
+### P0 - Complete ✅
+- [x] Settings isolated per user (room name, capacity, overdue, suspend)
+- [x] Kiosk suspend keyboard shortcut working per user
 
-| Priority | Issue | Status |
-|----------|-------|--------|
-| P0 | Settings shared across all users | 🔴 |
-| P0 | Kiosk suspend (Ctrl+Shift+S) broken | 🔴 |
-| P1 | Google Sheets tracking needs removal | 🟡 |
-| P1 | App still branded "HalllDay" | 🟡 |
-| P2 | No dev page to manage users | 🟡 |
-| P3 | Dead code needs cleanup | ⚪ |
+### P1 - In Progress 🔄
+- [ ] Remove Google Sheets integration
+- [ ] Rebrand "HalllDay" → "IDK Can You?"
+- [ ] Remove legacy passcode login
 
----
+### P2 - Pending
+- [ ] Developer dashboard (view users, rosters)
+- [ ] Move "Database Maintenance" button to /dev (not /admin)
 
-## Phase 2.1 Roadmap
-
-### 1. Fix Settings Isolation 🔴 CRITICAL
-- Each user gets their own Settings record
-- Room name, capacity, overdue limit, kiosk_suspended isolated per user
-- Remove fallback to global Settings (ID=1)
-
-### 2. Fix Kiosk Suspend 🔴 CRITICAL  
-- Keyboard shortcut must pass user token
-- Per-user suspend state (not global)
-
-### 3. Remove Sheets Integration
-- Delete all Sheets-related code
-- Keep CSV export as alternative
-
-### 4. Rebrand to "IDK Can You?"
-- Update landing page, templates, titles
-- New logo/branding throughout
-
-### 5. Developer Dashboard
-- View all users, their data
-- Manage users, reset rosters
-- System statistics
-
-### 6. Code Audit & Refactor
-- Ensure all queries filter by `user_id`
-- Remove dead code
-- Document architecture
+### P3 - Cleanup
+- [ ] Full code audit
+- [ ] Remove dead code
 
 ---
 
-## Multi-Tenancy Architecture (Implemented)
+## Notes
 
-| Data | Isolation Method |
-|------|------------------|
-| Sessions | `user_id` FK |
+### Known Issues
+- **Ctrl+Shift+S double-registers**: Keyboard event may fire twice. Need to add debounce or check in `kiosk.js`
+
+### Architecture Decisions
+- **Database Maintenance**: Should be dev-only, not shown to teachers
+- **Settings**: Each user gets auto-created Settings record on first login
+- **Rosters**: User-scoped hash ensures same student ID doesn't conflict across teachers
+
+---
+
+## Multi-Tenancy Status ✅
+
+| Data | Isolation |
+|------|-----------|
+| Sessions | Per-user |
 | Rosters | User-scoped hash |
 | Bans | User-scoped hash |
-| Settings | `user_id` FK (needs fix) |
-
-**Key:** Each teacher's data is completely isolated. Same student ID in different classes = different database records.
-
----
-
-## Completed Phases
-
-- ✅ Phase 1: Material 3 UI
-- ✅ Phase 2.0: Multi-user architecture, OAuth, public kiosk URLs
+| Settings | Per-user (auto-created) |

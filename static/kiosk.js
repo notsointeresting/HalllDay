@@ -362,10 +362,15 @@ async function fetchStatus() {
   } catch (e) { }
 }
 
+let suspendDebounce = false;
+
 document.addEventListener('keydown', (e) => {
   if (e.ctrlKey && e.shiftKey && e.key === 'S') {
     e.preventDefault();
+    if (suspendDebounce) return; // Prevent double-register
+    suspendDebounce = true;
     toggleKioskSuspension();
+    setTimeout(() => { suspendDebounce = false; }, 1000); // 1s cooldown
     return;
   }
 
