@@ -31,6 +31,10 @@ from services.session import SessionService
 from models.user import create_user_model
 
 app = Flask(__name__)
+# Enable CORS for all domains for now (development mode)
+from flask_cors import CORS
+CORS(app)
+
 # Fix for Render/Heroku: Trust X-Forwarded-Proto header for HTTPS
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
@@ -444,6 +448,14 @@ def public_kiosk(token):
     ).first()
     if not user:
         return "Kiosk not found", 404
+        
+    # Check if Flutter app is built (in static folder)
+    flutter_index = os.path.join(app.static_folder, 'index.html')
+    if os.path.exists(flutter_index):
+        # Serve the Flutter SPA
+        return send_file(flutter_index)
+        
+    # Fallback to legacy template if Flutter not built
     return render_template("kiosk.html", user_id=user.id, user_name=user.name, token=token)
 
 # Legacy display route (for backward compatibility)
@@ -468,6 +480,13 @@ def public_display(token):
     ).first()
     if not user:
         return "Display not found", 404
+        
+    # Check if Flutter app is built (in static folder)
+    flutter_index = os.path.join(app.static_folder, 'index.html')
+    if os.path.exists(flutter_index):
+        # Serve the Flutter SPA
+        return send_file(flutter_index)
+
     return render_template("display.html", user_id=user.id, user_name=user.name, token=token)
 
 @app.route("/admin/login", methods=["GET"])

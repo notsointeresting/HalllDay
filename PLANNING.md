@@ -1,65 +1,63 @@
 # IDK Can You? Development Plan
 
-**Last Updated:** 2025-12-07
+**Last Updated:** 2025-12-08
 
 ---
 
-## Phase 2.1 - Complete ✅
+## 🚀 Phase 5: The Flutter Transition (Current Focus)
 
-### P0 - Critical Fixes ✅
-- [x] Settings isolated per user
-- [x] Kiosk suspend shortcut fixed
+**Objective**: Migrate the frontend from vanilla HTML/JS/CSS to **Flutter Web** to achieve native app-like performance, Material 3 consistency, and complex animations (morphing shapes) without DOM limitations.
 
-### P1 - Cleanup & Rebranding ✅
-- [x] Remove Google Sheets UI
-- [x] Rebrand to "IDK Can You?"
-- [x] Suspend button on admin
-- [x] Embed code for /display
-- [x] OAuth only (passcode removed)
+### 🏗️ P0 - Foundation & Connectivity
+- [ ] **Project Setup**: Initialize `frontend` directory with a Flutter Web project.
+- [ ] **Asset Migration**: Port sounds and SVGs from `/static` to Flutter assets.
+- [ ] **API Layer**: Create a Dart service to communicate with existing Flask endpoints:
+    - `POST /api/scan`: Handle barcode scans.
+    - `GET /api/status`: Fetch initial state.
+    - `GET /events`: Consume SSE (Server-Sent Events) for real-time updates.
+- [ ] **State Management**: Set up a robust state manager (Provider/Riverpod) to handle the "Session" and "Roster" data.
 
-### P2 - Dev Dashboard ✅
-- [x] User roster counts added
-- [x] DB maintenance on /dev
+### 📱 P1 - The Kiosk (Interactive UI)
+*Goal: A fluid, web experience*
+- [ ] **Scanning Engine**: Implement a "keyboard listener" in Flutter to capture barcode scanner input (HID mode) or using numberpad to enter manually 
+- [ ] **Home Screen (Idle)**:
+    - Implement the "Breathing/Morphing" background shapes using Flutter `CustomPainter` or Lottie.
+    - Status Indicator: "Available" vs "Occupied" with smooth color transitions.
+- [ ] **Action Feedback**:
+    - **Success**: satisfying "pop" animation and sound when a pass is granted.
+    - **Failure/Ban**: "Shake" or "Burst" animation with strict haptic/visual feedback.
+- [ ] **Timer/Session View**: A clear countdown or elapsed time view for the active pass.
 
-### P3 - Code Audit ✅
-- [x] Full code audit
-- [x] Remove dead code (Sheets integration removed)
+### 🖥️ P2 - The Display (Passive UI)
+*Goal: The "Always On" classroom board.*
+- [ ] **Read-Only Mode**: A simplified view that consumes the `/events` stream.
+- [ ] **Big Typography**: Ensure names and timers are legible from the back of the room.
+- [ ] **Sync**: Ensure Display state perfectly mirrors Kiosk state (latency < 1s).
+
+### 🛠️ P3 - Integration & Deployment
+- [ ] **Build Pipeline**: Script to build Flutter Web (`flutter build web --renderer html`) and copy artifacts to Flask's `/static` folder.
+- [ ] **Flask Routing**: Update `app.py` to serve the Flutter `index.html` for `/kiosk` and `/display` routes.
+- [ ] **Cleanup**: Remove legacy `kiosk.js`, `display.js`, and `shapes` folders once verify.
 
 ---
 
-## Phase 3 - UI/UX Overhaul & Polish (Fluid Motion) ✅
+## ✅ Completed History
+
+### Phase 3 - UI/UX Overhaul & Polish (Web Version)
 **Status**: Completed (2025-12-08)
+- [x] **Multi-Pass UI**: Split-screen and Grid Layouts.
+- [x] **Shape Morphing**: CSS/JS implementation of squircle->star morphs.
+- [x] **Expressive Motion**: Spring physics for web elements.
+- [x] **Sound Design**: Custom soundscapes.
+- [x] **Visual Refresh**: Bold colors and Inter typography.
 
-### P0 - Core UX Improvements ✅
-- [x] **Multi-Pass UI**: Split-screen (2 students) and Grid Layout (3+ students) with fluid transitions.
-- [x] **Shape Morphing**: "Alive" bubbles that squash/stretch based on velocity and state.
-- [x] **Expressive Motion**: Physics-based springs for all interactions (entry, exit, state change).
-- [x] **Sound Design**: Custom soundscapes for positive (scan) and negative (ban/deny) actions.
+### Phase 2.1 - Backend & Admin
+**Status**: Completed (2025-12-07)
+- [x] **Multi-Tenancy**: Isolated settings per user.
+- [x] **Admin Ops**: Rebranded to "IDK Can You?", removed Sheets, fixed Kiosk suspend.
+- [x] **Dev Dashboard**: Added DB maintenance tools.
 
-### P1 - Visual Consistency ✅ 
-- [x] **Banned State**: Distinct "Red/Black" banned UI to clearly differentiate from "Limit Reached".
-- [x] **Bold Colors**: Switched from pastel containers to **Vibrant/Saturated** backgrounds (Deep Green, Strong Red, Amber).
-- [x] **Typography**: Switched to **Inter** for cleaner, professional legibility.
-- [x] **Iconography**: Fixed "Pass_" glitch and removed overlapping background icons.
-
-### P2 - Documentation ✅
-- [x] **Replaced README**: Fully rewritten to reflect current feature set (Multi-Pass, Fernet Encryption, Dev Dashboard).
-- [x] **Removed Legacy**: Deleted all references to Google Sheets integration.
-
----
-
-## Phase 4 - Future Roadmap (Next Steps) 🔮
-
-### P1 - Mobile & PWA
-- [ ] **Manifest & Service Worker**: Make the Kiosk a true PWA (installable on iPad home screen).
-- [ ] **Offline Resilience**: Queue scans if network drops and sync when back online.
-- [ ] **Wake Lock**: Prevent Kiosk screen from dimming/sleeping during class.
-
-### P2 - Deployment Hardening
-- [ ] **Production Config**: Verify `gunicorn` worker settings for SSE scaling (gevent/eventlet recommended).
-- [ ] **Database Migration**: Ensure proper migration scripts for `alembic` if schema evolves further.
-- [ ] **Stress Testing**: Simulate 30+ simultaneous kiosks to verify SSE connection stability.
-
-### P3 - Advanced Features
-- [ ] **Insights Dashboard**: "Who leaves the most?" analytics for teachers.
-- [ ] **Digital Passes**: Apple Wallet / Google Wallet pass integration for students (long-term).
+### Phase 1 - Core Logic (Legacy)
+- [x] Basic Check-in/Check-out.
+- [x] Auto-Ban logic.
+- [x] Roster encryption (Fernet).
