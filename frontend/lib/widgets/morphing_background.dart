@@ -43,42 +43,54 @@ class MorphingBackground extends StatelessWidget {
     // We use Animate() to wrap the transitions.
     // Key is crucial: when state changes (inUse flips), we want a fresh animation or smooth transition.
 
+    final size =
+        MediaQuery.of(context).size.shortestSide *
+        0.65; // Responsive (fits text better)
+
+    Widget child = AnimatedContainer(
+      duration: 600.ms,
+      curve: Curves.fastOutSlowIn,
+      width: size,
+      height: size,
+      decoration: ShapeDecoration(
+        color: color,
+        shape: shape,
+        shadows: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.5),
+            blurRadius: 60,
+            spreadRadius: 10,
+          ),
+        ],
+      ),
+    );
+
+    // If Available (!inUse), add "Anti-Gravity" Floating Loop
+    if (!inUse) {
+      return Center(
+        child: child
+            .animate(onPlay: (c) => c.repeat(reverse: true))
+            .moveY(
+              begin: 0,
+              end: -15, // Subtle float up
+              duration: 3.seconds,
+              curve: Curves.easeInOutSine,
+            )
+            .scaleXY(
+              begin: 1.0,
+              end: 1.05, // Subtle breathe
+              duration: 4.seconds, // Mismatched duration for organic feel
+              curve: Curves.easeInOutSine,
+            ),
+      );
+    }
+
+    // If In Use, add simple entry shake/shimmer (runs once)
     return Center(
-      child:
-          AnimatedContainer(
-                duration: 600.ms,
-                curve: Curves.elasticOut, // Springy shape snap
-                width: 300,
-                height: 300,
-                decoration: ShapeDecoration(
-                  color: color,
-                  shape: shape,
-                  shadows: [
-                    BoxShadow(
-                      color: color.withValues(alpha: 0.5),
-                      blurRadius: 30,
-                      spreadRadius: 0,
-                    ),
-                  ],
-                ),
-              )
-              .animate(
-                target: inUse ? 0 : 1,
-              ) // 0 = Occupied (Stable), 1 = Available (Breathing)
-              .scale(
-                begin: const Offset(1.0, 1.0),
-                end: const Offset(1.1, 1.1),
-                duration: 3.seconds,
-                curve: Curves.easeInOutSine,
-              ) // Breathe in
-              .then()
-              .scale(
-                begin: const Offset(1.1, 1.1),
-                end: const Offset(1.0, 1.0),
-                duration: 3.seconds,
-                curve: Curves.easeInOutSine,
-              ), // Breathe out
-      // Loop forever if available
+      child: child.animate().shimmer(
+        duration: 1.seconds,
+        color: Colors.white24,
+      ),
     );
   }
 }
