@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-// import 'package:flutter_web_plugins/flutter_web_plugins.dart'; // Optional for path strategies later
+import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 
 import 'providers/status_provider.dart';
 import 'screens/kiosk_screen.dart';
 
 void main() {
-  // setUrlStrategy(PathUrlStrategy()); // Removes hash bang #/ from URL if configured
+  setUrlStrategy(PathUrlStrategy());
   runApp(const MyApp());
 }
 
