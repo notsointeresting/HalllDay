@@ -8,19 +8,19 @@
 
 **Objective**: Migrate the frontend from vanilla HTML/JS/CSS to **Flutter Web** to achieve native app-like performance, Material 3 consistency, and complex animations (morphing shapes) without DOM limitations.
 
-### 🏗️ P0 - Foundation & Connectivity
-- [ ] **Project Setup**: Initialize `frontend` directory with a Flutter Web project.
-- [ ] **Asset Migration**: Port sounds and SVGs from `/static` to Flutter assets.
-- [ ] **API Layer**: Create a Dart service to communicate with existing Flask endpoints:
+### 🏗️ P0 - Foundation & Connectivity ✅
+- [x] **Project Setup**: Initialize `frontend` directory with a Flutter Web project.
+- [x] **Asset Migration**: Port sounds and SVGs from `/static` to Flutter assets.
+- [x] **API Layer**: Create a Dart service to communicate with existing Flask endpoints:
     - `POST /api/scan`: Handle barcode scans.
     - `GET /api/status`: Fetch initial state.
     - `GET /events`: Consume SSE (Server-Sent Events) for real-time updates.
-- [ ] **State Management**: Set up a robust state manager (Provider/Riverpod) to handle the "Session" and "Roster" data.
+- [x] **State Management**: Set up a robust state manager (Provider/Riverpod) to handle the "Session" and "Roster" data.
 
-### 📱 P1 - The Kiosk (Interactive UI)
-*Goal: A fluid, web experience*
-- [ ] **Scanning Engine**: Implement a "keyboard listener" in Flutter to capture barcode scanner input (HID mode) or using numberpad to enter manually 
-- [ ] **Home Screen (Idle)**:
+### 📱 P1 - The Kiosk (Interactive UI) ✅
+*Goal: A fluid, touch-first experience for the iPad.*
+- [x] **Scanning Engine**: Implement a "keyboard listener" in Flutter to capture barcode scanner input (HID mode).
+- [x] **Home Screen (Idle)**:
     - Implement the "Breathing/Morphing" background shapes using Flutter `CustomPainter` or Lottie.
     - Status Indicator: "Available" vs "Occupied" with smooth color transitions.
 - [ ] **Action Feedback**:
