@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/status_provider.dart';
-// import '../models/kiosk_status.dart'; // Unused for now
+import '../widgets/morphing_background.dart';
 
 class KioskScreen extends StatefulWidget {
   final String token;
@@ -107,11 +107,22 @@ class _KioskScreenState extends State<KioskScreen> {
 
             return Stack(
               children: [
-                // TODO: Background Morphing Shapes
+                // Background Morphing Shapes
+                MorphingBackground(
+                  inUse: status.inUse,
+                  // If any session is overdue, mark whole kiosk as overdue for now
+                  overdue: status.activeSessions.any((s) => s.overdue),
+                  // Use kioskSuspended as proxy for banned state
+                  isBanned: status.kioskSuspended,
+                ),
+
+                // Foreground Content
                 Center(
-                  child: status.inUse
-                      ? _buildOccupiedView(status)
-                      : _buildAvailableView(status),
+                  child: SingleChildScrollView(
+                    child: status.inUse
+                        ? _buildOccupiedView(status)
+                        : _buildAvailableView(status),
+                  ),
                 ),
 
                 // Debug/Connection Status
