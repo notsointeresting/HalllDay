@@ -38,6 +38,8 @@ dependencies:
   provider: ^6.1.1
   flutter_web_plugins:
     sdk: flutter
+  google_fonts: ^6.3.3
+  flutter_animate: ^4.5.2
 
 dev_dependencies:
   flutter_test:

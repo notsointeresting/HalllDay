@@ -5,7 +5,7 @@
 ---
 
 ## 🚀 Phase 5: The Flutter Transition (Current Focus)
-
+- Always maintain design consistency with material design materialdesign.md 
 **Objective**: Migrate the frontend from vanilla HTML/JS/CSS to **Flutter Web** to achieve native app-like performance, Material 3 consistency, and complex animations (morphing shapes) without DOM limitations.
 
 ### 🏗️ P0 - Foundation & Connectivity ✅

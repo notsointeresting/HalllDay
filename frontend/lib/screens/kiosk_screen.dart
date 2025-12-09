@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart'; // Add Google Fonts
 import '../providers/status_provider.dart';
 import '../widgets/morphing_background.dart';
 
@@ -153,65 +153,97 @@ class _KioskScreenState extends State<KioskScreen> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Icon(Icons.touch_app, size: 80, color: Colors.greenAccent),
-        const SizedBox(height: 20),
+        // Icon inside the shape
+        const Icon(Icons.touch_app_rounded, size: 120, color: Colors.white),
+        const SizedBox(height: 16),
         Text(
-          "Scan ID to Start",
-          style: TextStyle(
-            color: Colors.greenAccent,
-            fontSize: 40,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Inter', // Make sure to add font family later
+          "Scan ID",
+          style: GoogleFonts.outfit(
+            fontSize: 64,
+            fontWeight: FontWeight.w800,
+            color: Colors.white,
+            height: 0.9,
+            shadows: [
+              Shadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 10),
         Text(
-          "${status.capacity - status.activeSessions.length} Available",
-          style: const TextStyle(color: Colors.white70, fontSize: 24),
+          "to Start",
+          style: GoogleFonts.outfit(
+            fontSize: 48,
+            fontWeight: FontWeight.w300,
+            color: Colors.white.withValues(alpha: 0.9),
+          ),
+        ),
+        const SizedBox(height: 40),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(50),
+          ),
+          child: Text(
+            "${status.capacity - status.activeSessions.length} Spots Available",
+            style: GoogleFonts.inter(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.0,
+            ),
+          ),
         ),
       ],
     );
   }
 
   Widget _buildOccupiedView(status) {
+    // Determine text color based on background (Amber = Black text, others = White)
+    final Color textColor = Colors.black;
+    final Color subTextColor = Colors.black87;
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Icon(Icons.timer, size: 80, color: Colors.amberAccent),
+        Icon(Icons.timer_outlined, size: 80, color: textColor),
         const SizedBox(height: 20),
         Text(
-          "Hall Pass in Use",
-          style: TextStyle(
-            color: Colors.amberAccent,
-            fontSize: 40,
+          "Hall Pass Active",
+          style: GoogleFonts.outfit(
+            color: textColor,
+            fontSize: 48,
             fontWeight: FontWeight.bold,
+            height: 1.0,
           ),
         ),
         const SizedBox(height: 30),
-        // List active sessions
+        // Active Sessions List
         ...status.activeSessions
             .map<Widget>(
-              (s) => Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white10,
-                  borderRadius: BorderRadius.circular(16),
-                  border: s.overdue
-                      ? Border.all(color: Colors.red, width: 2)
-                      : null,
-                ),
+              (s) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
                 child: Column(
+                  // Simple column for immediate readability
                   children: [
                     Text(
                       s.name,
-                      style: const TextStyle(color: Colors.white, fontSize: 32),
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.outfit(
+                        color: textColor,
+                        fontSize: 42,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     Text(
-                      "${(s.elapsed / 60).floor()} min", // Simple formatting
-                      style: TextStyle(
-                        color: s.overdue ? Colors.redAccent : Colors.white70,
+                      "${(s.elapsed / 60).floor()} min",
+                      style: GoogleFonts.inter(
+                        color: s.overdue ? Colors.red[900] : subTextColor,
                         fontSize: 24,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ],
@@ -220,10 +252,22 @@ class _KioskScreenState extends State<KioskScreen> {
             )
             .toList(),
 
-        const SizedBox(height: 40),
-        const Text(
-          "Scan to Return",
-          style: TextStyle(color: Colors.white30, fontSize: 18),
+        const SizedBox(height: 48),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+          decoration: BoxDecoration(
+            color: textColor.withValues(alpha: 0.1), // Subtle backing
+            borderRadius: BorderRadius.circular(100),
+          ),
+          child: Text(
+            "Scan to Return".toUpperCase(),
+            style: GoogleFonts.inter(
+              color: textColor,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.2,
+            ),
+          ),
         ),
       ],
     );
