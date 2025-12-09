@@ -14,51 +14,37 @@ class KioskScreen extends StatefulWidget {
 }
 
 class _KioskScreenState extends State<KioskScreen> {
-  final FocusNode _keyboardFocus = FocusNode();
-  String _scanBuffer = '';
-  DateTime _lastKeyTime = DateTime.now();
+  final TextEditingController _scanController = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    // Initialize provider with token
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<StatusProvider>().init(widget.token);
-      _keyboardFocus.requestFocus(); // Auto-focus for scanner
+      _focusNode.requestFocus();
     });
   }
 
-  // Handle barcode scanner input (acts as keyboard)
-  // Scanners usually type characters rapidly and end with Enter
-  void _handleKey(RawKeyEvent event) {
-    if (event is RawKeyDownEvent) {
-      final now = DateTime.now();
-      // Reset buffer if too much time passed (manual typing vs scanner)
-      if (now.difference(_lastKeyTime).inMilliseconds > 200) {
-        _scanBuffer = '';
-      }
-      _lastKeyTime = now;
-
-      if (event.logicalKey == LogicalKeyboardKey.enter) {
-        if (_scanBuffer.isNotEmpty) {
-          _processScan(_scanBuffer);
-          _scanBuffer = '';
-        }
-      } else {
-        // Append printable characters
-        if (event.character != null && event.character!.isNotEmpty) {
-          _scanBuffer += event.character!;
-        }
-      }
-    }
+  @override
+  void dispose() {
+    _scanController.dispose();
+    _focusNode.dispose();
+    super.dispose();
   }
 
   Future<void> _processScan(String code) async {
+    if (code.trim().isEmpty) return;
+
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final provider = context.read<StatusProvider>();
 
-    // Optimistic UI updates or loading indicators could go here
-    final result = await provider.scanCode(code);
+    // Clear immediately to get ready for next scan
+    _scanController.clear();
+    // Keep focus
+    _focusNode.requestFocus();
+
+    final result = await provider.scanCode(code.trim());
 
     if (result['ok'] == true) {
       _showSnack(
@@ -83,65 +69,81 @@ class _KioskScreenState extends State<KioskScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return RawKeyboardListener(
-      focusNode: _keyboardFocus,
-      onKey: _handleKey,
-      autofocus: true,
-      child: Scaffold(
-        backgroundColor: Colors.black, // Dark mode base
-        body: Consumer<StatusProvider>(
-          builder: (context, provider, child) {
-            if (provider.isLoading && provider.status == null) {
-              return const Center(child: CircularProgressIndicator());
-            }
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: GestureDetector(
+        onTap: () {
+          // Tap anywhere to regain focus
+          _focusNode.requestFocus();
+        },
+        child: Stack(
+          children: [
+            // Hidden Input Field for Scanner
+            Opacity(
+              opacity: 0,
+              child: TextField(
+                controller: _scanController,
+                focusNode: _focusNode,
+                autofocus: true,
+                onSubmitted: _processScan,
+              ),
+            ),
 
-            final status = provider.status;
-            if (status == null) {
-              return const Center(
-                child: Text(
-                  "Error: No Status",
-                  style: TextStyle(color: Colors.white),
-                ),
-              );
-            }
+            Consumer<StatusProvider>(
+              builder: (context, provider, child) {
+                if (provider.isLoading && provider.status == null) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-            return Stack(
-              children: [
-                // Background Morphing Shapes
-                MorphingBackground(
-                  inUse: status.inUse,
-                  // If any session is overdue, mark whole kiosk as overdue for now
-                  overdue: status.activeSessions.any((s) => s.overdue),
-                  // Use kioskSuspended as proxy for banned state
-                  isBanned: status.kioskSuspended,
-                ),
+                final status = provider.status;
+                if (status == null) {
+                  return const Center(
+                    child: Text(
+                      "Error: No Status",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  );
+                }
 
-                // Foreground Content
-                Center(
-                  child: SingleChildScrollView(
-                    child: status.inUse
-                        ? _buildOccupiedView(status)
-                        : _buildAvailableView(status),
-                  ),
-                ),
+                return Stack(
+                  children: [
+                    // Background Morphing Shapes
+                    MorphingBackground(
+                      inUse: status.inUse,
+                      // If any session is overdue, mark whole kiosk as overdue for now
+                      overdue: status.activeSessions.any((s) => s.overdue),
+                      // Use kioskSuspended as proxy for banned state
+                      isBanned: status.kioskSuspended,
+                    ),
 
-                // Debug/Connection Status
-                if (!provider.isConnected)
-                  Positioned(
-                    top: 20,
-                    right: 20,
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      color: Colors.red,
-                      child: const Text(
-                        "Offline",
-                        style: TextStyle(color: Colors.white),
+                    // Foreground Content
+                    Center(
+                      child: SingleChildScrollView(
+                        child: status.inUse
+                            ? _buildOccupiedView(status)
+                            : _buildAvailableView(status),
                       ),
                     ),
-                  ),
-              ],
-            );
-          },
+
+                    // Debug/Connection Status
+                    if (!provider.isConnected)
+                      Positioned(
+                        top: 20,
+                        right: 20,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          color: Colors.red,
+                          child: const Text(
+                            "Offline",
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+          ],
         ),
       ),
     );
