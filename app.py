@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 from typing import Dict, Optional, List, Any
 from functools import wraps
 
-from flask import Flask, jsonify, render_template, request, redirect, url_for, send_file, Response, stream_with_context, session
+from flask import Flask, jsonify, render_template, request, redirect, url_for, send_file, Response, stream_with_context, session, send_from_directory
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
@@ -439,6 +439,15 @@ def kiosk():
     return render_template("kiosk_landing.html")
 
 # Public kiosk routes (2.0 - no login required, token-based)
+# Serve Flutter static files (js, json, png, etc) from root
+@app.route('/<path:filename>')
+def serve_static(filename):
+    """
+    Serve static files from the 'static' folder for the root URL path.
+    This enables Flutter Web assets (flutter.js, main.dart.js, assets/...) to load correctly.
+    """
+    return send_from_directory(app.static_folder, filename)
+
 @app.route("/k/<token>")
 @app.route("/kiosk/<token>")
 def public_kiosk(token):
