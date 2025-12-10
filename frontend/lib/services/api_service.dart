@@ -86,6 +86,84 @@ class ApiService {
     throw Exception('Failed to load roster: ${response.statusCode}');
   }
 
+  Future<void> updateSettings(Map<String, dynamic> settings) async {
+    final uri = _getUri('/api/settings/update');
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(settings),
+    );
+    if (response.statusCode == 401) throw Exception('Unauthorized');
+    if (response.statusCode != 200)
+      throw Exception('Failed to update settings');
+  }
+
+  Future<void> updateSlug(String slug) async {
+    final uri = _getUri('/api/settings/slug');
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'slug': slug}),
+    );
+    if (response.statusCode == 401) throw Exception('Unauthorized');
+    if (response.statusCode == 409) throw Exception('Slug taken');
+    if (response.statusCode != 200) throw Exception('Failed to update slug');
+  }
+
+  Future<void> suspendKiosk(bool suspend) async {
+    final uri = _getUri('/api/settings/suspend');
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'suspend': suspend}),
+    );
+    if (response.statusCode == 401) throw Exception('Unauthorized');
+    if (response.statusCode != 200) throw Exception('Failed to suspend');
+  }
+
+  Future<int> uploadRoster(List<int> bytes, String filename) async {
+    final uri = _getUri('/api/roster/upload');
+    var request = http.MultipartRequest('POST', uri);
+    request.files.add(
+      http.MultipartFile.fromBytes('file', bytes, filename: filename),
+    );
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 401) throw Exception('Unauthorized');
+    if (response.statusCode == 200) {
+      final body = json.decode(response.body);
+      return body['count'] ?? 0;
+    }
+    throw Exception('Failed to upload roster: ${response.body}');
+  }
+
+  Future<void> clearRoster() async {
+    final uri = _getUri('/api/roster/clear');
+    final response = await http.post(uri);
+    if (response.statusCode == 401) throw Exception('Unauthorized');
+    if (response.statusCode != 200) throw Exception('Failed to clear roster');
+  }
+
+  Future<int> banOverdue() async {
+    final uri = _getUri('/api/control/ban_overdue');
+    final response = await http.post(uri);
+    if (response.statusCode == 401) throw Exception('Unauthorized');
+    if (response.statusCode == 200) {
+      final body = json.decode(response.body);
+      return body['count'] ?? 0;
+    }
+    throw Exception('Failed to ban overdue');
+  }
+
+  Future<void> deleteHistory() async {
+    final uri = _getUri('/api/control/delete_history');
+    final response = await http.post(uri);
+    if (response.statusCode == 401) throw Exception('Unauthorized');
+    if (response.statusCode != 200) throw Exception('Failed to delete history');
+  }
+
   // --- DEV API ---
   Future<bool> devAuth(String passcode) async {
     final uri = _getUri('/api/dev/auth');
