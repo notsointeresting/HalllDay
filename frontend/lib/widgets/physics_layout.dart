@@ -90,6 +90,8 @@ class _PhysicsLayoutState extends State<PhysicsLayout>
       duration: const Duration(milliseconds: 600),
       curve: Curves.easeInOut,
       color: bgColor,
+      width: double.infinity,
+      height: double.infinity,
       child: Stack(
         children: _bubbleSystem.bubbles.map((b) {
           // Calculate absolute position based on % coordinates
