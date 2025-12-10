@@ -31,10 +31,14 @@
 ### 🖥️ P2 - The Display (Passive UI)
 *Goal: The "Always On" classroom board.*
 - [ ] **Read-Only Mode**: A simplified view that consumes the `/events` stream.
+- [x] **Visual Overhaul**: Switch to **Colored Backgrounds** + **White Bubbles** to match the original "light" aesthetic. <!-- id: 11 -->
+- [ ] **Final Polish**: Fix black flash on transitions. Replace gradient with Material-aligned color interpolation. <!-- id: 13 -->
 - [ ] **Big Typography**: Ensure names and timers are legible from the back of the room.
 - [ ] **Sync**: Ensure Display state perfectly mirrors Kiosk state (latency < 1s).
 
-### 🛠️ P3 - Integration & Deployment
+## P3: Display & Audio
+- [ ] **Display App Port**: Migrate the public `display.html` view to Flutter (`/display` route). <!-- id: 14 -->
+- [ ] **Sound Effects**: Port custom sounds (Grant, Deny, Ban) to Flutter. <!-- id: 15 -->
 - [ ] **Build Pipeline**: Script to build Flutter Web (`flutter build web --renderer html`) and copy artifacts to Flask's `/static` folder.
 - [ ] **Flask Routing**: Update `app.py` to serve the Flutter `index.html` for `/kiosk` and `/display` routes.
 - [ ] **Cleanup**: Remove legacy `kiosk.js`, `display.js`, and `shapes` folders once verify.

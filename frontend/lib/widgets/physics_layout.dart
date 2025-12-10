@@ -61,66 +61,63 @@ class _PhysicsLayoutState extends State<PhysicsLayout>
 
   @override
   Widget build(BuildContext context) {
-    // 1. Determine Background Gradient
-    // "Half and Half" logic:
-    // Calculate ratio of used spots.
-    // Gradient goes from Red (Used) to Green (Available).
-    // The stop point is the percentage of usage.
+    // 1. Determine Background Color (Interpolated)
+    // Material Design 3 Expressive approach:
+    // Use a single solid color that shifts based on "tension" or "usage".
+    // 0% Used -> Green (Available)
+    // 50% Used -> Amber/Yellow (Warning/Busy)
+    // 100% Used -> Red (Full)
+    // This allows for a smooth, organic heatmap feel without complex gradients.
 
     final int capacity = widget.status.capacity;
     final int usedCount = widget.status.activeSessions.length;
     final bool hasOverdue = widget.status.activeSessions.any((s) => s.overdue);
     final bool isBanned = widget.status.kioskSuspended;
 
-    // Colors
-    final Color colorGreen = const Color(0xFF4CAF50); // Available
-    final Color colorRed = hasOverdue
-        ? const Color(0xFFFFCA28)
-        : const Color(0xFFEF5350); // Used/Overdue
-    final Color colorBanned = const Color(0xFFB71C1C);
-
-    Decoration decoration;
+    Color bgColor;
 
     if (isBanned) {
-      decoration = BoxDecoration(color: colorBanned);
+      bgColor = const Color(0xFFB71C1C); // Red 900
     } else if (capacity <= 0) {
-      decoration = BoxDecoration(color: colorGreen);
+      bgColor = const Color(0xFF4CAF50); // Green 500
     } else {
       double ratio = usedCount / capacity;
-      // Clamp ratio
       if (ratio < 0) ratio = 0;
       if (ratio > 1) ratio = 1;
 
-      // Create a "Soft Split" gradient
-      // Top-Left is Used (Red/Amber), Bottom-Right is Available (Green)
-      // If ratio is 0.5, the split is in the middle.
-
-      if (ratio == 0) {
-        decoration = BoxDecoration(color: colorGreen);
-      } else if (ratio == 1) {
-        decoration = BoxDecoration(color: colorRed);
+      if (hasOverdue) {
+        // If overdue, force a pulsing Amber/Orange tone (for now just fixed)
+        bgColor = const Color(0xFFFFCA28); // Amber 400
       } else {
-        decoration = BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [colorRed, colorRed, colorGreen, colorGreen],
-            stops: [
-              0.0,
-              ratio - 0.1,
-              ratio + 0.1,
-              1.0,
-            ], // Smooth transition window
-          ),
-        );
+        // Interpolate Green -> Red
+        // We use an intermediate 'Yellow' step for better visuals
+        // 0.0 (Green) -> 0.5 (Yellow) -> 1.0 (Red)
+        if (ratio < 0.5) {
+          // Green to Yellow
+          bgColor = Color.lerp(
+            const Color(0xFF4CAF50), // Green 500
+            const Color(0xFFFFEB3B), // Yellow 500
+            ratio * 2, // Map 0-0.5 to 0-1
+          )!;
+        } else {
+          // Yellow to Red
+          bgColor = Color.lerp(
+            const Color(0xFFFFEB3B), // Yellow 500
+            const Color(0xFFEF5350), // Red 400
+            (ratio - 0.5) * 2, // Map 0.5-1.0 to 0-1
+          )!;
+        }
       }
     }
 
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 600),
-      curve: Curves.easeInOut,
-      decoration:
-          decoration, // Use decoration for gradient animation support in AnimatedContainer
+      duration: const Duration(
+        milliseconds: 1000,
+      ), // Slower, more organic color shift
+      curve: Curves.linearToEaseOut,
+      decoration: BoxDecoration(
+        color: bgColor,
+      ), // Always use BoxDecoration with color to prevent flash
       width: double.infinity,
       height: double.infinity,
       child: LayoutBuilder(
