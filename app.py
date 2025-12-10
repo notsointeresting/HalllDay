@@ -783,28 +783,27 @@ def api_ban_overdue():
     if not is_admin_authenticated():
         return jsonify(ok=False, error="Unauthorized"), 401
         
-    # Logic: Find overdue sessions -> Find StudentName -> Set banned=True
     user_id = get_current_user_id()
-    # TODO: Implement full Ban Logic service call.
-    # For now, placeholder or minimal impl.
-    # The `ban_service` should handle this.
+    settings = get_settings(user_id)
+    overdue_seconds = settings["overdue_minutes"] * 60
+    
     try:
-        # Call ban_service logic (re-implementing quickly here for API)
-        # Find active overdue sessions
+        # Find active sessions that are overdue
         open_sessions = Session.query.filter_by(user_id=user_id, end_ts=None).all()
         count = 0
         for s in open_sessions:
-            if s.is_overdue: # Property check
-                # Find matching student by name/hash?
-                # This is tricky without explicit link.
-                # Assuming name match for now.
-                student = StudentName.query.filter_by(user_id=user_id, display_name=s.name).first()
-                if student:
-                    student.banned = True
+            # Check if overdue using duration_seconds property
+            if s.duration_seconds > overdue_seconds:
+                # Find StudentName by hashing the student_id
+                name_hash = hashlib.sha256(f"student_{user_id}_{s.student_id}".encode()).hexdigest()[:16]
+                student_name = StudentName.query.filter_by(user_id=user_id, name_hash=name_hash).first()
+                if student_name and not student_name.banned:
+                    student_name.banned = True
                     count += 1
         db.session.commit()
         return jsonify(ok=True, count=count)
     except Exception as e:
+        db.session.rollback()
         return jsonify(ok=False, error=str(e)), 500
 
 @app.route("/api/control/delete_history", methods=["POST"])

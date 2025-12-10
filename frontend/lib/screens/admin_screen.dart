@@ -650,6 +650,7 @@ class _AdminScreenState extends State<AdminScreen> {
                             onPressed: _loadData,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.orange,
+                              foregroundColor: Colors.white,
                             ),
                             child: const Text("Check Overdue"),
                           ),

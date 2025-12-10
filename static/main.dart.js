@@ -85672,7 +85672,7 @@ b=A.fH(new A.EJ("Top Users",b==null?[]:b,!1,a1),1,a1)
 d=d.h(l,"most_overdue")
 d=A.f2(A.eg(A.c([b,B.fh,A.fH(new A.EJ("Most Overdue",d==null?[]:d,!0,a1),1,a1)],g),B.R,B.D,B.O,0),250,a1)
 b=A.ff(16)
-b=A.eI(a1,A.e7(A.c([A.eg(A.c([new A.xz(J.d(m.h(o,"auto_ban_overdue"),!0),a1,a1),B.UX],g),B.R,B.D,B.O,0),B.Ve,B.bu,B.UN,B.e2,A.eg(A.c([A.a4f(B.UT,a0.gabI(),A.a4g(a1,a1,B.uy,a1,a1,a1,a1,a1,a1,a1,a1,a1,a1,a1,a1,a1,a1,a1,a1,a1)),B.fh,A.a4f(B.V8,a0.ga42(),A.a4g(a1,a1,B.je,a1,a1,a1,a1,a1,a1,B.k,a1,a1,a1,a1,a1,a1,a1,a1,a1,a1))],g),B.R,B.D,B.O,0)],g),B.aQ,B.D,B.O),B.u,a1,a1,new A.d_(B.cq,a1,new A.d6(B.q,B.q,B.q,new A.aL(B.j4,4,B.r,-1)),b,a1,a1,B.aw),a1,a1,a1,B.cT,a1,a1,a1)
+b=A.eI(a1,A.e7(A.c([A.eg(A.c([new A.xz(J.d(m.h(o,"auto_ban_overdue"),!0),a1,a1),B.UX],g),B.R,B.D,B.O,0),B.Ve,B.bu,B.UN,B.e2,A.eg(A.c([A.a4f(B.UT,a0.gabI(),A.a4g(a1,a1,B.uy,a1,a1,a1,a1,a1,a1,B.k,a1,a1,a1,a1,a1,a1,a1,a1,a1,a1)),B.fh,A.a4f(B.V8,a0.ga42(),A.a4g(a1,a1,B.je,a1,a1,a1,a1,a1,a1,B.k,a1,a1,a1,a1,a1,a1,a1,a1,a1,a1))],g),B.R,B.D,B.O,0)],g),B.aQ,B.D,B.O),B.u,a1,a1,new A.d_(B.cq,a1,new A.d6(B.q,B.q,B.q,new A.aL(B.j4,4,B.r,-1)),b,a1,a1,B.aw),a1,a1,a1,B.cT,a1,a1,a1)
 m=A.ff(16)
 return A.Bp(a1,B.E2,A.aOt(A.kK(new A.fC(B.B3,A.e7(A.c([h,B.cc,j,B.cc,B.Y4,i,B.cc,B.Y5,f,B.cc,new A.kr("Roster Management",a1,B.bA,a1),e,B.cc,B.Y6,s,B.cc,B.Y3,B.UD,B.bu,d,B.cc,new A.kr("Auto-Ban",a1,B.bA,a1),b,B.cc,B.Y7,A.eI(a1,A.e7(A.c([B.UJ,B.bu,A.eI(a1,A.e7(A.c([B.UY,B.e2,A.a4f(B.V7,a0.ga5P(),A.a4g(a1,a1,B.je,a1,a1,a1,a1,a1,a1,B.k,a1,a1,a1,a1,a1,a1,a1,a1,a1,a1))],g),B.aQ,B.D,B.O),B.u,B.n0,a1,a1,a1,a1,a1,B.h_,a1,a1,1/0)],g),B.aQ,B.D,B.O),B.u,a1,a1,new A.d_(B.cq,a1,a1,m,a1,a1,B.aw),a1,a1,a1,B.cT,a1,a1,a1)],g),B.aQ,B.D,B.O),a1),a1,a1),B.jy))}}
 A.ajz.prototype={

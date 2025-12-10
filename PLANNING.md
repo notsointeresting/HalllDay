@@ -28,6 +28,12 @@
 - [] Allow students to queue up for a pass optionally enabled by teacher on their admin panel. Will automatically assign a pass to the first person in the queue and then assign the next person in the queue to the next available pass.
 - [] Build a scheduling system for times when kiosk is active and auto suspend when not; connected to admin panel as option and timezone selection. 
 
+### 📡 Phase 9: Server-Sent Events (SSE) Optimization
+*Goal: Replace polling with push-based updates for efficiency.*
+- [ ] **Backend**: Add `/api/stream` endpoint using Flask SSE (generator with `yield`).
+- [ ] **Frontend**: Replace `Timer.periodic` polling with `EventSource` listener in Kiosk/Display.
+- [ ] **Benefits**: ~99% fewer requests, instant updates (<100ms latency), reduced server load.
+
 
 ## ✅ Completed History
 
