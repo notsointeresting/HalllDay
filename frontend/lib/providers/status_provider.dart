@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../models/kiosk_status.dart';
 import '../services/api_service.dart';
+import '../services/sound_service.dart';
 
 class StatusProvider with ChangeNotifier {
   final ApiService _api = ApiService();
@@ -59,12 +60,38 @@ class StatusProvider with ChangeNotifier {
       return {'ok': false, 'message': 'Kiosk not initialized'};
     }
 
+    // Play processing sound
+    SoundService().playProcessing();
+
     try {
       final result = await _api.scanCode(_token!, code);
+
+      // Determine Sound Logic based on result
+      if (result['ok'] == true) {
+        final action = result['action'];
+        if (action == 'started') {
+          SoundService().playSuccessOut(); // Ding-Dong-Ding
+        } else if (action == 'ended') {
+          SoundService().playSuccessIn(); // Reverse chord
+        } else {
+          // Default success info
+          SoundService().playSuccessOut();
+        }
+      } else {
+        // Error / Deny
+        final action = result['action'];
+        if (action == 'banned') {
+          SoundService().playAlert(); // Dramatic drop
+        } else {
+          SoundService().playError(); // Buzz
+        }
+      }
+
       // Immediately fetch status to update UI
       await fetchStatus();
       return result;
     } catch (e) {
+      SoundService().playError();
       return {'ok': false, 'message': 'Scan failed: $e'};
     }
   }
