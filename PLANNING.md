@@ -3,6 +3,9 @@
 **Last Updated:** 2025-12-10
 
 ---
+# 🚨 Current Issues
+- Timer is not in sync between multiple passes. No longer skipping seconds which is good. But two passes entered separately tick at different rates even though they are both one second, the milisecond offset is different. These should be synced to the same clock in the most effcient logical way possible. 
+
 ## 🚨 Current Priorities (Immediate Focus)
 
 ### ⚙️ Phase 6: Admin & Dev Tools (Material 3 Port)
@@ -20,7 +23,7 @@
 
 ### 🖥️ Phase 7: Passive Display (Enhancements)
 - [ ] **Sync**: Ensure Display state perfectly mirrors Kiosk state (latency < 1s).
-
+- [] Build landing page with logo, sign up screen/login, and FAQ (explanation/introduction) or something. idkcanyou.com should default to the landing page (homepage)
 ---
 
 ## ✅ Completed History

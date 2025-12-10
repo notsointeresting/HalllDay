@@ -7,6 +7,7 @@ import 'screens/display_screen.dart';
 import 'screens/kiosk_screen.dart';
 import 'screens/admin_screen.dart';
 import 'screens/dev_screen.dart';
+import 'screens/landing_screen.dart';
 
 void main() {
   setUrlStrategy(PathUrlStrategy());
@@ -30,6 +31,11 @@ class MyApp extends StatelessWidget {
         // Simple manual routing for now
         onGenerateRoute: (settings) {
           final uri = Uri.parse(settings.name ?? '/');
+
+          // Handle Root Path (Landing Page)
+          if (uri.pathSegments.isEmpty) {
+            return MaterialPageRoute(builder: (_) => const LandingScreen());
+          }
 
           if (uri.pathSegments.isNotEmpty) {
             final first = uri.pathSegments[0];

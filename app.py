@@ -601,11 +601,11 @@ def api_admin_roster():
     if user_id is not None:
         students = students.filter_by(user_id=user_id)
     
-    students = students.order_by(StudentName.name).all()
+    students = students.order_by(StudentName.display_name).all()
     
     return jsonify(
         ok=True,
-        roster=[{"id": s.id, "name": s.name, "banned": s.banned} for s in students]
+        roster=[{"id": s.id, "name": s.display_name, "banned": s.banned} for s in students]
     )
 
 @app.route("/api/dev/auth", methods=["POST"])

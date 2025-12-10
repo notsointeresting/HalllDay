@@ -87,7 +87,15 @@ class BubbleModel {
     if (newType == BubbleType.used && sessionData != null) {
       name = sessionData.name;
       // Sync stats immediately
-      sessionStart = sessionData.start;
+      // Snap to nearest second to sync timer ticks across devices/passes
+      final rawStart = sessionData.start;
+      sessionStart = rawStart.subtract(
+        Duration(
+          milliseconds: rawStart.millisecond,
+          microseconds: rawStart.microsecond,
+        ),
+      );
+
       isOverdue = sessionData.overdue;
 
       // Update text immediately
