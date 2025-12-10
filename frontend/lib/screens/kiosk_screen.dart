@@ -76,6 +76,7 @@ class _KioskScreenState extends State<KioskScreen> {
           _focusNode.requestFocus();
         },
         child: Stack(
+          fit: StackFit.expand,
           children: [
             // Hidden Input Field for Scanner
             Opacity(

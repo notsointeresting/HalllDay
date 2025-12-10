@@ -92,16 +92,14 @@ class _PhysicsLayoutState extends State<PhysicsLayout>
       color: bgColor,
       width: double.infinity,
       height: double.infinity,
-      child: Stack(
-        children: _bubbleSystem.bubbles.map((b) {
-          // Calculate absolute position based on % coordinates
-          // Spring system uses 0-100 coordinate space
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final double screenW = constraints.maxWidth;
+          final double screenH = constraints.maxHeight;
 
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              final double screenW = constraints.maxWidth;
-              final double screenH = constraints.maxHeight;
-
+          return Stack(
+            children: _bubbleSystem.bubbles.map((b) {
+              // Calculate absolute position based on % coordinates
               final double x = (b.xSpring.current / 100.0) * screenW;
               final double y = (b.ySpring.current / 100.0) * screenH;
 
@@ -118,9 +116,9 @@ class _PhysicsLayoutState extends State<PhysicsLayout>
                   child: BubbleWidget(bubble: b),
                 ),
               );
-            },
+            }).toList(),
           );
-        }).toList(),
+        },
       ),
     );
   }
