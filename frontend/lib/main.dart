@@ -5,6 +5,8 @@ import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'providers/status_provider.dart';
 import 'screens/display_screen.dart';
 import 'screens/kiosk_screen.dart';
+import 'screens/admin_screen.dart';
+import 'screens/dev_screen.dart';
 
 void main() {
   setUrlStrategy(PathUrlStrategy());
@@ -50,6 +52,16 @@ class MyApp extends StatelessWidget {
                   builder: (_) => DisplayScreen(token: token),
                 );
               }
+            }
+
+            // Handle /admin (No token, uses Session)
+            if (first == 'admin') {
+              return MaterialPageRoute(builder: (_) => const AdminScreen());
+            }
+
+            // Handle /dev (No token, internal auth)
+            if (first == 'dev') {
+              return MaterialPageRoute(builder: (_) => const DevScreen());
             }
           }
 

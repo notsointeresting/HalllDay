@@ -66,4 +66,48 @@ class ApiService {
       throw Exception('Network error: $e');
     }
   }
+
+  // --- ADMIN API ---
+  Future<Map<String, dynamic>> getAdminStats() async {
+    final uri = _getUri('/api/admin/stats');
+    final response = await http.get(uri);
+
+    if (response.statusCode == 401) throw Exception('Unauthorized');
+    if (response.statusCode == 200) return json.decode(response.body);
+    throw Exception('Failed to load admin stats: ${response.statusCode}');
+  }
+
+  Future<Map<String, dynamic>> getAdminRoster() async {
+    final uri = _getUri('/api/admin/roster');
+    final response = await http.get(uri);
+
+    if (response.statusCode == 401) throw Exception('Unauthorized');
+    if (response.statusCode == 200) return json.decode(response.body);
+    throw Exception('Failed to load roster: ${response.statusCode}');
+  }
+
+  // --- DEV API ---
+  Future<bool> devAuth(String passcode) async {
+    final uri = _getUri('/api/dev/auth');
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'passcode': passcode}),
+    );
+
+    if (response.statusCode == 200) {
+      final body = json.decode(response.body);
+      return body['ok'] == true;
+    }
+    return false;
+  }
+
+  Future<Map<String, dynamic>> getDevStats() async {
+    final uri = _getUri('/api/dev/stats');
+    final response = await http.get(uri);
+
+    if (response.statusCode == 401) throw Exception('Unauthorized');
+    if (response.statusCode == 200) return json.decode(response.body);
+    throw Exception('Failed to load dev stats: ${response.statusCode}');
+  }
 }

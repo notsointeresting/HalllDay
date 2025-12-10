@@ -5,20 +5,6 @@
 ---
 ## 🚨 Current Priorities (Immediate Focus)
 
-### 1. Visual Polish & Haptics
-- [ ] **Haptics/Feedback**: "Shake" screen on error.
-- [ ] **Expressive Overdue**: Bubbles should rotate/wobble when overdue.
-
-### 2. Critical Bug Fixes
-- [ ] **Timer Lag**: Fix timer skipping seconds.
-- [ ] **Color Logic**: Green for available, Yellow only for warning/overdue.
-- [ ] **Layout**: Fix centering and single-element off-center issues.
-- [ ] **Auto Ban**: Verify auto-ban logic in Flutter.
-
----
-
-## 🔮 Future Roadmap
-
 ### ⚙️ Phase 6: Admin & Dev Tools (Material 3 Port)
 *Goal: Unified Material 3 Design for all surfaces.*
 - [ ] **Admin Dashboard (`/admin`)**:
@@ -28,6 +14,10 @@
     - [ ] Port "Database Tools" and "System Status".
     - [ ] Secure with PIN/Auth.
 
+---
+
+## 🔮 Future Roadmap
+
 ### 🖥️ Phase 7: Passive Display (Enhancements)
 - [ ] **Sync**: Ensure Display state perfectly mirrors Kiosk state (latency < 1s).
 
@@ -35,8 +25,19 @@
 
 ## ✅ Completed History
 
-### Phase 5 - Flutter Transition (Core)
+### Phase 5 - Flutter Transition (Core & Polish)
 **Status**: Core Functional Port Complete (2025-12-10)
+
+#### 🎨 Visual Polish & Haptics
+- [x] **Haptics/Feedback**: "Shake" screen on error.
+- [x] **Expressive Overdue**: Bubbles wobble when overdue.
+
+#### 🐛 Critical Bug Fixes
+- [x] **Timer Lag**: Fixed timer skipping seconds.
+- [x] **Color Logic**: Green for available, Yellow only for warning/overdue.
+- [x] **Layout**: Fixed centering and single-element off-center issues.
+- [x] **Auto Ban**: Verify auto-ban logic in Flutter.
+
 #### 🏗️ P0 - Foundation & Connectivity
 - [x] **Project Setup**: Initialize `frontend` directory with a Flutter Web project.
 - [x] **Asset Migration**: Port sounds and SVGs from `/static` to Flutter assets.

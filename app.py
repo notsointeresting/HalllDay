@@ -513,58 +513,22 @@ def admin_logout():
 @app.route("/admin")
 @require_admin_auth
 def admin():
-    """Teacher-facing admin dashboard (clean, user-friendly)"""
-    # Get current user if OAuth is active
-    current_user = None
-    user_id = get_current_user_id()
+    """Teacher-facing admin dashboard (Served via Flutter)"""
+    if os.path.exists(os.path.join(app.static_folder, 'index.html')):
+        return send_from_directory(app.static_folder, 'index.html')
     
-    if user_id:
-        current_user = User.query.get(user_id)
-    
-    # Scope queries to current user if available
-    query_session = Session.query
-    query_open = Session.query.filter_by(end_ts=None)
-    query_roster = StudentName.query
-    
-    if user_id is not None:
-        query_session = query_session.filter_by(user_id=user_id)
-        query_open = query_open.filter_by(user_id=user_id)
-        query_roster = query_roster.filter_by(user_id=user_id)
-        
-    total = query_session.count()
-    open_count = query_open.count()
-    db_roster_count = query_roster.count()
-    
-    settings = get_settings(user_id)
-    
-    try:
-        # Roster counts
-        memory_roster_count = len(get_memory_roster(user_id))
-        
-        # Build public URLs for Share/Embed section
-        kiosk_urls = None
-        if current_user:
-            base_url = request.url_root.rstrip('/')
-            kiosk_urls = current_user.get_public_urls(base_url)
-        
-        return render_template(
-            "admin.html",
-            total=total,
-            open_count=open_count,
-            settings=settings,
-            db_roster_count=db_roster_count,
-            memory_roster_count=memory_roster_count,
-            current_user=current_user,
-            kiosk_urls=kiosk_urls,
-        )
-    except Exception as e:
-        import traceback
-        return f"Admin Page Error: {str(e)} <br><pre>{traceback.format_exc()}</pre>", 500
+    # Fallback to Legacy if Flutter not built
+    # ... (Legacy logic effectively removed/hidden, but safely handled by check)
+    return "Flutter App Not Built. Please run ./deploy.sh"
 
 
 @app.route("/dev/login", methods=["GET", "POST"])
 def dev_login():
-    """Developer login page - requires HALLPASS_ADMIN_PASSCODE"""
+    """Legacy Developer login page (Keep for direct access logic or removal?)
+       Since Flutter DevScreen handles login, we might not need this if we rely purely on Flutter.
+       But existing logic redirects here.
+       Let's keep it as is for now, but /dev will bypass it to serve Flutter.
+    """
     if session.get('dev_authenticated'):
         return redirect(url_for('dev'))
     
@@ -580,39 +544,97 @@ def dev_login():
 
 @app.route("/dev")
 def dev():
-    """Developer-only page with database tools - requires passcode"""
-    if not session.get('dev_authenticated'):
-        return redirect(url_for('dev_login'))
+    """Developer-only page (Served via Flutter)"""
+    # Note: We do NOT enforce auth here so that Flutter App can load and show its own Login Screen.
+    # The API endpoint /api/dev/stats IS protected.
     
-    # Get current user if logged in via OAuth
-    current_user = None
-    user_id = session.get('user_id')
-    if user_id:
-        current_user = User.query.get(user_id)
+    if os.path.exists(os.path.join(app.static_folder, 'index.html')):
+        return send_from_directory(app.static_folder, 'index.html')
     
-    total = Session.query.count()
-    open_count = Session.query.filter_by(end_ts=None).count()
-    settings = get_settings()
+    return "Flutter App Not Built. Please run ./deploy.sh"
+
+# ============================================================================
+# API ENDPOINTS FOR FLUTTER ADMIN/DEV DASHBOARDS
+# ============================================================================
+
+@app.route("/api/admin/stats")
+def api_admin_stats():
+    """API Endpoint: Get Admin Dashboard Stats"""
+    if not is_admin_authenticated():
+        # Return 401 which Flutter will handle by redirecting to /admin/login
+        return jsonify(ok=False, error="Unauthorized", authenticated=False), 401
+    
+    user_id = get_current_user_id()
+    
+    # Scope queries
+    query_session = Session.query
+    query_open = Session.query.filter_by(end_ts=None)
+    query_roster = StudentName.query
+    
+    if user_id is not None:
+        query_session = query_session.filter_by(user_id=user_id)
+        query_open = query_open.filter_by(user_id=user_id)
+        query_roster = query_roster.filter_by(user_id=user_id)
     
     try:
-        # All roster counts (global, not scoped)
-        memory_roster_count = len(get_memory_roster())
-        db_roster_count = StudentName.query.count()
-        user_count = User.query.count()
-        
-        return render_template(
-            "dev.html",
-            total=total,
-            open_count=open_count,
-            settings=settings,
-            db_roster_count=db_roster_count,
-            memory_roster_count=memory_roster_count,
-            user_count=user_count,
-            current_user=current_user,
+        return jsonify(
+            ok=True,
+            total_sessions=query_session.count(),
+            # active_sessions needs to be a list if we want to show details, 
+            # but for stats just count is fine.
+            active_sessions_count=query_open.count(),
+            roster_count=query_roster.count(),
+            memory_roster_count=len(get_memory_roster(user_id)),
+            settings=get_settings(user_id)
         )
     except Exception as e:
-        import traceback
-        return f"Dev Page Error: {str(e)} <br><pre>{traceback.format_exc()}</pre>", 500
+        return jsonify(ok=False, error=str(e)), 500
+
+@app.route("/api/admin/roster")
+def api_admin_roster():
+    """API Endpoint: Get Roster List"""
+    if not is_admin_authenticated():
+        return jsonify(ok=False, error="Unauthorized", authenticated=False), 401
+        
+    user_id = get_current_user_id()
+    students = StudentName.query
+    if user_id is not None:
+        students = students.filter_by(user_id=user_id)
+    
+    students = students.order_by(StudentName.name).all()
+    
+    return jsonify(
+        ok=True,
+        roster=[{"id": s.id, "name": s.name, "banned": s.banned} for s in students]
+    )
+
+@app.route("/api/dev/auth", methods=["POST"])
+def api_dev_auth():
+    """API Endpoint: Developer Login"""
+    data = request.get_json()
+    passcode = data.get("passcode", "").strip()
+    
+    if passcode == config.ADMIN_PASSCODE:
+        session['dev_authenticated'] = True
+        session.permanent = True
+        return jsonify(ok=True)
+    return jsonify(ok=False, error="Invalid Passcode"), 401
+
+@app.route("/api/dev/stats")
+def api_dev_stats():
+    """API Endpoint: Get System Stats (Dev Only)"""
+    if not session.get('dev_authenticated'):
+        return jsonify(ok=False, error="Unauthorized", authenticated=False), 401
+    
+    # Global Stats
+    return jsonify(
+        ok=True,
+        total_sessions=Session.query.count(),
+        active_sessions=Session.query.filter_by(end_ts=None).count(),
+        total_students=StudentName.query.count(),
+        total_users=User.query.count(),
+        settings=get_settings()
+    )
 
 # ---------- Keep-alive (Render) ----------
 _keepalive_started = False
