@@ -1942,6 +1942,30 @@ def run_migrations():
             pass
         messages.append(f"Legacy data migration: {e}")
 
+    # Migration 8: Drop old unique constraint on student_name.name_hash (replaced by composite)
+    try:
+        # Check if old constraint exists
+        res = db.session.execute(text("""
+            SELECT 1 FROM information_schema.table_constraints
+            WHERE table_name = 'student_name' AND constraint_name = 'student_name_name_hash_key'
+        """))
+        old_constraint_exists = res.scalar() is not None
+        
+        if old_constraint_exists:
+            messages.append("Dropping legacy student_name_name_hash_key constraint...")
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+            
+            with db.engine.begin() as conn:
+                conn.execute(text("ALTER TABLE student_name DROP CONSTRAINT IF EXISTS student_name_name_hash_key"))
+            messages.append("Dropped legacy constraint successfully")
+        else:
+            messages.append("Legacy name_hash constraint already dropped")
+    except Exception as e:
+        messages.append(f"Warning: constraint migration: {e}")
+
     return messages
 
 

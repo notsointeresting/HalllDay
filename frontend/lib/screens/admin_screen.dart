@@ -623,8 +623,24 @@ class _AdminScreenState extends State<AdminScreen> {
                         children: [
                           Checkbox(
                             value: settings['auto_ban_overdue'] == true,
-                            onChanged: null,
-                          ), // Readonly for now unless added to settings update
+                            onChanged: (val) async {
+                              try {
+                                await _api.updateSettings({
+                                  'auto_ban_overdue': val,
+                                });
+                                _loadData();
+                              } catch (e) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Error: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                          ),
                           const Text(
                             "Auto-Ban Enabled",
                             style: TextStyle(fontWeight: FontWeight.bold),
