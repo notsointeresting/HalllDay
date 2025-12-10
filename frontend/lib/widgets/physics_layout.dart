@@ -80,15 +80,13 @@ class _PhysicsLayoutState extends State<PhysicsLayout>
 
     final int capacity = widget.status.capacity;
     final int usedCount = widget.status.activeSessions.length;
-    final bool hasOverdue = widget.status.activeSessions.any((s) => s.overdue);
+
     final bool isBanned = widget.status.kioskSuspended;
 
     Color bgColor;
 
     if (isBanned) {
       bgColor = const Color(0xFFB71C1C); // Red 900
-    } else if (hasOverdue) {
-      bgColor = const Color(0xFFFFCA28); // Amber 400 (Overdue)
     } else if (usedCount < capacity) {
       bgColor = const Color(0xFF4CAF50); // Green 500 (Available)
     } else {
