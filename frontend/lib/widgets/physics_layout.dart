@@ -6,8 +6,13 @@ import 'bubble_widget.dart';
 
 class PhysicsLayout extends StatefulWidget {
   final KioskStatus status;
+  final bool isDisplay;
 
-  const PhysicsLayout({super.key, required this.status});
+  const PhysicsLayout({
+    super.key,
+    required this.status,
+    this.isDisplay = false,
+  });
 
   @override
   State<PhysicsLayout> createState() => _PhysicsLayoutState();
@@ -15,48 +20,52 @@ class PhysicsLayout extends StatefulWidget {
 
 class _PhysicsLayoutState extends State<PhysicsLayout>
     with SingleTickerProviderStateMixin {
-  late final Ticker _ticker;
-  late final BubbleSystem _bubbleSystem;
-
-  // Track last frame time for dt calculation
-  Duration _lastElapsed = Duration.zero;
+  late Ticker _ticker;
+  late BubbleSystem _bubbleSystem;
+  double _lastTime = 0;
 
   @override
   void initState() {
     super.initState();
+    // Initialize Bubble System
     _bubbleSystem = BubbleSystem();
-
-    // Initial Sync
+    // Sync initial state
     _bubbleSystem.sync(status: widget.status);
 
-    // Start Physics Loop
-    _ticker = createTicker((elapsed) {
-      final double dt =
-          (elapsed - _lastElapsed).inMicroseconds / 1000000.0; // Seconds
-      _lastElapsed = elapsed;
-
-      // Cap dt to avoid spirals on lag
-      final double safeDt = dt > 0.05 ? 0.05 : dt;
-
-      setState(() {
-        _bubbleSystem.update(safeDt);
-      });
-    });
-    _ticker.start();
+    // Create Ticker for physics loop
+    _ticker = createTicker(_onTick)..start();
   }
 
   @override
   void didUpdateWidget(PhysicsLayout oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Sync new status to physics system
-    // The physics system handles the diffing (adding/removing bubbles smoothly)
-    _bubbleSystem.sync(status: widget.status);
+    if (widget.status != oldWidget.status) {
+      _bubbleSystem.sync(status: widget.status);
+    }
   }
 
   @override
   void dispose() {
     _ticker.dispose();
     super.dispose();
+  }
+
+  void _onTick(Duration elapsed) {
+    final double currentTime = elapsed.inMicroseconds / 1000000.0;
+    if (_lastTime == 0) _lastTime = currentTime;
+
+    // Calculate delta time
+    double dt = currentTime - _lastTime;
+    _lastTime = currentTime;
+
+    // Cap dt to prevent huge jumps if tab was backgrounded
+    if (dt > 0.05) dt = 0.05;
+
+    // Update Physics
+    _bubbleSystem.update(dt);
+
+    // Trigger rebuild to paint new positions
+    setState(() {});
   }
 
   @override
@@ -141,7 +150,10 @@ class _PhysicsLayoutState extends State<PhysicsLayout>
                 top: y - 150, // Center origin
                 child: Transform.scale(
                   scale: scale,
-                  child: BubbleWidget(bubble: b),
+                  child: BubbleWidget(
+                    bubble: b,
+                    isDisplay: widget.isDisplay, // Pass flag down
+                  ),
                 ),
               );
             }).toList(),

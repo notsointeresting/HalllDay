@@ -4,8 +4,9 @@ import '../physics/bubble_system.dart';
 
 class BubbleWidget extends StatelessWidget {
   final BubbleModel bubble;
+  final bool isDisplay; // Add scaling flag
 
-  const BubbleWidget({super.key, required this.bubble});
+  const BubbleWidget({super.key, required this.bubble, this.isDisplay = false});
 
   @override
   Widget build(BuildContext context) {
@@ -31,10 +32,19 @@ class BubbleWidget extends StatelessWidget {
       textColor = const Color(0xFFB71C1C);
     }
 
+    // Scaling Logic for Display Mode
+    // If isDisplay is true, we bump sizes significantly
+    final double size = isDisplay ? 480 : 380;
+    final double iconSize = isDisplay ? 80 : 64;
+    final double nameSize = isDisplay
+        ? (bubble.type == BubbleType.available ? 64 : 48)
+        : (bubble.type == BubbleType.available ? 48 : 32);
+    final double timerSize = isDisplay ? 36 : 24;
+
     // Increased Size for visibility
     return Container(
-      width: 380,
-      height: 380,
+      width: size,
+      height: size,
       decoration: ShapeDecoration(
         color: Colors.white,
         shape: shape,
@@ -58,7 +68,7 @@ class BubbleWidget extends StatelessWidget {
             if (bubble.type != BubbleType.available)
               Icon(
                 _getIconForType(bubble.type),
-                size: 64,
+                size: iconSize,
                 color: textColor.withOpacity(0.7),
               ),
 
@@ -70,7 +80,7 @@ class BubbleWidget extends StatelessWidget {
               textAlign: TextAlign.center,
               style: GoogleFonts.outfit(
                 color: textColor,
-                fontSize: bubble.type == BubbleType.available ? 48 : 32,
+                fontSize: nameSize,
                 fontWeight: FontWeight.bold,
                 height: 1.0,
               ),
@@ -83,7 +93,7 @@ class BubbleWidget extends StatelessWidget {
                 bubble.timerText,
                 style: GoogleFonts.inter(
                   color: textColor.withOpacity(0.8),
-                  fontSize: 24,
+                  fontSize: timerSize,
                   fontWeight: FontWeight.w600,
                   fontFeatures: [const FontFeature.tabularFigures()],
                 ),

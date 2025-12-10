@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 
 import 'providers/status_provider.dart';
+import 'screens/display_screen.dart';
 import 'screens/kiosk_screen.dart';
 
 void main() {
@@ -29,12 +30,24 @@ class MyApp extends StatelessWidget {
           final uri = Uri.parse(settings.name ?? '/');
 
           if (uri.pathSegments.isNotEmpty) {
+            final first = uri.pathSegments[0];
+
             // Handle /kiosk/<token> or /k/<token>
-            if (uri.pathSegments[0] == 'kiosk' || uri.pathSegments[0] == 'k') {
+            if (first == 'kiosk' || first == 'k') {
               if (uri.pathSegments.length > 1) {
                 final token = uri.pathSegments[1];
                 return MaterialPageRoute(
                   builder: (_) => KioskScreen(token: token),
+                );
+              }
+            }
+
+            // Handle /display/<token> or /d/<token>
+            if (first == 'display' || first == 'd') {
+              if (uri.pathSegments.length > 1) {
+                final token = uri.pathSegments[1];
+                return MaterialPageRoute(
+                  builder: (_) => DisplayScreen(token: token),
                 );
               }
             }

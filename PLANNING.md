@@ -3,6 +3,9 @@
 **Last Updated:** 2025-12-08
 
 ---
+## Curent Issues
+- Timer doesn't count every second. skips a few seconds. 
+- Needs to be green when a pass is available. Yellow is a signal for overdue and it is weird when it is also used for available when 1/x passes are still available even with one in use. 
 
 ## 🚀 Phase 5: The Flutter Transition (Current Focus)
 - Always maintain design consistency with material design materialdesign.md 
