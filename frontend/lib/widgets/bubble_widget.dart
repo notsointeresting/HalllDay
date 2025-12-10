@@ -10,23 +10,19 @@ class BubbleWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // 1. Determine Shape
-    // Squircle (Available) -> Star (Used/Banned)
-    // We use the flutter_animate logic indirectly by just setting the shape based on type
+    // Squircle (Available) -> Star/Cookie (Used/Banned)
+    // User requested "not too spokey", so we use a "Cookie" config for the StarBorder
     final ShapeBorder shape = bubble.type == BubbleType.available
-        ? RoundedRectangleBorder(borderRadius: BorderRadius.circular(100))
+        ? RoundedRectangleBorder(borderRadius: BorderRadius.circular(160))
         : StarBorder(
             points: 12,
-            innerRadiusRatio: 0.4,
-            pointRounding: 0.2,
-            valleyRounding: 0.2,
+            innerRadiusRatio: 0.75, // Fatter, less pointy
+            pointRounding: 0.6, // Very round tips
+            valleyRounding: 0.6, // Very round valleys
             squash: 0,
           );
 
     // 2. Determine Text Color
-    // White background means we need dark text.
-    // Available: Green-ish dark
-    // Used: Dark Grey/Black (or red if overdue)
-    // Banned: Red
     Color textColor = const Color(0xFF1B5E20); // Default dark green
     if (bubble.type == BubbleType.used) {
       textColor = bubble.isOverdue ? const Color(0xFFB71C1C) : Colors.black;
@@ -35,71 +31,75 @@ class BubbleWidget extends StatelessWidget {
       textColor = const Color(0xFFB71C1C);
     }
 
+    // Increased Size for visibility
     return Container(
-      width: 300,
-      height: 300,
+      width: 380,
+      height: 380,
       decoration: ShapeDecoration(
-        color:
-            Colors.white, // In "Light" physics mode, bubbles are always white
+        color: Colors.white,
         shape: shape,
         shadows: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 20,
-            spreadRadius: 2,
-            offset: const Offset(0, 10),
+            blurRadius: 30,
+            spreadRadius: 5,
+            offset: const Offset(0, 15),
           ),
         ],
       ),
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Icon
-          if (bubble.type != BubbleType.available)
-            Icon(
-              _getIconForType(bubble.type),
-              size: 48,
-              color: textColor.withValues(alpha: 0.7),
-            ),
+      padding: const EdgeInsets.all(48), // Explicit padding to keep text inside
+      child: FittedBox(
+        // Ensure text stays inside shape
+        fit: BoxFit.scaleDown,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Icon
+            if (bubble.type != BubbleType.available)
+              Icon(
+                _getIconForType(bubble.type),
+                size: 64,
+                color: textColor.withOpacity(0.7),
+              ),
 
-          const SizedBox(height: 8),
+            const SizedBox(height: 12),
 
-          // Main Text (Name or "Scan ID")
-          Text(
-            bubble.name,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.outfit(
-              color: textColor,
-              fontSize: bubble.type == BubbleType.available ? 48 : 32,
-              fontWeight: FontWeight.bold,
-              height: 1.0,
-            ),
-          ),
-
-          // Secondary Text (Timer)
-          if (bubble.type == BubbleType.used) ...[
-            const SizedBox(height: 8),
+            // Main Text (Name or "Scan ID")
             Text(
-              bubble.timerText,
-              style: GoogleFonts.inter(
-                color: textColor.withValues(alpha: 0.8),
-                fontSize: 24,
-                fontWeight: FontWeight.w600,
-                fontFeatures: [const FontFeature.tabularFigures()],
+              bubble.name,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.outfit(
+                color: textColor,
+                fontSize: bubble.type == BubbleType.available ? 48 : 32,
+                fontWeight: FontWeight.bold,
+                height: 1.0,
               ),
             ),
-          ],
 
-          if (bubble.type == BubbleType.available) ...[
-            const SizedBox(height: 12),
-            Icon(
-              Icons.touch_app_rounded,
-              size: 64,
-              color: textColor.withValues(alpha: 0.5),
-            ),
+            // Secondary Text (Timer)
+            if (bubble.type == BubbleType.used) ...[
+              const SizedBox(height: 8),
+              Text(
+                bubble.timerText,
+                style: GoogleFonts.inter(
+                  color: textColor.withOpacity(0.8),
+                  fontSize: 24,
+                  fontWeight: FontWeight.w600,
+                  fontFeatures: [const FontFeature.tabularFigures()],
+                ),
+              ),
+            ],
+
+            if (bubble.type == BubbleType.available) ...[
+              const SizedBox(height: 12),
+              Icon(
+                Icons.touch_app_rounded,
+                size: 64,
+                color: textColor.withOpacity(0.5),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

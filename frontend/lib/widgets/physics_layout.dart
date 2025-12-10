@@ -61,35 +61,66 @@ class _PhysicsLayoutState extends State<PhysicsLayout>
 
   @override
   Widget build(BuildContext context) {
-    // 1. Determine Background Color based on status
-    // Available -> Green
-    // In Use -> Red (or Amber if overdue)
-    // Suspended/Banned -> Red
-    Color bgColor = const Color(0xFF4CAF50); // Material Green 500
+    // 1. Determine Background Gradient
+    // "Half and Half" logic:
+    // Calculate ratio of used spots.
+    // Gradient goes from Red (Used) to Green (Available).
+    // The stop point is the percentage of usage.
 
-    if (widget.status.kioskSuspended) {
-      bgColor = const Color(0xFFB71C1C); // Red 900
+    final int capacity = widget.status.capacity;
+    final int usedCount = widget.status.activeSessions.length;
+    final bool hasOverdue = widget.status.activeSessions.any((s) => s.overdue);
+    final bool isBanned = widget.status.kioskSuspended;
+
+    // Colors
+    final Color colorGreen = const Color(0xFF4CAF50); // Available
+    final Color colorRed = hasOverdue
+        ? const Color(0xFFFFCA28)
+        : const Color(0xFFEF5350); // Used/Overdue
+    final Color colorBanned = const Color(0xFFB71C1C);
+
+    Decoration decoration;
+
+    if (isBanned) {
+      decoration = BoxDecoration(color: colorBanned);
+    } else if (capacity <= 0) {
+      decoration = BoxDecoration(color: colorGreen);
     } else {
-      final bool hasOverdue = widget.status.activeSessions.any(
-        (s) => s.overdue,
-      );
-      final bool inUse = widget.status.activeSessions.isNotEmpty;
+      double ratio = usedCount / capacity;
+      // Clamp ratio
+      if (ratio < 0) ratio = 0;
+      if (ratio > 1) ratio = 1;
 
-      if (inUse) {
-        if (hasOverdue) {
-          bgColor = const Color(0xFFFFCA28); // Amber 400
-        } else {
-          // Standard "In Use" color. Original JS used Red Container for active.
-          // Setting to Red-ish or Deep Orange to signify "Busy"
-          bgColor = const Color(0xFFEF5350); // Red 400
-        }
+      // Create a "Soft Split" gradient
+      // Top-Left is Used (Red/Amber), Bottom-Right is Available (Green)
+      // If ratio is 0.5, the split is in the middle.
+
+      if (ratio == 0) {
+        decoration = BoxDecoration(color: colorGreen);
+      } else if (ratio == 1) {
+        decoration = BoxDecoration(color: colorRed);
+      } else {
+        decoration = BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [colorRed, colorRed, colorGreen, colorGreen],
+            stops: [
+              0.0,
+              ratio - 0.1,
+              ratio + 0.1,
+              1.0,
+            ], // Smooth transition window
+          ),
+        );
       }
     }
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 600),
       curve: Curves.easeInOut,
-      color: bgColor,
+      decoration:
+          decoration, // Use decoration for gradient animation support in AnimatedContainer
       width: double.infinity,
       height: double.infinity,
       child: LayoutBuilder(
