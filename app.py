@@ -744,6 +744,9 @@ def api_scan():
     for s in open_sessions:
         if s.student_id == code:
             # Check if student is overdue and auto-ban is enabled
+            # Check if student is overdue and auto-ban is enabled
+            action = "ended"
+            msg = None
             if settings.get("auto_ban_overdue", False):
                 overdue_seconds = settings["overdue_minutes"] * 60
                 if s.duration_seconds > overdue_seconds:
@@ -751,12 +754,14 @@ def api_scan():
                     if not is_student_banned(code, user_id=user_id):
                         set_student_banned(code, True, user_id=user_id)
                         print(f"AUTO-BAN ON SCAN-BACK: {student_name} ({code}) was overdue {round(s.duration_seconds / 60, 1)} minutes")
+                        action = "ended_banned"
+                        msg = "PASSED RETURNED LATE - AUTO BANNED"
             
             # End the session
             s.end_ts = now_utc()
             s.ended_by = "kiosk_scan"
             db.session.commit()
-            return jsonify(ok=True, action="ended", name=student_name)
+            return jsonify(ok=True, action=action, message=msg, name=student_name)
     
     # Check if student is banned from starting NEW restroom trips
     # (They can still end existing trips above)

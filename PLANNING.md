@@ -1,55 +1,57 @@
 # IDK Can You? Development Plan
 
-**Last Updated:** 2025-12-08
+**Last Updated:** 2025-12-10
 
 ---
-## Curent Issues
-- Timer doesn't count every second. skips a few seconds. 
-- Needs to be green when a pass is available. Yellow is a signal for overdue and it is weird when it is also used for available when 1/x passes are still available even with one in use. 
-- Kiosk and display sizing is not the same for elements Single element is slightly off center in both views, but more so in display. 
+## 🚨 Current Priorities (Immediate Focus)
 
-## 🚀 Phase 5: The Flutter Transition (Current Focus)
-- Always maintain design consistency with material design materialdesign.md 
-**Objective**: Migrate the frontend from vanilla HTML/JS/CSS to **Flutter Web** to achieve native app-like performance, Material 3 consistency, and complex animations (morphing shapes) without DOM limitations.
+### 1. Visual Polish & Haptics
+- [ ] **Haptics/Feedback**: "Shake" screen on error.
+- [ ] **Expressive Overdue**: Bubbles should rotate/wobble when overdue.
 
-### 🏗️ P0 - Foundation & Connectivity ✅
-- [x] **Project Setup**: Initialize `frontend` directory with a Flutter Web project.
-- [x] **Asset Migration**: Port sounds and SVGs from `/static` to Flutter assets.
-- [x] **API Layer**: Create a Dart service to communicate with existing Flask endpoints:
-    - `POST /api/scan`: Handle barcode scans.
-    - `GET /api/status`: Fetch initial state.
-    - `GET /events`: Consume SSE (Server-Sent Events) for real-time updates.
-- [x] **State Management**: Set up a robust state manager (Provider/Riverpod) to handle the "Session" and "Roster" data.
+### 2. Critical Bug Fixes
+- [ ] **Timer Lag**: Fix timer skipping seconds.
+- [ ] **Color Logic**: Green for available, Yellow only for warning/overdue.
+- [ ] **Layout**: Fix centering and single-element off-center issues.
+- [ ] **Auto Ban**: Verify auto-ban logic in Flutter.
 
-### 📱 P1 - The Kiosk (Interactive UI) ✅
-*Goal: A fluid, touch-first experience for the iPad.*
-- [x] **Scanning Engine**: Implement a "keyboard listener" in Flutter to capture barcode scanner input (HID mode).
-- [x] **Home Screen (Idle)**:
-    - Implement the "Breathing/Morphing" background shapes using Flutter `CustomPainter` or Lottie.
-    - Status Indicator: "Available" vs "Occupied" with smooth color transitions.
-- [ ] **Action Feedback**:
-    - **Success**: satisfying "pop" animation and sound when a pass is granted.
-    - **Failure/Ban**: "Shake" or "Burst" animation with strict haptic/visual feedback.
-- [ ] **Timer/Session View**: A clear countdown or elapsed time view for the active pass.
+---
 
-### 🖥️ P2 - The Display (Passive UI)
-*Goal: The "Always On" classroom board.*
-- [ ] **Read-Only Mode**: A simplified view that consumes the `/events` stream.
-- [x] **Visual Overhaul**: Switch to **Colored Backgrounds** + **White Bubbles** to match the original "light" aesthetic. <!-- id: 11 -->
-- [ ] **Final Polish**: Fix black flash on transitions. Replace gradient with Material-aligned color interpolation. <!-- id: 13 -->
-- [ ] **Big Typography**: Ensure names and timers are legible from the back of the room.
+## 🔮 Future Roadmap
+
+### ⚙️ Phase 6: Admin & Dev Tools (Material 3 Port)
+*Goal: Unified Material 3 Design for all surfaces.*
+- [ ] **Admin Dashboard (`/admin`)**:
+    - [ ] Port "Roster Management" and "Pass Logs".
+    - [ ] Material 3 Data Tables and Charts.
+- [ ] **Dev Dashboard (`/dev`)**:
+    - [ ] Port "Database Tools" and "System Status".
+    - [ ] Secure with PIN/Auth.
+
+### 🖥️ Phase 7: Passive Display (Enhancements)
 - [ ] **Sync**: Ensure Display state perfectly mirrors Kiosk state (latency < 1s).
-
-## P3: Display & Audio
-- [ ] **Display App Port**: Migrate the public `display.html` view to Flutter (`/display` route). <!-- id: 14 -->
-- [ ] **Sound Effects**: Port custom sounds (Grant, Deny, Ban) to Flutter. <!-- id: 15 -->
-- [ ] **Build Pipeline**: Script to build Flutter Web (`flutter build web --renderer html`) and copy artifacts to Flask's `/static` folder.
-- [ ] **Flask Routing**: Update `app.py` to serve the Flutter `index.html` for `/kiosk` and `/display` routes.
-- [ ] **Cleanup**: Remove legacy `kiosk.js`, `display.js`, and `shapes` folders once verify.
 
 ---
 
 ## ✅ Completed History
+
+### Phase 5 - Flutter Transition (Core)
+**Status**: Core Functional Port Complete (2025-12-10)
+#### 🏗️ P0 - Foundation & Connectivity
+- [x] **Project Setup**: Initialize `frontend` directory with a Flutter Web project.
+- [x] **Asset Migration**: Port sounds and SVGs from `/static` to Flutter assets.
+- [x] **API Layer**: Create a Dart service to communicate with existing Flask endpoints.
+- [x] **State Management**: Set up a robust state manager (Provider/Riverpod).
+
+#### 📱 P1 - The Kiosk (Interactive UI)
+- [x] **Scanning Engine**: Implement a "keyboard listener" in Flutter.
+- [x] **Home Screen (Idle)**:
+    - [x] **Physics**: Custom Spring Simulation.
+    - [x] **Bubbles**: "Cell Division" spawning.
+    - [x] **Sound**: Web Audio API Synthesizer.
+
+#### 🖥️ P2 - The Display (Passive UI)
+- [x] **Display Port**: Read-only view with large typography (`/display`).
 
 ### Phase 3 - UI/UX Overhaul & Polish (Web Version)
 **Status**: Completed (2025-12-08)

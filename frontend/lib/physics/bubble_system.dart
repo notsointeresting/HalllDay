@@ -33,6 +33,8 @@ class BubbleModel {
   String timerText = '';
   bool isOverdue = false;
 
+  DateTime? sessionStart;
+
   BubbleModel({
     required this.id,
     this.type = BubbleType.available,
@@ -51,6 +53,14 @@ class BubbleModel {
     ySpring.update(dt);
     scaleSpring.update(dt);
     rotateSpring.update(dt);
+
+    // Update Timer locally if active
+    if (type == BubbleType.used && sessionStart != null) {
+      final int elapsed = DateTime.now().difference(sessionStart!).inSeconds;
+      final int mins = (elapsed / 60).floor();
+      final int secs = elapsed % 60;
+      timerText = "$mins:${secs.toString().padLeft(2, '0')}";
+    }
   }
 
   void settarget({
@@ -76,22 +86,30 @@ class BubbleModel {
     // Update Content Data
     if (newType == BubbleType.used && sessionData != null) {
       name = sessionData.name;
-      final int mins = (sessionData.elapsed / 60).floor();
-      final int secs = sessionData.elapsed % 60;
-      timerText = "$mins:${secs.toString().padLeft(2, '0')}";
+      // Sync stats immediately
+      sessionStart = sessionData.start;
       isOverdue = sessionData.overdue;
+
+      // Update text immediately
+      final int elapsed = DateTime.now().difference(sessionStart!).inSeconds;
+      final int mins = (elapsed / 60).floor();
+      final int secs = elapsed % 60;
+      timerText = "$mins:${secs.toString().padLeft(2, '0')}";
     } else if (newType == BubbleType.banned) {
       name = "BANNED";
       timerText = "";
       isOverdue = true;
+      sessionStart = null;
     } else if (newType == BubbleType.suspended) {
       name = "SUSPENDED";
       timerText = "";
       isOverdue = true;
+      sessionStart = null;
     } else {
       name = "Scan ID";
       timerText = "";
       isOverdue = false;
+      sessionStart = null;
     }
   }
 }

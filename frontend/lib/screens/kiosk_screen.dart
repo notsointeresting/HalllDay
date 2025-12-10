@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // For HapticFeedback
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../providers/status_provider.dart';
 import '../widgets/physics_layout.dart';
@@ -46,12 +48,28 @@ class _KioskScreenState extends State<KioskScreen> {
     final result = await provider.scanCode(code.trim());
 
     if (result['ok'] == true) {
-      _showSnack(
-        scaffoldMessenger,
-        "Success: ${result['action']} for ${result['name']}",
-        Colors.green,
-      );
+      if (result['action'] == 'ended_banned') {
+        // Special Case: Auto-Ban triggered on check-in
+        HapticFeedback.heavyImpact();
+        _shakeController?.forward(from: 0);
+        _showSnack(
+          scaffoldMessenger,
+          result['message'] ?? "Student Auto-Banned (Overdue)",
+          Colors.red,
+        );
+      } else {
+        _showSnack(
+          scaffoldMessenger,
+          "Success: ${result['action']} for ${result['name']}",
+          Colors.green,
+        );
+      }
     } else {
+      // Trigger Haptics
+      HapticFeedback.heavyImpact();
+      // Trigger Shake
+      _shakeController?.forward(from: 0);
+
       _showSnack(scaffoldMessenger, result['message'] ?? "Error", Colors.red);
     }
   }
@@ -65,6 +83,9 @@ class _KioskScreenState extends State<KioskScreen> {
       ),
     );
   }
+
+  // Controller for the shake animation
+  AnimationController? _shakeController;
 
   @override
   Widget build(BuildContext context) {
@@ -106,7 +127,10 @@ class _KioskScreenState extends State<KioskScreen> {
                 }
 
                 // High-Fidelity Physics Layout using new Engine
-                return PhysicsLayout(status: status);
+                // Wrapped in Animate for Shake Effect
+                return PhysicsLayout(status: status)
+                    .animate(controller: _shakeController, autoPlay: false)
+                    .shakeX(duration: 500.ms, hz: 4, amount: 10);
               },
             ),
           ],

@@ -73,6 +73,8 @@ class StatusProvider with ChangeNotifier {
           SoundService().playSuccessOut(); // Ding-Dong-Ding
         } else if (action == 'ended') {
           SoundService().playSuccessIn(); // Reverse chord
+        } else if (action == 'ended_banned') {
+          SoundService().playAlert(); // Ban sound
         } else {
           // Default success info
           SoundService().playSuccessOut();

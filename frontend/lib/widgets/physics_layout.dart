@@ -87,36 +87,12 @@ class _PhysicsLayoutState extends State<PhysicsLayout>
 
     if (isBanned) {
       bgColor = const Color(0xFFB71C1C); // Red 900
-    } else if (capacity <= 0) {
-      bgColor = const Color(0xFF4CAF50); // Green 500
+    } else if (hasOverdue) {
+      bgColor = const Color(0xFFFFCA28); // Amber 400 (Overdue)
+    } else if (usedCount < capacity) {
+      bgColor = const Color(0xFF4CAF50); // Green 500 (Available)
     } else {
-      double ratio = usedCount / capacity;
-      if (ratio < 0) ratio = 0;
-      if (ratio > 1) ratio = 1;
-
-      if (hasOverdue) {
-        // If overdue, force a pulsing Amber/Orange tone (for now just fixed)
-        bgColor = const Color(0xFFFFCA28); // Amber 400
-      } else {
-        // Interpolate Green -> Red
-        // We use an intermediate 'Yellow' step for better visuals
-        // 0.0 (Green) -> 0.5 (Yellow) -> 1.0 (Red)
-        if (ratio < 0.5) {
-          // Green to Yellow
-          bgColor = Color.lerp(
-            const Color(0xFF4CAF50), // Green 500
-            const Color(0xFFFFEB3B), // Yellow 500
-            ratio * 2, // Map 0-0.5 to 0-1
-          )!;
-        } else {
-          // Yellow to Red
-          bgColor = Color.lerp(
-            const Color(0xFFFFEB3B), // Yellow 500
-            const Color(0xFFEF5350), // Red 400
-            (ratio - 0.5) * 2, // Map 0.5-1.0 to 0-1
-          )!;
-        }
-      }
+      bgColor = const Color(0xFFEF5350); // Red 400 (Full/Busy)
     }
 
     return AnimatedContainer(
@@ -134,6 +110,11 @@ class _PhysicsLayoutState extends State<PhysicsLayout>
           final double screenW = constraints.maxWidth;
           final double screenH = constraints.maxHeight;
 
+          // Dynamically calculate offset based on Bubble Size
+          // Kiosk (380) -> 190 offset
+          // Display (480) -> 240 offset
+          final double bubbleRadius = widget.isDisplay ? 240.0 : 190.0;
+
           return Stack(
             children: _bubbleSystem.bubbles.map((b) {
               // Calculate absolute position based on % coordinates
@@ -146,8 +127,8 @@ class _PhysicsLayoutState extends State<PhysicsLayout>
               if (scale < 0.01) return const SizedBox.shrink();
 
               return Positioned(
-                left: x - 150, // Center origin (assuming 300 width)
-                top: y - 150, // Center origin
+                left: x - bubbleRadius, // Center origin
+                top: y - bubbleRadius, // Center origin
                 child: Transform.scale(
                   scale: scale,
                   child: BubbleWidget(

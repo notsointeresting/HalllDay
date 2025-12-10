@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../physics/bubble_system.dart';
 
@@ -42,7 +43,7 @@ class BubbleWidget extends StatelessWidget {
     final double timerSize = isDisplay ? 36 : 24;
 
     // Increased Size for visibility
-    return Container(
+    Widget bubbleContent = Container(
       width: size,
       height: size,
       decoration: ShapeDecoration(
@@ -69,7 +70,7 @@ class BubbleWidget extends StatelessWidget {
               Icon(
                 _getIconForType(bubble.type),
                 size: iconSize,
-                color: textColor.withOpacity(0.7),
+                color: textColor.withValues(alpha: 0.7),
               ),
 
             const SizedBox(height: 12),
@@ -92,7 +93,7 @@ class BubbleWidget extends StatelessWidget {
               Text(
                 bubble.timerText,
                 style: GoogleFonts.inter(
-                  color: textColor.withOpacity(0.8),
+                  color: textColor.withValues(alpha: 0.8),
                   fontSize: timerSize,
                   fontWeight: FontWeight.w600,
                   fontFeatures: [const FontFeature.tabularFigures()],
@@ -105,13 +106,26 @@ class BubbleWidget extends StatelessWidget {
               Icon(
                 Icons.touch_app_rounded,
                 size: 64,
-                color: textColor.withOpacity(0.5),
+                color: textColor.withValues(alpha: 0.5),
               ),
             ],
           ],
         ),
       ),
     );
+
+    // Apply Wobble if Overdue
+    if (bubble.type == BubbleType.used && bubble.isOverdue) {
+      return bubbleContent
+          .animate(onPlay: (controller) => controller.repeat())
+          .shake(
+            hz: 2,
+            rotation: 0.05,
+            duration: 1000.ms,
+          ); // Gentle rotation shake
+    }
+
+    return bubbleContent;
   }
 
   IconData _getIconForType(BubbleType type) {
