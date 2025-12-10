@@ -1236,61 +1236,9 @@ def api_override_end():
     db.session.commit()
     return jsonify(ok=True)
 
-@app.post("/api/suspend_kiosk")
-@require_admin_auth_api
-def api_suspend_kiosk():
-    try:
-        user_id = get_current_user_id()
-        if not user_id:
-            return jsonify(ok=False, message="User not authenticated"), 403
-        
-        # Get or create settings for this user
-        s = Settings.query.filter_by(user_id=user_id).first()
-        if not s:
-            s = Settings(
-                user_id=user_id,
-                room_name="Hall Pass",
-                capacity=1,
-                overdue_minutes=10,
-                kiosk_suspended=True,
-                auto_ban_overdue=False
-            )
-            db.session.add(s)
-        else:
-            s.kiosk_suspended = True
-        db.session.commit()
-        return jsonify(ok=True, suspended=True)
-    except Exception as e:
-        db.session.rollback()
-        return jsonify(ok=False, message=str(e)), 500
 
-@app.post("/api/resume_kiosk")
-@require_admin_auth_api
-def api_resume_kiosk():
-    try:
-        user_id = get_current_user_id()
-        if not user_id:
-            return jsonify(ok=False, message="User not authenticated"), 403
-        
-        # Get or create settings for this user
-        s = Settings.query.filter_by(user_id=user_id).first()
-        if not s:
-            s = Settings(
-                user_id=user_id,
-                room_name="Hall Pass",
-                capacity=1,
-                overdue_minutes=10,
-                kiosk_suspended=False,
-                auto_ban_overdue=False
-            )
-            db.session.add(s)
-        else:
-            s.kiosk_suspended = False
-        db.session.commit()
-        return jsonify(ok=True, suspended=False)
-    except Exception as e:
-        db.session.rollback()
-        return jsonify(ok=False, message=str(e)), 500
+# Legacy suspend/resume endpoints removed - superseded by /api/settings/suspend
+
 
 @app.post("/api/toggle_kiosk_suspend_quick")
 def api_toggle_kiosk_suspend_quick():

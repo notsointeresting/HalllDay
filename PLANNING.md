@@ -4,7 +4,7 @@
 
 ---
 # 🚨 Current Issues
-- Timer is not in sync between multiple passes. No longer skipping seconds which is good. But two passes entered separately tick at different rates even though they are both one second, the milisecond offset is different. These should be synced to the same clock in the most effcient logical way possible. 
+- Display Cache versus Roster Cache. Sometimes roster is in roster cache but not in display cache and scanning doesn't work. Not sure why there are two caches and why they are different, what the purpose is, if it is justified or not. 
 
 ## 🚨 Current Priorities (Immediate Focus)
 
@@ -24,7 +24,10 @@
 ### 🖥️ Phase 7: Passive Display (Enhancements)
 - [ ] **Sync**: Ensure Display state perfectly mirrors Kiosk state (latency < 1s).
 - [] Build landing page with logo, sign up screen/login, and FAQ (explanation/introduction) or something. idkcanyou.com should default to the landing page (homepage)
----
+### 🖥️ Phase 8 [Optional Queue System]
+- [] Allow students to queue up for a pass optionally enabled by teacher on their admin panel. Will automatically assign a pass to the first person in the queue and then assign the next person in the queue to the next available pass.
+- [] Build a scheduling system for times when kiosk is active and auto suspend when not; connected to admin panel as option and timezone selection. 
+
 
 ## ✅ Completed History
 
