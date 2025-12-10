@@ -56,8 +56,9 @@ class _AdminScreenState extends State<AdminScreen> {
           _capacityCtrl.text = (settings['capacity'] ?? 1).toString();
           _overdueCtrl.text = (settings['overdue_minutes'] ?? 10).toString();
 
-          // Slug isn't explicitly returned in settings currently, simpler to leave empty
-          // or user can re-enter to update.
+          // Pre-populate slug if set
+          final user = data['user'] ?? {};
+          _slugCtrl.text = user['slug'] ?? '';
         });
       }
     } catch (e) {

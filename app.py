@@ -609,6 +609,7 @@ def api_admin_stats():
             user={
                 "name": current_user.name if current_user else "Anonymous",
                 "email": current_user.email if current_user else "",
+                "slug": current_user.kiosk_slug if current_user else None,
                 "urls": public_urls
             },
             total_sessions=query_session.count(),
@@ -726,25 +727,28 @@ def api_roster_upload():
             # User provided screenshot "Student data is encrypted".
             # Let's verify legacy Logic. `update_roster` used `StudentName(name=...)`.
             
-            # Simple approach: Join all cols or pick first likely string.
-            item = " ".join(row).strip()
-            if not item: continue
+            # Parse CSV: Expect Name,ID or ID,Name format
+            # Try: First col is Name, second is ID (if present)
+            name = row[0].strip() if len(row) > 0 else None
+            student_id = row[1].strip() if len(row) > 1 else None
             
-            # Create Student
-            # Naive: Use full row string as 'display_name' and hash it for ID if no explicit ID column.
-            # Better: if 2 cols, Col 1 = Name.
+            if not name:
+                continue
             
-            name = row[0]
-            student_id = row[1] if len(row) > 1 else None
+            # Use student_id for hashing if present, else fall back to row index
+            hash_source = student_id if student_id else f"row_{count}"
+            # Include user_id in hash to avoid collisions across users
+            name_hash = hashlib.sha256(f"student_{user_id}_{hash_source}".encode()).hexdigest()[:16]
             
-            # Create
-            # Need to handle encryption if ID provided.
-            # For now, just store display_name. 
-            # (Refining this requires more logic, I'll assume simple Name upload for now).
+            # Encrypt student_id if provided
+            encrypted_id = None
+            if student_id:
+                encrypted_id = cipher_suite.encrypt(student_id.encode()).decode()
             
             s = StudentName(
                 display_name=name,
-                name_hash=hashlib.sha256(name.encode()).hexdigest(), # fallback hash
+                name_hash=name_hash,
+                encrypted_id=encrypted_id,
                 user_id=user_id,
                 banned=False
             )

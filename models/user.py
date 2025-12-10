@@ -54,9 +54,9 @@ def create_user_model(db):
                 self.kiosk_slug = None
                 return True
             
-            # Validate slug format (lowercase, alphanumeric, hyphens only)
+            # Validate slug format (lowercase, alphanumeric, hyphens only, 1-64 chars)
             import re
-            if not re.match(r'^[a-z0-9][a-z0-9-]{2,62}[a-z0-9]$', slug):
+            if not re.match(r'^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$', slug) or len(slug) > 64:
                 return False
             
             self.kiosk_slug = slug
