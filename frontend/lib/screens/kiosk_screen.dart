@@ -122,7 +122,7 @@ class _KioskScreenState extends State<KioskScreen>
 
             LayoutBuilder(
               builder: (context, constraints) {
-                final isSmallScreen = constraints.maxWidth < 600;
+                final isSmallScreen = constraints.maxWidth < 900;
 
                 return Consumer<StatusProvider>(
                   builder: (context, provider, child) {

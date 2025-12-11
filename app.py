@@ -1599,7 +1599,9 @@ def api_stats_week():
     for r in rows:
         sid = r.student_id
         # Prefer roster name over Student table name (fixes Anonymous entries)
-        name = get_student_name(sid, r.student.name, user_id=user_id)
+        name = get_student_name(sid, "Unknown", user_id=user_id)
+        if name == "Unknown" and r.student and r.student.name != "Student":
+            name = r.student.name
         if sid not in per_student:
             per_student[sid] = {"name": name, "count": 0, "overdue": 0}
         per_student[sid]["count"] += 1

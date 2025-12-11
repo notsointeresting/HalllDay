@@ -108,10 +108,10 @@ class _PhysicsLayoutState extends State<PhysicsLayout>
           final double screenW = constraints.maxWidth;
           final double screenH = constraints.maxHeight;
 
-          // Scale shapes based on screen width
-          double scaleFactor = 1.0;
-          if (screenW < 600) scaleFactor = 0.6; // Mobile/Small Tablet
-          if (screenW < 400) scaleFactor = 0.45; // Very Small
+          // Scale shapes based on screen width (Linear Scaling)
+          // 600px -> 0.6, 1200px+ -> 1.0
+          // Formula: clamp((width / 1000), 0.55, 1.0)
+          double scaleFactor = (screenW / 1000).clamp(0.55, 1.0);
 
           // Base size multiplied by scale factor
           final double baseRadius = widget.isDisplay ? 240.0 : 190.0;
