@@ -146,6 +146,8 @@ class _PhysicsLayoutState extends State<PhysicsLayout>
                       isDisplay: widget.isDisplay,
                       scale:
                           1.0, // Internal scale normalized, size handled by Transform/Radius
+                      overrideSize:
+                          baseRadius * 2, // Force exact size to match layout
                     ),
                   ),
                 );

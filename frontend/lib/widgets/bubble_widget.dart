@@ -7,12 +7,14 @@ class BubbleWidget extends StatelessWidget {
   final BubbleModel bubble;
   final bool isDisplay; // Add scaling flag
   final double scale; // New scale factor
+  final double? overrideSize; // Allow parent to dictate size
 
   const BubbleWidget({
     super.key,
     required this.bubble,
     this.isDisplay = false,
     this.scale = 1.0,
+    this.overrideSize,
   });
 
   @override
@@ -43,7 +45,8 @@ class BubbleWidget extends StatelessWidget {
 
     // Scaling Logic for Display Mode
     // If isDisplay is true, we bump sizes significantly
-    final double baseSize = isDisplay ? 480 : 380;
+    // UNLESS overrideSize is provided
+    final double baseSize = overrideSize ?? (isDisplay ? 480 : 380);
     final double size = baseSize * scale;
 
     final double iconSize = (isDisplay ? 80 : 64) * scale;
