@@ -133,12 +133,11 @@ class _PhysicsLayoutState extends State<PhysicsLayout>
 
                 if (currentScale < 0.01) return const SizedBox.shrink();
 
-                // Dynamic Radius based on physics scale
-                final double bubbleRadius = baseRadius * currentScale;
-
                 return Positioned(
-                  left: x - bubbleRadius, // Center origin
-                  top: y - bubbleRadius, // Center origin
+                  left:
+                      x - baseRadius, // Center origin relative to UNSCALED size
+                  top:
+                      y - baseRadius, // Center origin relative to UNSCALED size
                   child: Transform.scale(
                     scale: currentScale,
                     child: BubbleWidget(
