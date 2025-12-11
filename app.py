@@ -699,30 +699,54 @@ def api_admin_stats():
 
 # --- Admin Action Endpoints ---
 
-@app.route("/api/settings/update", methods=["POST"])
-def api_update_settings():
-    if not is_admin_authenticated():
-        return jsonify(ok=False, error="Unauthorized"), 401
 
-    data = request.get_json()
+
+@app.route("/api/settings/update", methods=["POST"])
+@require_admin_auth_api
+def update_settings_api():
     user_id = get_current_user_id()
+    if not user_id:
+        return jsonify(ok=False, message="User not authenticated"), 403
     
-    try:
-        settings = Settings.query.filter_by(user_id=user_id).first()
-        if not settings:
-            # Should exist via get_settings(), but strictly:
-            settings = Settings(user_id=user_id)
-            db.session.add(settings)
-            
-        if 'room_name' in data: settings.room_name = data['room_name']
-        if 'capacity' in data: settings.capacity = int(data['capacity'])
-        if 'overdue_minutes' in data: settings.overdue_minutes = int(data['overdue_minutes'])
-        if 'auto_ban_overdue' in data: settings.auto_ban_overdue = bool(data['auto_ban_overdue'])
-        
-        db.session.commit()
-        return jsonify(ok=True)
-    except Exception as e:
-        return jsonify(ok=False, error=str(e)), 500
+    data = request.get_json(silent=True) or {}
+    
+    # Get or create the user's settings (isolated from all other users)
+    s = Settings.query.filter_by(user_id=user_id).first()
+    if not s:
+        s = Settings(
+            user_id=user_id,
+            room_name="Hall Pass",
+            capacity=1,
+            overdue_minutes=10,
+            kiosk_suspended=False,
+            auto_ban_overdue=False
+        )
+        db.session.add(s)
+    
+    if "room_name" in data:
+        s.room_name = str(data["room_name"]).strip() or s.room_name
+    if "capacity" in data:
+        try:
+            s.capacity = max(1, int(data["capacity"]))
+        except Exception:
+            pass
+    if "overdue_minutes" in data:
+        try:
+            s.overdue_minutes = max(1, int(data["overdue_minutes"]))
+        except Exception:
+            pass
+    if "kiosk_suspended" in data:
+        s.kiosk_suspended = bool(data["kiosk_suspended"])
+    if "auto_ban_overdue" in data:
+        s.auto_ban_overdue = bool(data["auto_ban_overdue"])
+    if "auto_promote_queue" in data:
+        s.auto_promote_queue = bool(data["auto_promote_queue"])
+    if "enable_queue" in data:
+        s.enable_queue = bool(data["enable_queue"])
+    
+    db.session.commit()
+    return jsonify(ok=True, settings=get_settings(user_id))
+
 
 @app.route("/api/settings/suspend", methods=["POST"])
 def api_suspend_kiosk():
@@ -2449,51 +2473,7 @@ def migrate_api():
 def get_settings_api():
     return jsonify(get_settings())
 
-@app.post("/api/settings")
-@require_admin_auth_api
-def update_settings_api():
-    user_id = get_current_user_id()
-    if not user_id:
-        return jsonify(ok=False, message="User not authenticated"), 403
-    
-    data = request.get_json(silent=True) or {}
-    
-    # Get or create the user's settings (isolated from all other users)
-    s = Settings.query.filter_by(user_id=user_id).first()
-    if not s:
-        s = Settings(
-            user_id=user_id,
-            room_name="Hall Pass",
-            capacity=1,
-            overdue_minutes=10,
-            kiosk_suspended=False,
-            auto_ban_overdue=False
-        )
-        db.session.add(s)
-    
-    if "room_name" in data:
-        s.room_name = str(data["room_name"]).strip() or s.room_name
-    if "capacity" in data:
-        try:
-            s.capacity = max(1, int(data["capacity"]))
-        except Exception:
-            pass
-    if "overdue_minutes" in data:
-        try:
-            s.overdue_minutes = max(1, int(data["overdue_minutes"]))
-        except Exception:
-            pass
-    if "kiosk_suspended" in data:
-        s.kiosk_suspended = bool(data["kiosk_suspended"])
-    if "auto_ban_overdue" in data:
-        s.auto_ban_overdue = bool(data["auto_ban_overdue"])
-    if "auto_promote_queue" in data:
-        s.auto_promote_queue = bool(data["auto_promote_queue"])
-    if "enable_queue" in data:
-        s.enable_queue = bool(data["enable_queue"])
-    
-    db.session.commit()
-    return jsonify(ok=True, settings=get_settings(user_id))
+
 
 if __name__ == "__main__":
     with app.app_context():
