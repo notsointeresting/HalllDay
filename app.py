@@ -912,6 +912,42 @@ def api_roster_clear():
         db.session.rollback()
         return jsonify(ok=False, error=str(e)), 500
 
+@app.route("/api/admin/logs", methods=["GET"])
+def api_admin_logs():
+    if not is_admin_authenticated():
+        return jsonify(ok=False, error="Unauthorized"), 401
+        
+    user_id = get_current_user_id()
+    try:
+        # Fetch last 100 sessions
+        sessions = Session.query.filter_by(user_id=user_id).order_by(Session.start_ts.desc()).limit(100).all()
+        
+        logs = []
+        for s in sessions:
+            name = get_student_name(s.student_id, "Unknown", user_id=user_id)
+            
+            status = "active"
+            if s.end_ts:
+                status = "completed"
+                # Check if it was overdue
+                if s.duration_seconds > get_settings(user_id)["overdue_minutes"] * 60:
+                    status = "overdue"
+            
+            logs.append({
+                "id": s.id,
+                "name": name,
+                "student_id": s.student_id, # Raw ID might be needed for correlation
+                "start": to_local(s.start_ts).isoformat(),
+                "end": to_local(s.end_ts).isoformat() if s.end_ts else None,
+                "duration_minutes": round(s.duration_seconds / 60, 1),
+                "status": status,
+                "room": s.room
+            })
+            
+        return jsonify(ok=True, logs=logs)
+    except Exception as e:
+        return jsonify(ok=False, error=str(e)), 500
+
 @app.route("/api/control/ban_overdue", methods=["POST"])
 def api_ban_overdue():
     if not is_admin_authenticated():

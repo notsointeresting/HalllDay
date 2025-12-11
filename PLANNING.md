@@ -4,7 +4,7 @@
 
 ---
 # 🚨 Current Issues
-- Display Cache versus Roster Cache. Sometimes roster is in roster cache but not in display cache and scanning doesn't work. Not sure why there are two caches and why they are different, what the purpose is, if it is justified or not. 
+- Room name not showing up in top.
 
 ## 🚨 Current Priorities (Immediate Focus)
 
@@ -12,13 +12,15 @@
 *Goal: Unified Material 3 Design for all surfaces.*
 - [ ] **Admin Dashboard (`/admin`)**:
     - [ ] **Roster Management**:
-        - [ ] Manual Ban List (View all students, toggle ban status).
-        - [ ] Roster Clear: Ensure session history is cleared (or properly handled) to remove "Anonymous" ghost stats.
-    - [ ] Port "Pass Logs".
+        - [x] Manual Ban List (View all students, toggle ban status).
+        - [x] Roster Clear: Ensure session history is cleared (or properly handled) to remove "Anonymous" ghost stats.
+    - [x] Port "Pass Logs".
     - [ ] Material 3 Data Tables and Charts.
+    - [ ] A CSV template or instructions for uploading a roster properly (header row, id, name). 
 - [ ] **Dev Dashboard (`/dev`)**:
     - [ ] Port "Database Tools" and "System Status".
     - [ ] Secure with PIN/Auth.
+    - [ ] More robust ability to manage users, see active sessions/passes etc in /dev
 
 ---
 
@@ -26,10 +28,10 @@
 
 ### 🖥️ Phase 7: Passive Display (Enhancements)
 - [ ] **Sync**: Ensure Display state perfectly mirrors Kiosk state (latency < 1s).
-- [] Build landing page with logo, sign up screen/login, and FAQ (explanation/introduction) or something. idkcanyou.com should default to the landing page (homepage)
+- [x] Build landing page with logo, sign up screen/login, and FAQ (explanation/introduction) or something. idkcanyou.com should default to the landing page (homepage) and have tabs or some way to navigate to the admin, kiosk and display pages. I think this may have already been started by an agent but it was not completed or not properly implemented. 
 ### 🖥️ Phase 8 [Optional Queue System]
 - [] Allow students to queue up for a pass optionally enabled by teacher on their admin panel. Will automatically assign a pass to the first person in the queue and then assign the next person in the queue to the next available pass.
-- [] Build a scheduling system for times when kiosk is active and auto suspend when not; connected to admin panel as option and timezone selection. 
+- [] Build a scheduling system for times when kiosk is active and auto suspend when not; connected to admin panel as option and timezone selection. T
 
 ### 📡 Phase 9: Server-Sent Events (SSE) Optimization
 *Goal: Replace polling with push-based updates for efficiency.*

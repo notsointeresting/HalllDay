@@ -114,28 +114,54 @@ class _PhysicsLayoutState extends State<PhysicsLayout>
           final double bubbleRadius = widget.isDisplay ? 240.0 : 190.0;
 
           return Stack(
-            children: _bubbleSystem.bubbles.map((b) {
-              // Calculate absolute position based on % coordinates
-              final double x = (b.xSpring.current / 100.0) * screenW;
-              final double y = (b.ySpring.current / 100.0) * screenH;
-
-              // Apply Scale
-              final double scale = b.scaleSpring.current;
-
-              if (scale < 0.01) return const SizedBox.shrink();
-
-              return Positioned(
-                left: x - bubbleRadius, // Center origin
-                top: y - bubbleRadius, // Center origin
-                child: Transform.scale(
-                  scale: scale,
-                  child: BubbleWidget(
-                    bubble: b,
-                    isDisplay: widget.isDisplay, // Pass flag down
+            children: [
+              // Room Name Header
+              Positioned(
+                top: 40,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Text(
+                    widget.status.name,
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: widget.isDisplay ? 48 : 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      shadows: [
+                        Shadow(
+                          offset: const Offset(0, 2),
+                          blurRadius: 4,
+                          color: Colors.black.withOpacity(0.3),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              );
-            }).toList(),
+              ),
+              ..._bubbleSystem.bubbles.map((b) {
+                // Calculate absolute position based on % coordinates
+                final double x = (b.xSpring.current / 100.0) * screenW;
+                final double y = (b.ySpring.current / 100.0) * screenH;
+
+                // Apply Scale
+                final double scale = b.scaleSpring.current;
+
+                if (scale < 0.01) return const SizedBox.shrink();
+
+                return Positioned(
+                  left: x - bubbleRadius, // Center origin
+                  top: y - bubbleRadius, // Center origin
+                  child: Transform.scale(
+                    scale: scale,
+                    child: BubbleWidget(
+                      bubble: b,
+                      isDisplay: widget.isDisplay, // Pass flag down
+                    ),
+                  ),
+                );
+              }).toList(),
+            ],
           );
         },
       ),

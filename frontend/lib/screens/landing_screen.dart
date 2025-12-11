@@ -103,6 +103,32 @@ class LandingScreen extends StatelessWidget {
                     ],
                   ),
 
+                  const SizedBox(height: 64),
+
+                  // Find Kiosk
+                  Container(
+                    width: 400,
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Column(
+                      children: [
+                        const Text(
+                          "Find Your Kiosk",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _TokenInput(),
+                      ],
+                    ),
+                  ),
+
                   const SizedBox(height: 96),
 
                   // FAQ Section
@@ -160,6 +186,51 @@ class LandingScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _TokenInput extends StatefulWidget {
+  @override
+  State<_TokenInput> createState() => _TokenInputState();
+}
+
+class _TokenInputState extends State<_TokenInput> {
+  final _ctrl = TextEditingController();
+
+  void _go() {
+    final token = _ctrl.text.trim();
+    if (token.isNotEmpty) {
+      web.window.location.href = '/kiosk/$token';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _ctrl,
+            decoration: const InputDecoration(
+              hintText: "Enter Token (e.g. room-101)",
+              border: OutlineInputBorder(),
+              filled: true,
+              fillColor: Colors.white,
+            ),
+            onSubmitted: (_) => _go(),
+          ),
+        ),
+        const SizedBox(width: 16),
+        FilledButton(
+          onPressed: _go,
+          style: FilledButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            backgroundColor: Colors.green[800],
+          ),
+          child: const Text("Go"),
+        ),
+      ],
     );
   }
 }

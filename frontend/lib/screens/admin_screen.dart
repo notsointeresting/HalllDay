@@ -497,6 +497,11 @@ class _AdminScreenState extends State<AdminScreen> {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "Supported CSV Formats: Name, ID (e.g. 'John Doe, 12345') OR ID, Name. Header row is optional.",
+                        style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                      ),
                       const SizedBox(height: 16),
                       Row(
                         children: [
@@ -643,10 +648,21 @@ class _AdminScreenState extends State<AdminScreen> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 16),
+                Center(
+                  child: TextButton.icon(
+                    onPressed: () => showDialog(
+                      context: context,
+                      builder: (c) => _PassLogsDialog(api: _api),
+                    ),
+                    icon: const Icon(Icons.history),
+                    label: const Text("View Full Pass Logs"),
+                  ),
+                ),
 
                 const SizedBox(height: 32),
 
-                // Controls (Auto-Ban)
+                // System Controls (Auto-Ban)
                 _SectionHeader(title: "Auto-Ban", color: Colors.green[800]),
                 Container(
                   padding: const EdgeInsets.all(24),
@@ -1122,6 +1138,129 @@ class _RosterManagerState extends State<_RosterManager> {
                           ),
                         );
                       },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PassLogsDialog extends StatefulWidget {
+  final ApiService api;
+  const _PassLogsDialog({required this.api});
+
+  @override
+  State<_PassLogsDialog> createState() => _PassLogsDialogState();
+}
+
+class _PassLogsDialogState extends State<_PassLogsDialog> {
+  bool _loading = true;
+  List<Map<String, dynamic>> _logs = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final data = await widget.api.getPassLogs();
+      if (mounted) {
+        setState(() {
+          _logs = data;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: Container(
+        width: 800,
+        height: 700,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                const Text(
+                  "Recent Pass Activity",
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _logs.isEmpty
+                  ? const Center(child: Text("No logs found."))
+                  : SingleChildScrollView(
+                      child: DataTable(
+                        columns: const [
+                          DataColumn(label: Text("Student")),
+                          DataColumn(label: Text("Start Time")),
+                          DataColumn(label: Text("Duration")),
+                          DataColumn(label: Text("Status")),
+                        ],
+                        rows: _logs.map((log) {
+                          final status = log['status'] ?? 'active';
+                          final isOverdue = status == 'overdue';
+                          final isEnded = status == 'completed';
+
+                          Color color = Colors.black;
+                          if (isOverdue)
+                            color = Colors.red;
+                          else if (!isEnded)
+                            color = Colors.green[800]!;
+
+                          return DataRow(
+                            cells: [
+                              DataCell(
+                                Text(
+                                  log['name'] ?? 'Unknown',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              DataCell(
+                                Text(
+                                  log['start']?.split('T')[1].split('.')[0] ??
+                                      '',
+                                ),
+                              ),
+                              DataCell(Text("${log['duration_minutes']} min")),
+                              DataCell(
+                                Text(
+                                  status.toUpperCase(),
+                                  style: TextStyle(
+                                    color: color,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
                     ),
             ),
           ],

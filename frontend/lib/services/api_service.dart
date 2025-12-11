@@ -139,6 +139,18 @@ class ApiService {
     throw Exception('Failed to upload roster: ${response.body}');
   }
 
+  Future<List<Map<String, dynamic>>> getPassLogs() async {
+    final uri = _getUri('/api/admin/logs');
+    final response = await http.get(uri);
+
+    if (response.statusCode == 401) throw Exception('Unauthorized');
+    if (response.statusCode == 200) {
+      final body = json.decode(response.body);
+      return List<Map<String, dynamic>>.from(body['logs']);
+    }
+    throw Exception('Failed to load logs: ${response.statusCode}');
+  }
+
   Future<List<Map<String, dynamic>>> fetchRoster() async {
     final uri = _getUri('/api/roster');
     final response = await http.get(uri);
