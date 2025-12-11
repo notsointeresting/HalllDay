@@ -178,9 +178,11 @@ class _AdminScreenState extends State<AdminScreen> {
   Future<void> _clearRoster() async {
     final cur = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (context) => AlertDialog(
         title: const Text('Clear Roster?'),
-        content: const Text('This will remove all students. History is kept.'),
+        content: const Text(
+          'This will remove all students. IDs will show as "Anonymous" until a new roster is uploaded.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -188,20 +190,27 @@ class _AdminScreenState extends State<AdminScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Clear', style: TextStyle(color: Colors.red)),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Clear'),
           ),
         ],
       ),
     );
+
     if (cur == true) {
       try {
         await _api.clearRoster();
-        _loadData();
-      } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(SnackBar(content: Text('Error: $e')));
+          ).showSnackBar(const SnackBar(content: Text('Roster cleared.')));
+        }
+        _loadData();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          );
         }
       }
     }

@@ -695,6 +695,7 @@ def api_update_settings():
         if 'room_name' in data: settings.room_name = data['room_name']
         if 'capacity' in data: settings.capacity = int(data['capacity'])
         if 'overdue_minutes' in data: settings.overdue_minutes = int(data['overdue_minutes'])
+        if 'auto_ban_overdue' in data: settings.auto_ban_overdue = bool(data['auto_ban_overdue'])
         
         db.session.commit()
         return jsonify(ok=True)
@@ -777,8 +778,28 @@ def api_roster_upload():
             
             # Parse CSV: Expect Name,ID or ID,Name format
             # Try: First col is Name, second is ID (if present)
-            name = row[0].strip() if len(row) > 0 else None
-            student_id = row[1].strip() if len(row) > 1 else None
+            # Auto-detect format:
+            # Check if col 0 looks like an ID (digits) and col 1 like text
+            # Or vice versa.
+            col0 = row[0].strip() if len(row) > 0 else ""
+            col1 = row[1].strip() if len(row) > 1 else ""
+            
+            name = None
+            student_id = None
+            
+            # Simple heuristic: IDs are usually numeric. Names are not.
+            if col0 and all(c.isdigit() for c in col0) and not (col1 and all(c.isdigit() for c in col1)):
+                # Format: ID, Name
+                student_id = col0
+                name = col1
+            elif col1 and all(c.isdigit() for c in col1) and not (col0 and all(c.isdigit() for c in col0)):
+                # Format: Name, ID
+                name = col0
+                student_id = col1
+            else:
+                # Ambiguous or both strings/ints. Fallback to Name, ID default
+                name = col0
+                student_id = col1
             
             if not name:
                 continue
