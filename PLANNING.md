@@ -1,6 +1,6 @@
 # IDK Can You? Development Plan
 
-**Last Updated:** 2025-12-10
+**Last Updated:** 2025-12-11
 
 ---
 # 🚨 resolved Issues
@@ -33,8 +33,8 @@
 - [ ] **Sync**: Ensure Display state perfectly mirrors Kiosk state (latency < 1s).
 - [x] Build landing page with logo, sign up screen/login, and FAQ (explanation/introduction) or something. idkcanyou.com should default to the landing page (homepage) and have tabs or some way to navigate to the admin, kiosk and display pages. I think this may have already been started by an agent but it was not completed or not properly implemented. 
 ### 🖥️ Phase 8 [Optional Queue System]
-- [] Allow students to queue up for a pass optionally enabled by teacher on their admin panel. Will automatically assign a pass to the first person in the queue and then assign the next person in the queue to the next available pass.
-- [] Build a scheduling system for times when kiosk is active and auto suspend when not; connected to admin panel as option and timezone selection. T
+- [x] Allow students to queue up for a pass optionally enabled by teacher on their admin panel. Will automatically assign a pass to the first person in the queue and then assign the next person in the queue to the next available pass.
+
 
 ### 📡 Phase 9: Server-Sent Events (SSE) Optimization
 *Goal: Replace polling with push-based updates for efficiency.*
@@ -45,6 +45,8 @@
 ### Not Immediate
 - [ ] Landing Page is a little boring and too "businessy" looking. Learn more doesn't link to anything.  
 
+### Future When manually approved not interested in tackling yet 
+- [ ] Build a scheduling system for times when kiosk is active and auto suspend when not; connected to admin panel as option and timezone selection. T
 
 ## ✅ Completed History
 
