@@ -108,36 +108,44 @@ class _PhysicsLayoutState extends State<PhysicsLayout>
           final double screenW = constraints.maxWidth;
           final double screenH = constraints.maxHeight;
 
-          // Scale shapes based on screen width (Linear Scaling)
-          // 600px -> 0.6, 1200px+ -> 1.0
-          // Formula: clamp((width / 1000), 0.55, 1.0)
-          double scaleFactor = (screenW / 1000).clamp(0.55, 1.0);
+          // Update Viewport in Physics System
+          _bubbleSystem.updateViewport(Size(screenW, screenH));
 
-          // Base size multiplied by scale factor
-          final double baseRadius = widget.isDisplay ? 240.0 : 190.0;
-          final double bubbleRadius = baseRadius * scaleFactor;
+          // Base size logic based on screen real estate
+          // We want bubbles to take up a significant portion of the screen "creatively".
+          // The Physics Scale provides the layout factor (0.0 to 1.6+).
+          // We apply that to a large base radius derived from the viewport min dimension.
+
+          final double minDim = (screenW < screenH) ? screenW : screenH;
+          // Base radius is 40% of the smallest dimension
+          final double baseRadius = minDim * 0.40;
 
           return Stack(
             children: [
               ..._bubbleSystem.bubbles.map((b) {
                 // Calculate absolute position based on % coordinates
+                // Physics x/y are 0-100 percentages of the viewport.
                 final double x = (b.xSpring.current / 100.0) * screenW;
                 final double y = (b.ySpring.current / 100.0) * screenH;
 
-                // Apply Scale
-                final double scale = b.scaleSpring.current;
+                // Apply Scale from Physics (which is now aspect-aware)
+                final double currentScale = b.scaleSpring.current;
 
-                if (scale < 0.01) return const SizedBox.shrink();
+                if (currentScale < 0.01) return const SizedBox.shrink();
+
+                // Dynamic Radius based on physics scale
+                final double bubbleRadius = baseRadius * currentScale;
 
                 return Positioned(
                   left: x - bubbleRadius, // Center origin
                   top: y - bubbleRadius, // Center origin
                   child: Transform.scale(
-                    scale: scale,
+                    scale: currentScale,
                     child: BubbleWidget(
                       bubble: b,
-                      isDisplay: widget.isDisplay, // Pass flag down
-                      scale: scaleFactor, // Scale based on screen size
+                      isDisplay: widget.isDisplay,
+                      scale:
+                          1.0, // Internal scale normalized, size handled by Transform/Radius
                     ),
                   ),
                 );

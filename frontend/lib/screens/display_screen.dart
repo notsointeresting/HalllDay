@@ -30,7 +30,7 @@ class _DisplayScreenState extends State<DisplayScreen> {
       body: LayoutBuilder(
         // Add LayoutBuilder to detect screen size
         builder: (context, constraints) {
-          final isSmallScreen = constraints.maxWidth < 900;
+          final isSmallScreen = constraints.maxWidth < 600;
 
           return Consumer<StatusProvider>(
             builder: (context, provider, child) {
