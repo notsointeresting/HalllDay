@@ -119,30 +119,6 @@ class _PhysicsLayoutState extends State<PhysicsLayout>
 
           return Stack(
             children: [
-              // Room Name Header
-              Positioned(
-                top: 40,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: Text(
-                    widget.status.name,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: widget.isDisplay ? 48 : 32,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      shadows: [
-                        Shadow(
-                          offset: const Offset(0, 2),
-                          blurRadius: 4,
-                          color: Colors.black.withOpacity(0.3),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
               ..._bubbleSystem.bubbles.map((b) {
                 // Calculate absolute position based on % coordinates
                 final double x = (b.xSpring.current / 100.0) * screenW;

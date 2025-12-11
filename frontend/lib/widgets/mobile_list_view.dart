@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../models/kiosk_status.dart';
 
 class MobileListView extends StatelessWidget {
@@ -17,15 +17,6 @@ class MobileListView extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           children: [
             // Header
-            Text(
-              status.name,
-              style: GoogleFonts.outfit(
-                color: Colors.white,
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
             const SizedBox(height: 24),
 
             // ACTIVE PASSES Section
