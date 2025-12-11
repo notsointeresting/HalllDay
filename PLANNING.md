@@ -3,8 +3,11 @@
 **Last Updated:** 2025-12-10
 
 ---
-# 🚨 Current Issues
-- Room name not showing up in top.
+# 🚨 resolved Issues
+- [x] Room name not showing up in top.
+- [x] Landing page / home page should be the default page when visiting idkcanyou.com, not the logged in kiosk. auto login is great, but we should have a way to navigate to the kiosk from the landing page and all the other pages should be accessible from every page in tabs or hamburger menu up to date with material design 3 expressive guidelines. 
+- [x] Pass logs function but is not exportable to CSV. Need that implemented. 
+- [x] https://www.idkcanu.com/logout is not working not a proper URL. should logout and then redirect to landing page. 
 
 ## 🚨 Current Priorities (Immediate Focus)
 

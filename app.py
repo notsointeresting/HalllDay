@@ -472,7 +472,9 @@ init_oauth(app)
 
 @app.route("/")
 def index():
-    return redirect(url_for("kiosk"))
+    if os.path.exists(os.path.join(app.static_folder, 'index.html')):
+        return send_from_directory(app.static_folder, 'index.html')
+    return "Flutter App Not Built", 404
 
 # Legacy kiosk route (for backward compatibility and logged-in users)
 @app.route("/kiosk")
@@ -556,7 +558,12 @@ def admin_login():
 @app.route("/admin/logout")
 def admin_logout():
     session.pop('admin_authenticated', None)
-    return redirect(url_for('admin_login'))
+    return redirect("/")
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/")
 
 @app.route("/admin")
 @require_admin_auth
@@ -947,6 +954,52 @@ def api_admin_logs():
         return jsonify(ok=True, logs=logs)
     except Exception as e:
         return jsonify(ok=False, error=str(e)), 500
+
+@app.route("/api/admin/logs/export", methods=["GET"])
+def api_admin_logs_export():
+    if not is_admin_authenticated():
+        return "Unauthorized", 401
+    
+    user_id = get_current_user_id()
+    try:
+        # Fetch all sessions (limited to reasonable number or date range? User said "export logs", implies all)
+        # Let's limit to last 1000 for safety, or all if feasible. 1000 is safe.
+        sessions = Session.query.filter_by(user_id=user_id).order_by(Session.start_ts.desc()).limit(1000).all()
+        
+        si = io.StringIO()
+        cw = csv.writer(si)
+        cw.writerow(["Student Name", "Student ID", "Room", "Start Time", "End Time", "Duration (Minutes)", "Status"])
+        
+        for s in sessions:
+            name = get_student_name(s.student_id, "Unknown", user_id=user_id)
+            status = "active"
+            if s.end_ts:
+                status = "completed"
+                if s.duration_seconds > get_settings(user_id)["overdue_minutes"] * 60:
+                    status = "overdue"
+            
+            cw.writerow([
+                name,
+                s.student_id,
+                s.room,
+                to_local(s.start_ts).isoformat(),
+                to_local(s.end_ts).isoformat() if s.end_ts else "",
+                round(s.duration_seconds / 60, 1),
+                status
+            ])
+            
+        output = io.BytesIO()
+        output.write(si.getvalue().encode('utf-8'))
+        output.seek(0)
+        
+        return send_file(
+            output,
+            mimetype="text/csv",
+            as_attachment=True,
+            download_name="pass_logs.csv"
+        )
+    except Exception as e:
+        return str(e), 500
 
 @app.route("/api/control/ban_overdue", methods=["POST"])
 def api_ban_overdue():

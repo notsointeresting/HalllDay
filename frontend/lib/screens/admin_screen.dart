@@ -1200,6 +1200,14 @@ class _PassLogsDialogState extends State<_PassLogsDialog> {
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    web.window.open('/api/admin/logs/export', '_blank');
+                  },
+                  icon: const Icon(Icons.download),
+                  label: const Text("Export CSV"),
+                ),
+                const SizedBox(width: 16),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.close),
