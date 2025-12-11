@@ -176,30 +176,50 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   Future<void> _clearRoster() async {
+    bool clearHistory = true;
     final cur = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Clear Roster?'),
-        content: const Text(
-          'This will remove all students. IDs will show as "Anonymous" until a new roster is uploaded.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Clear'),
-          ),
-        ],
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('Clear Roster?'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'This will remove all students. IDs will show as "Anonymous" until a new roster is uploaded.',
+                ),
+                const SizedBox(height: 16),
+                CheckboxListTile(
+                  title: const Text("Also delete session history?"),
+                  subtitle: const Text("Prevents 'Anonymous' stats."),
+                  value: clearHistory,
+                  onChanged: (val) =>
+                      setState(() => clearHistory = val ?? true),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Clear'),
+              ),
+            ],
+          );
+        },
       ),
     );
 
     if (cur == true) {
       try {
-        await _api.clearRoster();
+        await _api.clearRoster(clearHistory: clearHistory);
         if (mounted) {
           ScaffoldMessenger.of(
             context,
@@ -487,6 +507,18 @@ class _AdminScreenState extends State<AdminScreen> {
                               foregroundColor: Colors.white,
                             ),
                             child: const Text("Upload CSV"),
+                          ),
+                          const SizedBox(width: 16),
+                          OutlinedButton.icon(
+                            onPressed: () => showDialog(
+                              context: context,
+                              builder: (c) => _RosterManager(api: _api),
+                            ),
+                            icon: const Icon(Icons.list),
+                            label: const Text("Manage Bans & View List"),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.green[800],
+                            ),
                           ),
                         ],
                       ),
@@ -942,6 +974,158 @@ class _InsightCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _RosterManager extends StatefulWidget {
+  final ApiService api;
+  const _RosterManager({required this.api});
+
+  @override
+  State<_RosterManager> createState() => _RosterManagerState();
+}
+
+class _RosterManagerState extends State<_RosterManager> {
+  bool _loading = true;
+  List<Map<String, dynamic>> _roster = [];
+  List<Map<String, dynamic>> _filtered = [];
+  final TextEditingController _searchCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final data = await widget.api.fetchRoster();
+      setState(() {
+        _roster = data;
+        _filtered = data;
+        _loading = false;
+      });
+      _filter();
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  void _filter() {
+    final q = _searchCtrl.text.toLowerCase();
+    setState(() {
+      _filtered = _roster.where((s) {
+        final name = (s['name'] ?? '').toString().toLowerCase();
+        final id = (s['student_id'] ?? '').toString().toLowerCase();
+        return name.contains(q) || id.contains(q);
+      }).toList();
+    });
+  }
+
+  Future<void> _toggleBan(int index, bool val) async {
+    final s = _filtered[index];
+    // Optimistic
+    setState(() {
+      s['banned'] = val;
+    });
+
+    try {
+      await widget.api.toggleBan(s['name_hash'], val);
+    } catch (e) {
+      // Revert
+      setState(() {
+        s['banned'] = !val;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: Container(
+        width: 600,
+        height: 700,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Text(
+                  "Manage Roster & Bans",
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _searchCtrl,
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search),
+                hintText: "Search by Name or ID...",
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (_) => _filter(),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _filtered.isEmpty
+                  ? const Center(child: Text("No students found."))
+                  : ListView.separated(
+                      itemCount: _filtered.length,
+                      separatorBuilder: (_, __) => const Divider(),
+                      itemBuilder: (ctx, i) {
+                        final s = _filtered[i];
+                        final id = s['student_id'] ?? 'Hidden';
+                        final isBanned = s['banned'] == true;
+
+                        return ListTile(
+                          title: Text(s['name'] ?? 'Unknown'),
+                          subtitle: Text("ID: $id"),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                isBanned ? "BANNED" : "Active",
+                                style: TextStyle(
+                                  color: isBanned ? Colors.red : Colors.green,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Switch(
+                                value: isBanned,
+                                activeColor: Colors.red,
+                                onChanged: (v) => _toggleBan(i, v),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -833,18 +833,83 @@ def api_roster_upload():
         db.session.rollback()
         return jsonify(ok=False, error=str(e)), 500
 
+@app.route("/api/roster", methods=["GET"])
+def api_roster_get():
+    if not is_admin_authenticated():
+        return jsonify(ok=False, error="Unauthorized"), 401
+    
+    user_id = get_current_user_id()
+    try:
+        students = StudentName.query.filter_by(user_id=user_id).order_by(StudentName.display_name).limit(500).all()
+        # Limit 500 for safety, though user might have more. Pagination ideal but full dump okay for now.
+        
+        roster = []
+        for s in students:
+            # Decrypt ID if possible
+            readable_id = "Hidden"
+            if s.encrypted_id:
+                try:
+                    readable_id = cipher_suite.decrypt(s.encrypted_id.encode()).decode()
+                except:
+                    readable_id = "Error"
+            
+            roster.append({
+                "id": s.id,
+                "name": s.display_name,
+                "student_id": readable_id,
+                "banned": s.banned,
+                "name_hash": s.name_hash
+            })
+            
+        return jsonify(ok=True, roster=roster)
+    except Exception as e:
+        return jsonify(ok=False, error=str(e)), 500
+
+@app.route("/api/roster/ban", methods=["POST"])
+def api_roster_ban():
+    if not is_admin_authenticated():
+        return jsonify(ok=False, error="Unauthorized"), 401
+        
+    data = request.get_json()
+    hash_key = data.get('name_hash')
+    should_ban = data.get('banned')
+    
+    if not hash_key or should_ban is None:
+        return jsonify(ok=False, error="Missing parameters"), 400
+        
+    user_id = get_current_user_id()
+    try:
+        student = StudentName.query.filter_by(user_id=user_id, name_hash=hash_key).first()
+        if student:
+            student.banned = bool(should_ban)
+            db.session.commit()
+            return jsonify(ok=True)
+        else:
+            return jsonify(ok=False, error="Student not found"), 404
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(ok=False, error=str(e)), 500
+
 @app.route("/api/roster/clear", methods=["POST"])
 def api_roster_clear():
     if not is_admin_authenticated():
         return jsonify(ok=False, error="Unauthorized"), 401
         
     user_id = get_current_user_id()
+    data = request.get_json() or {}
+    clear_history = data.get('clear_history', False)
+    
     try:
         StudentName.query.filter_by(user_id=user_id).delete()
+        if clear_history:
+            # Remove all sessions for this user
+            Session.query.filter_by(user_id=user_id).delete()
+            
         db.session.commit()
         refresh_roster_cache(user_id)
         return jsonify(ok=True)
     except Exception as e:
+        db.session.rollback()
         return jsonify(ok=False, error=str(e)), 500
 
 @app.route("/api/control/ban_overdue", methods=["POST"])

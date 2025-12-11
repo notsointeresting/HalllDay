@@ -139,9 +139,35 @@ class ApiService {
     throw Exception('Failed to upload roster: ${response.body}');
   }
 
-  Future<void> clearRoster() async {
+  Future<List<Map<String, dynamic>>> fetchRoster() async {
+    final uri = _getUri('/api/roster');
+    final response = await http.get(uri);
+    if (response.statusCode == 401) throw Exception('Unauthorized');
+    if (response.statusCode == 200) {
+      final body = json.decode(response.body);
+      return List<Map<String, dynamic>>.from(body['roster']);
+    }
+    throw Exception('Failed to fetch roster');
+  }
+
+  Future<void> toggleBan(String nameHash, bool banned) async {
+    final uri = _getUri('/api/roster/ban');
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'name_hash': nameHash, 'banned': banned}),
+    );
+    if (response.statusCode == 401) throw Exception('Unauthorized');
+    if (response.statusCode != 200) throw Exception('Failed to toggle ban');
+  }
+
+  Future<void> clearRoster({bool clearHistory = false}) async {
     final uri = _getUri('/api/roster/clear');
-    final response = await http.post(uri);
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'clear_history': clearHistory}),
+    );
     if (response.statusCode == 401) throw Exception('Unauthorized');
     if (response.statusCode != 200) throw Exception('Failed to clear roster');
   }

@@ -11,7 +11,10 @@
 ### ⚙️ Phase 6: Admin & Dev Tools (Material 3 Port)
 *Goal: Unified Material 3 Design for all surfaces.*
 - [ ] **Admin Dashboard (`/admin`)**:
-    - [ ] Port "Roster Management" and "Pass Logs".
+    - [ ] **Roster Management**:
+        - [ ] Manual Ban List (View all students, toggle ban status).
+        - [ ] Roster Clear: Ensure session history is cleared (or properly handled) to remove "Anonymous" ghost stats.
+    - [ ] Port "Pass Logs".
     - [ ] Material 3 Data Tables and Charts.
 - [ ] **Dev Dashboard (`/dev`)**:
     - [ ] Port "Database Tools" and "System Status".

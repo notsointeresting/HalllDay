@@ -204,21 +204,24 @@ class BubbleSystem {
   }
 
   List<Map<String, double>> getLayout(int count) {
-    if (count <= 1)
+    if (count <= 1) {
       return [
         {'x': 50.0, 'y': 50.0, 'scale': 1.0},
       ]; // Full size
-    if (count == 2)
+    }
+    if (count == 2) {
       return [
         {'x': 25.0, 'y': 50.0, 'scale': 0.8},
         {'x': 75.0, 'y': 50.0, 'scale': 0.8},
       ];
-    if (count == 3)
+    }
+    if (count == 3) {
       return [
         {'x': 50.0, 'y': 30.0, 'scale': 0.65},
         {'x': 25.0, 'y': 70.0, 'scale': 0.65},
         {'x': 75.0, 'y': 70.0, 'scale': 0.65},
       ];
+    }
 
     // Grid for 4+
     final List<Map<String, double>> result = [];
