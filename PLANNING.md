@@ -32,8 +32,6 @@
 ### 🖥️ Phase 7: Passive Display (Enhancements)
 - [ ] **Sync**: Ensure Display state perfectly mirrors Kiosk state (latency < 1s).
 - [x] Build landing page with logo, sign up screen/login, and FAQ (explanation/introduction) or something. idkcanyou.com should default to the landing page (homepage) and have tabs or some way to navigate to the admin, kiosk and display pages. I think this may have already been started by an agent but it was not completed or not properly implemented. 
-### 🖥️ Phase 8 [Optional Queue System]
-- [x] Allow students to queue up for a pass optionally enabled by teacher on their admin panel. Will automatically assign a pass to the first person in the queue and then assign the next person in the queue to the next available pass.
 
 
 ### 📡 Phase 9: Server-Sent Events (SSE) Optimization
@@ -42,15 +40,26 @@
 - [ ] **Frontend**: Replace `Timer.periodic` polling with `EventSource` listener in Kiosk/Display.
 - [ ] **Benefits**: ~99% fewer requests, instant updates (<100ms latency), reduced server load.
 
-### Not Immediate
-- [ ] Landing Page is a little boring and too "businessy" looking. Learn more doesn't link to anything.  
-- [ ] Waitlist is very small. Make more prominent in line with material design 3 guidelines. 
-- [ ] Snackbar messages are not very prominent. Make them more prominent in line with material design 3 guidelines. 
+
 
 ### Future When manually approved not interested in tackling yet 
 - [ ] Build a scheduling system for times when kiosk is active and auto suspend when not; connected to admin panel as option and timezone selection. T
 
 ## ✅ Completed History
+
+### Phase 8 - UI Polish & Responsiveness (Completed)
+**Status**: Completed (2025-12-11)
+- [x] **Waitlist Management**:
+    - [x] **Kiosk**: Prominent "Next Up" overlay.
+    - [x] **Admin**: Nested Waitlist controls within Queue settings.
+    - [x] **Display**: Mirror Kiosk overlay (parity).
+- [x] **Responsiveness**:
+    - [x] **Adaptive Layout**: Shapes scale with window width.
+    - [x] **Mobile View**: Dedicated "List View" for screens < 600px.
+- [x] **Visual Polish**:
+    - [x] **Landing Page**: "Blob" visuals, modern typography, functional scroll.
+    - [x] **Snackbars**: Floating Material 3 styling.
+    - [x] **Cleanup**: Removed redundant headers in active views.
 
 ### Phase 5 - Flutter Transition (Core & Polish)
 **Status**: Core Functional Port Complete (2025-12-10)
