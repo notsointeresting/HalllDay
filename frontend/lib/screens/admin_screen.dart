@@ -759,10 +759,106 @@ class _AdminScreenState extends State<AdminScreen> {
                           ),
                         ],
                       ),
-                      const Text(
-                        "Checks every second.",
-                        style: TextStyle(fontSize: 12),
-                      ),
+                    ],
+                  ),
+                ),
+                // Waitlist Management
+                // Waitlist Management
+                if (_data?['queue_list'] != null &&
+                    (_data!['queue_list'] as List).isNotEmpty) ...[
+                  const SizedBox(height: 32),
+                  const _SectionHeader(
+                    title: "Waitlist Management",
+                    icon: Icons.queue,
+                  ),
+                  Card(
+                    elevation: 0,
+                    color: Colors.orange.shade50,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(color: Colors.orange.shade200),
+                    ),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: (_data!['queue_list'] as List).length,
+                      separatorBuilder: (c, i) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final student = _data!['queue_list'][index];
+                        return ListTile(
+                          leading: const Icon(
+                            Icons.person,
+                            color: Colors.orange,
+                          ),
+                          title: Text(
+                            student['name'] ?? "Unknown",
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          trailing: IconButton(
+                            icon: const Icon(
+                              Icons.remove_circle_outline,
+                              color: Colors.red,
+                            ),
+                            onPressed: () async {
+                              final cid = student['student_id'];
+                              if (cid == null) return;
+
+                              if (await showDialog(
+                                    context: context,
+                                    builder: (c) => AlertDialog(
+                                      title: const Text(
+                                        "Remove from Waitlist?",
+                                      ),
+                                      content: Text(
+                                        "Remove ${student['name']}?",
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(c, false),
+                                          child: const Text("Cancel"),
+                                        ),
+                                        FilledButton(
+                                          onPressed: () =>
+                                              Navigator.pop(c, true),
+                                          child: const Text("Remove"),
+                                        ),
+                                      ],
+                                    ),
+                                  ) ==
+                                  true) {
+                                try {
+                                  await ApiService().deleteFromQueue(cid, "");
+                                  _loadData();
+                                } catch (e) {
+                                  if (mounted)
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text("Error: $e")),
+                                    );
+                                }
+                              }
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 32),
+                const _SectionHeader(
+                  title: "System Status",
+                  icon: Icons.monitor_heart,
+                ),
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE2ECE4),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       const SizedBox(height: 16),
                       const Text(
                         "Currently Overdue",

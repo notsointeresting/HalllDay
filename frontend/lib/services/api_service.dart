@@ -179,10 +179,29 @@ class ApiService {
     final response = await http.post(
       uri,
       headers: {'Content-Type': 'application/json'},
-      body: json.encode({'code': code, 'token': token}),
+      body: jsonEncode({'token': token, 'code': code}),
     );
+
     if (response.statusCode != 200) {
       throw Exception('Failed to leave queue');
+    }
+  }
+
+  Future<void> deleteFromQueue(String studentId, String token) async {
+    final uri = _getUri('/api/queue/delete');
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'student_id': studentId}),
+    );
+    // Note: Admin authentication is cookie-based, so token might not be needed?
+    // Actually, /api/queue/delete uses @require_admin_auth_api which checks session cookie.
+    // But let's check if we need to pass anything. The wrapper checks session.
+    // However, our ApiService helper usually relies on cookie preservation.
+    // Flutter Web preserves cookies automatically in browser.
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete from queue');
     }
   }
 

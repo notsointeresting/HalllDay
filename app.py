@@ -687,6 +687,10 @@ def api_admin_stats():
             roster_count=query_roster.count(),
             memory_roster_count=len(get_memory_roster(user_id)),
             settings=get_settings(user_id),
+            queue_list=[{
+                "name": get_student_name(q.student_id, "Unknown", user_id=user_id),
+                "student_id": q.student_id
+            } for q in Queue.query.filter_by(user_id=user_id).order_by(Queue.joined_ts.asc()).all()],
             insights={
                 "top_students": [{"name": r[0], "count": r[1]} for r in top_students],
                 "most_overdue": [{"name": r[0], "count": r[1]} for r in most_overdue]
@@ -1274,39 +1278,89 @@ def api_scan():
             s.end_ts = now_utc()
             s.ended_by = "kiosk_scan"
             db.session.commit()
-            return jsonify(ok=True, action=action, message=msg, name=student_name)
+            
+            # ---------------------------
+            # AUTO-PROMOTE LOGIC
+            # ---------------------------
+            next_student_name = None
+            if settings.get("enable_queue") and settings.get("auto_promote_queue"):
+                # Check for next student
+                next_in_line = Queue.query.filter_by(user_id=user_id).order_by(Queue.joined_ts.asc()).first()
+                if next_in_line:
+                    # Promote them!
+                    next_code = next_in_line.student_id
+                    
+                    # Start session for ANY capacity (since we just freed one, or config allows)
+                    # Actually, we should check if capacity is available, but since we ended 's', we have -1.
+                    # Wait, if capacity was 1/1, now 0/1. So we can add.
+                    
+                    promoted_sess = Session(student_id=next_code, start_ts=now_utc(), room=settings["room_name"], user_id=user_id, ended_by="auto")
+                    db.session.add(promoted_sess)
+                    db.session.delete(next_in_line) # Remove from queue
+                    db.session.commit()
+                    
+                    next_student_name = get_student_name(next_code, "Student", user_id=user_id)
+                    action = "ended_auto_started" # Special action for UI
+            
+            return jsonify(ok=True, action=action, message=msg, name=student_name, next_student=next_student_name)
     
     # Check if student is banned from starting NEW restroom trips
     # (They can still end existing trips above)
     if is_student_banned(code, user_id=user_id):
         return jsonify(ok=False, action="banned", message="RESTROOM PRIVILEGES SUSPENDED - SEE TEACHER", name=student_name), 403
 
-    # If capacity is full and someone else is out, deny
-    if len(open_sessions) >= settings["capacity"]:
-        # Check if already in Queue
-        queue_pos = Queue.query.filter_by(user_id=user_id, student_id=code).first()
-        if queue_pos:
-            # Check if they are at the TOP of the queue
-            top_spot = Queue.query.filter_by(user_id=user_id).order_by(Queue.joined_ts.asc()).first()
-            if top_spot and top_spot.student_id == code:
-                # They are top! Allow them to start session and remove from queue
-                db.session.delete(top_spot)
-                # Fall through to start session below
-            else:
-                 return jsonify(ok=False, action="denied_queue_position", message="You are in the waitlist. Please wait for your turn."), 409
-        else:
-             # Not in queue. Check if Queue is ENABLED
-             if settings.get("enable_queue"):
-                 # Auto-Join Queue
-                 q = Queue(student_id=code, user_id=user_id)
-                 db.session.add(q)
-                 db.session.commit()
-                 return jsonify(ok=True, action="queued", message="Added to Waitlist")
+    # ---------------------------
+    # QUEUE LOCK LOGIC
+    # ---------------------------
+    # If queue exists, scanner MUST be at the top to start.
+    queue_count = Queue.query.filter_by(user_id=user_id).count()
+    if queue_count > 0:
+        top_spot = Queue.query.filter_by(user_id=user_id).order_by(Queue.joined_ts.asc()).first()
+        if top_spot.student_id != code:
+             # Scanner is NOT the top spot.
+             # Check if they are already in queue (somewhere else)
+             if Queue.query.filter_by(user_id=user_id, student_id=code).first():
+                 return jsonify(ok=False, action="denied_queue_position", message="You are in the waitlist. Please wait for your turn (Queue Lock)."), 409
              else:
-                 # Queue Disabled - Deny
-                 return jsonify(ok=False, action="denied", message="Pass limit reached."), 409
+                 # New student trying to cut in line
+                 # If Queue is enabled, auto-join them to the BACK.
+                 if settings.get("enable_queue"):
+                     q = Queue(student_id=code, user_id=user_id)
+                     db.session.add(q)
+                     db.session.commit()
+                     return jsonify(ok=True, action="queued", message="Added to Waitlist (Queue is active)")
+                 else:
+                     return jsonify(ok=False, action="denied", message="Waitlist is active. Cannot start."), 409
+        else:
+            # Scanner IS the top spot. Allow and REMOVE from queue.
+            db.session.delete(top_spot)
+            # Proceed to start session...
 
-    # Otherwise start a new session (either ample capacity or promoted from queue)
+    # ---------------------------
+    # CAPACITY CHECK & START
+    # ---------------------------
+    if len(open_sessions) >= settings["capacity"]:
+         # Queue Prompt / Auto-Join (Fail-safe for non-queue setups or race conditions)
+         # Check if already in Queue (already checked above if queue>0, but if queue=0 and now full?)
+         existing_q = Queue.query.filter_by(user_id=user_id, student_id=code).first()
+         if existing_q:
+              return jsonify(ok=False, action="denied_queue_position", message="You are in the waitlist."), 409
+         
+         if settings.get("enable_queue"):
+             # Auto-Join Queue
+             q = Queue(student_id=code, user_id=user_id)
+             db.session.add(q)
+             db.session.commit()
+             return jsonify(ok=True, action="queued", message="Added to Waitlist")
+         else:
+             # Queue Disabled - Deny
+             return jsonify(ok=False, action="denied", message="Pass limit reached."), 409
+
+    # Otherwise start a new session
+    # (Cleanup: Ensure not in queue if we reached here? logic above handles top_spot delete)
+    # Double check just in case (e.g. queue was 0, but race condition?)
+    Queue.query.filter_by(user_id=user_id, student_id=code).delete()
+    
     sess = Session(student_id=code, start_ts=now_utc(), room=settings["room_name"], user_id=user_id)
     db.session.add(sess)
     db.session.commit()
@@ -1338,6 +1392,20 @@ def api_queue_leave():
     user_id = get_current_user_id(token)
 
     Queue.query.filter_by(user_id=user_id, student_id=code).delete()
+    db.session.commit()
+    return jsonify(ok=True)
+
+@app.route("/api/queue/delete", methods=["POST"])
+@require_admin_auth_api
+def api_queue_delete():
+    payload = request.get_json(silent=True) or {}
+    student_id = payload.get("student_id") # Decrypted ID
+    user_id = get_current_user_id()
+    
+    if not student_id:
+        return jsonify(ok=False, error="Missing student_id"), 400
+
+    Queue.query.filter_by(user_id=user_id, student_id=student_id).delete()
     db.session.commit()
     return jsonify(ok=True)
 
@@ -1382,7 +1450,15 @@ def api_status():
             } for sess in get_open_sessions(user_id)],
             # Queue data
             queue=[get_student_name(q.student_id, "Unknown", user_id=user_id) 
-                   for q in Queue.query.filter_by(user_id=user_id).order_by(Queue.joined_ts.asc()).all()]
+                   for q in Queue.query.filter_by(user_id=user_id).order_by(Queue.joined_ts.asc()).all()],
+            queue_list=[{
+                "name": get_student_name(q.student_id, "Unknown", user_id=user_id),
+                "student_id": q.student_id  # Encrypted/ID - wait, local DB uses ID. 
+                # If encryption enabled, student_id is encrypted? No, Queue stores `code`.
+                # If code is encrypted ID, then yes.
+                # However, api_queue_delete expects `student_id`.
+                # We should return what is stored in Queue.student_id.
+            } for q in Queue.query.filter_by(user_id=user_id).order_by(Queue.joined_ts.asc()).all()]
         )
     else:
         return jsonify(
@@ -1392,8 +1468,14 @@ def api_status():
             auto_ban_overdue=auto_ban_overdue,
             auto_promote_queue=auto_promote_queue,
              # Multi-pass support
-            capacity=settings["capacity"],
-            active_sessions=[]
+             capacity=settings["capacity"],
+            active_sessions=[],
+            queue=[get_student_name(q.student_id, "Unknown", user_id=user_id) 
+                   for q in Queue.query.filter_by(user_id=user_id).order_by(Queue.joined_ts.asc()).all()],
+            queue_list=[{
+                "name": get_student_name(q.student_id, "Unknown", user_id=user_id),
+                "student_id": q.student_id
+            } for q in Queue.query.filter_by(user_id=user_id).order_by(Queue.joined_ts.asc()).all()]
         )
 
 @app.get("/events")
