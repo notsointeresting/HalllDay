@@ -93,6 +93,14 @@ class Session(db.Model):
         end = self.end_ts or datetime.now(timezone.utc)
         return int((end - self.start_ts).total_seconds())
 
+
+class Queue(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.String(50), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    joined_ts = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+
 class Settings(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     room_name = db.Column(db.String, nullable=False, default=config.ROOM_NAME)
@@ -1244,13 +1252,55 @@ def api_scan():
 
     # If capacity is full and someone else is out, deny
     if len(open_sessions) >= settings["capacity"]:
-        return jsonify(ok=False, action="denied", message=f"Hall pass currently in use"), 409
+        # Check if already in Queue
+        queue_pos = Queue.query.filter_by(user_id=user_id, student_id=code).first()
+        if queue_pos:
+            # Check if they are at the TOP of the queue
+            top_spot = Queue.query.filter_by(user_id=user_id).order_by(Queue.joined_ts.asc()).first()
+            if top_spot and top_spot.student_id == code:
+                # They are top! Allow them to start session and remove from queue
+                db.session.delete(top_spot)
+                # Fall through to start session below
+            else:
+                 return jsonify(ok=False, action="denied_queue_position", message="You are in the waitlist. Please wait for your turn."), 409
+        else:
+             # Not in queue, prompt to join
+             return jsonify(ok=False, action="queue_prompt", message="Hall pass full. Join Queue?"), 409
 
-    # Otherwise start a new session
+    # Otherwise start a new session (either ample capacity or promoted from queue)
     sess = Session(student_id=code, start_ts=now_utc(), room=settings["room_name"], user_id=user_id)
     db.session.add(sess)
     db.session.commit()
     return jsonify(ok=True, action="started", name=student_name)
+
+@app.route("/api/queue/join", methods=["POST"])
+def api_queue_join():
+    payload = request.get_json(silent=True) or {}
+    token = payload.get("token")
+    code = payload.get("code")
+    user_id = get_current_user_id(token)
+    
+    if not code: return jsonify(ok=False), 400
+    
+    # Check if already in queue
+    if Queue.query.filter_by(user_id=user_id, student_id=code).first():
+        return jsonify(ok=True, message="Already in queue")
+        
+    q = Queue(student_id=code, user_id=user_id)
+    db.session.add(q)
+    db.session.commit()
+    return jsonify(ok=True)
+
+@app.route("/api/queue/leave", methods=["POST"])
+def api_queue_leave():
+    payload = request.get_json(silent=True) or {}
+    token = payload.get("token")
+    code = payload.get("code")
+    user_id = get_current_user_id(token)
+
+    Queue.query.filter_by(user_id=user_id, student_id=code).delete()
+    db.session.commit()
+    return jsonify(ok=True)
 
 @app.get("/api/status")
 def api_status():
@@ -1286,7 +1336,10 @@ def api_status():
                 "elapsed": sess.duration_seconds,
                 "overdue": sess.duration_seconds > overdue_minutes * 60,
                 "start": to_local(sess.start_ts).isoformat()
-            } for sess in get_open_sessions(user_id)]
+            } for sess in get_open_sessions(user_id)],
+            # Queue data
+            queue=[get_student_name(q.student_id, "Unknown", user_id=user_id) 
+                   for q in Queue.query.filter_by(user_id=user_id).order_by(Queue.joined_ts.asc()).all()]
         )
     else:
         return jsonify(

@@ -162,6 +162,30 @@ class ApiService {
     throw Exception('Failed to fetch roster');
   }
 
+  Future<void> joinQueue(String code, String token) async {
+    final uri = _getUri('/api/queue/join');
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'code': code, 'token': token}),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to join queue');
+    }
+  }
+
+  Future<void> leaveQueue(String code, String token) async {
+    final uri = _getUri('/api/queue/leave');
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'code': code, 'token': token}),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to leave queue');
+    }
+  }
+
   Future<void> toggleBan(String nameHash, bool banned) async {
     final uri = _getUri('/api/roster/ban');
     final response = await http.post(

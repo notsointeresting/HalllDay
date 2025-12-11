@@ -42,6 +42,9 @@
 - [ ] **Frontend**: Replace `Timer.periodic` polling with `EventSource` listener in Kiosk/Display.
 - [ ] **Benefits**: ~99% fewer requests, instant updates (<100ms latency), reduced server load.
 
+### Not Immediate
+- [ ] Landing Page is a little boring and too "businessy" looking. Learn more doesn't link to anything.  
+
 
 ## ✅ Completed History
 

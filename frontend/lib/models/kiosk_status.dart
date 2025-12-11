@@ -10,6 +10,7 @@ class KioskStatus {
   final bool autoBanOverdue;
   final int capacity;
   final List<Session> activeSessions;
+  final List<String> queue;
 
   KioskStatus({
     required this.inUse,
@@ -21,6 +22,7 @@ class KioskStatus {
     required this.autoBanOverdue,
     required this.capacity,
     required this.activeSessions,
+    required this.queue,
   });
 
   factory KioskStatus.fromJson(Map<String, dynamic> json) {
@@ -28,6 +30,12 @@ class KioskStatus {
     List<Session> sessions = [];
     if (rawSessions != null) {
       sessions = rawSessions.map((s) => Session.fromJson(s)).toList();
+    }
+
+    var rawQueue = json['queue'] as List?;
+    List<String> queueList = [];
+    if (rawQueue != null) {
+      queueList = List<String>.from(rawQueue);
     }
 
     return KioskStatus(
@@ -42,6 +50,7 @@ class KioskStatus {
       autoBanOverdue: json['auto_ban_overdue'] ?? false,
       capacity: json['capacity'] is int ? json['capacity'] : 1,
       activeSessions: sessions,
+      queue: queueList,
     );
   }
 }
