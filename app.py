@@ -107,7 +107,9 @@ class Settings(db.Model):
     capacity = db.Column(db.Integer, nullable=False, default=config.CAPACITY)
     overdue_minutes = db.Column(db.Integer, nullable=False, default=10)
     kiosk_suspended = db.Column(db.Boolean, nullable=False, default=False)
+
     auto_ban_overdue = db.Column(db.Boolean, nullable=False, default=False)
+    auto_promote_queue = db.Column(db.Boolean, nullable=False, default=False)
     # 2.0: Add user_id FK (nullable for migration compatibility, ID=1 is legacy global)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
     
@@ -1312,6 +1314,7 @@ def api_status():
     overdue_minutes = settings["overdue_minutes"]
     kiosk_suspended = settings["kiosk_suspended"]
     auto_ban_overdue = settings.get("auto_ban_overdue", False)
+    auto_promote_queue = settings.get("auto_promote_queue", False)
     
     if s:
         is_overdue = s.duration_seconds > overdue_minutes * 60
@@ -1328,6 +1331,7 @@ def api_status():
             overdue_minutes=overdue_minutes, 
             kiosk_suspended=kiosk_suspended, 
             auto_ban_overdue=auto_ban_overdue,
+            auto_promote_queue=auto_promote_queue,
             # Multi-pass support
             capacity=settings["capacity"],
             active_sessions=[{
@@ -1347,6 +1351,7 @@ def api_status():
             overdue_minutes=overdue_minutes, 
             kiosk_suspended=kiosk_suspended, 
             auto_ban_overdue=auto_ban_overdue,
+            auto_promote_queue=auto_promote_queue,
              # Multi-pass support
             capacity=settings["capacity"],
             active_sessions=[]
@@ -1375,6 +1380,7 @@ def sse_events():
             overdue_minutes = settings["overdue_minutes"]
             kiosk_suspended = settings["kiosk_suspended"]
             auto_ban_overdue = settings.get("auto_ban_overdue", False)
+            auto_promote_queue = settings.get("auto_promote_queue", False)
             if s:
                 student_name = get_student_name(s.student_id, "Student", user_id=user_id)
                 payload = {
@@ -1385,6 +1391,7 @@ def sse_events():
                     "overdue_minutes": overdue_minutes,
                     "kiosk_suspended": kiosk_suspended,
                     "auto_ban_overdue": auto_ban_overdue,
+                    "auto_promote_queue": auto_promote_queue,
                     "capacity": settings["capacity"],
                     "active_sessions": [{
                         "id": sess.id,
@@ -1400,6 +1407,7 @@ def sse_events():
                     "overdue_minutes": overdue_minutes, 
                     "kiosk_suspended": kiosk_suspended, 
                     "auto_ban_overdue": auto_ban_overdue,
+                    "auto_promote_queue": auto_promote_queue,
                     "capacity": settings["capacity"],
                     "active_sessions": []
                 }
@@ -1539,7 +1547,8 @@ def api_toggle_kiosk_suspend_quick():
                 capacity=1,
                 overdue_minutes=10,
                 kiosk_suspended=True,
-                auto_ban_overdue=False
+                auto_ban_overdue=False,
+                auto_promote_queue=False
             )
             db.session.add(s)
             new_state = True
@@ -1928,7 +1937,7 @@ def init_db():
     """Initialize database tables and default settings."""
     db.create_all()
     if not Settings.query.get(1):
-        db.session.add(Settings(id=1, room_name=config.ROOM_NAME, capacity=config.CAPACITY, overdue_minutes=getattr(config, "MAX_MINUTES", 10), kiosk_suspended=False, auto_ban_overdue=False))
+        db.session.add(Settings(id=1, room_name=config.ROOM_NAME, capacity=config.CAPACITY, overdue_minutes=getattr(config, "MAX_MINUTES", 10), kiosk_suspended=False, auto_ban_overdue=False, auto_promote_queue=False))
         db.session.commit()
     print("Database initialized successfully.")
 
@@ -2066,7 +2075,42 @@ def run_migrations():
     else:
         messages.append("auto_ban_overdue column already exists")
 
-    # Migration 4: ensure StudentName.encrypted_id exists
+    # Migration 4: ensure Settings.auto_promote_queue exists
+    auto_promote_queue_exists = False
+    try:
+        res = db.session.execute(text(
+            """
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_name = 'settings' AND column_name = 'auto_promote_queue'
+            """
+        ))
+        auto_promote_queue_exists = res.scalar() is not None
+    except Exception as e:
+         messages.append(f"Warning: auto_promote_queue column introspection failed: {e}; attempting ALTER TABLE...")
+
+    if not auto_promote_queue_exists:
+        messages.append("Adding auto_promote_queue column to settings table")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
+        try:
+            with db.engine.begin() as conn:
+                conn.execute(text("ALTER TABLE settings ADD COLUMN IF NOT EXISTS auto_promote_queue BOOLEAN DEFAULT FALSE"))
+                conn.execute(text("UPDATE settings SET auto_promote_queue = FALSE WHERE auto_promote_queue IS NULL"))
+                conn.execute(text("ALTER TABLE settings ALTER COLUMN auto_promote_queue SET NOT NULL"))
+            messages.append("Added auto_promote_queue column successfully")
+        except Exception as e:
+            try: db.session.rollback() 
+            except Exception: pass
+            messages.append(f"Failed to add auto_promote_queue column: {e}")
+            raise
+    else:
+        messages.append("auto_promote_queue column already exists")
+
+    # Migration 5: ensure StudentName.encrypted_id exists
     try:
         with db.engine.connect() as conn:
             res = conn.execute(text(
@@ -2393,6 +2437,8 @@ def update_settings_api():
         s.kiosk_suspended = bool(data["kiosk_suspended"])
     if "auto_ban_overdue" in data:
         s.auto_ban_overdue = bool(data["auto_ban_overdue"])
+    if "auto_promote_queue" in data:
+        s.auto_promote_queue = bool(data["auto_promote_queue"])
     
     db.session.commit()
     return jsonify(ok=True, settings=get_settings(user_id))

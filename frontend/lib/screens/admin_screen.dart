@@ -22,6 +22,7 @@ class _AdminScreenState extends State<AdminScreen> {
   late TextEditingController _capacityCtrl;
   late TextEditingController _overdueCtrl;
   late TextEditingController _slugCtrl;
+  bool _autoPromoteQueue = false;
 
   @override
   void initState() {
@@ -59,6 +60,8 @@ class _AdminScreenState extends State<AdminScreen> {
           // Pre-populate slug if set
           final user = data['user'] ?? {};
           _slugCtrl.text = user['slug'] ?? '';
+
+          _autoPromoteQueue = settings['auto_promote_queue'] == true;
         });
       }
     } catch (e) {
@@ -81,6 +84,7 @@ class _AdminScreenState extends State<AdminScreen> {
         'room_name': _roomCtrl.text,
         'capacity': int.tryParse(_capacityCtrl.text) ?? 1,
         'overdue_minutes': int.tryParse(_overdueCtrl.text) ?? 10,
+        'auto_promote_queue': _autoPromoteQueue,
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -604,6 +608,19 @@ class _AdminScreenState extends State<AdminScreen> {
                               ),
                             ),
                           ],
+                        ),
+
+                        const SizedBox(height: 16),
+                        CheckboxListTile(
+                          title: const Text("Auto-Start Next in Queue"),
+                          subtitle: const Text(
+                            "Automatically start the next student when a pass is returned.",
+                          ),
+                          value: _autoPromoteQueue,
+                          onChanged: (val) =>
+                              setState(() => _autoPromoteQueue = val ?? false),
+                          controlAffinity: ListTileControlAffinity.leading,
+                          contentPadding: EdgeInsets.zero,
                         ),
                         const SizedBox(height: 24),
                         FilledButton(

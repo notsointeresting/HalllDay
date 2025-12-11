@@ -54,7 +54,13 @@ class _KioskScreenState extends State<KioskScreen>
     final result = await provider.scanCode(code.trim());
 
     if (result['ok'] == true) {
-      if (result['action'] == 'ended_banned') {
+      if (result['action'] == 'ended_auto_started') {
+        _showSnack(
+          scaffoldMessenger,
+          "Returned: ${result['name']}. Next Up: ${result['next_student'] ?? 'Next Student'}",
+          Colors.orange,
+        );
+      } else if (result['action'] == 'ended_banned') {
         HapticFeedback.heavyImpact();
         _shakeController?.forward(from: 0);
         _showSnack(
