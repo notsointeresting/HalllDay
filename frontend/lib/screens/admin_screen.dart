@@ -624,12 +624,21 @@ class _AdminScreenState extends State<AdminScreen> {
                           Checkbox(
                             value: settings['auto_ban_overdue'] == true,
                             onChanged: (val) async {
+                              // Optimistic update
+                              setState(() {
+                                settings['auto_ban_overdue'] = val;
+                              });
                               try {
                                 await _api.updateSettings({
                                   'auto_ban_overdue': val,
                                 });
+                                // Success - background reload to confirm sync
                                 _loadData();
                               } catch (e) {
+                                // Revert on failure
+                                setState(() {
+                                  settings['auto_ban_overdue'] = !val!;
+                                });
                                 if (mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(

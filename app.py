@@ -277,6 +277,54 @@ def clear_memory_roster(user_id: Optional[int] = None) -> None:
     if roster_service:
         roster_service.clear_memory_roster(user_id)
 
+def refresh_roster_cache(user_id: Optional[int] = None) -> None:
+    """Refresh the memory cache from the database (scoped to user)."""
+    if not roster_service:
+        return
+        
+    # Get all students for this user with non-encrypted names (or handle decryption)
+    # Simple case: Just load display_name mapped to name_hash or ID
+    # Actually memory cache maps: { id -> Name }
+    # So we need to reconstruct that.
+    
+    # 1. Clear current cache
+    clear_memory_roster(user_id)
+    
+    # 2. Query DB
+    students = StudentName.query.filter_by(user_id=user_id).all()
+    
+    # 3. Build dict
+    new_cache = {}
+    for s in students:
+        # Use encrypted_id if available (decrypted), else fallback to hash
+        # If encrypted_id is None, we can't get the original ID easily unless we used a deterministic hash
+        # But we stored `name_hash` which is `student_{user_id}_{source_id}` hashed.
+        # Wait, the Kiosk lookup hashes the input ID and checks against DB.
+        # But memory cache expects { 'real_id': 'Name' } for fast lookup on scan?
+        # NO, kiosk.js/UI sends raw ID. 
+        # If we hash it in app, we can match.
+        
+        # Actually RosterService.get_student_name checks cache first.
+        # If cache keys are raw IDs, we need raw IDs.
+        # If we only have hashes in DB, we can't repopulate cache with raw IDs!
+        
+        # HOWEVER, the `api_roster_upload` set cache with what?
+        # It didn't. It just called this missing function.
+        
+        # If we can't recover raw IDs, we can't "refresh" the cache fully for ID-based lookup
+        # UNLESS we decrypt the encrypted_id.
+        
+        if s.encrypted_id:
+            try:
+                raw_id = cipher_suite.decrypt(s.encrypted_id.encode()).decode()
+                new_cache[raw_id] = s.display_name
+            except Exception:
+                pass
+                
+    # 4. Set to cache
+    if new_cache:
+        set_memory_roster(new_cache, user_id)
+
 def get_student_name(student_id: str, fallback: str = "Student", user_id: Optional[int] = None) -> str:
     """Get student name from memory or database (scoped to user)."""
     return roster_service.get_student_name(user_id, student_id, fallback) if roster_service else fallback
