@@ -27,6 +27,21 @@ class MyApp extends StatelessWidget {
           primarySwatch: Colors.green,
           useMaterial3: true,
           fontFamily: 'Inter',
+          snackBarTheme: SnackBarThemeData(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.grey[900],
+            contentTextStyle: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: Colors.grey.shade800),
+            ),
+            insetPadding: const EdgeInsets.all(24),
+            elevation: 8,
+          ),
         ),
         // Simple manual routing for now
         onGenerateRoute: (settings) {

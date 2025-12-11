@@ -44,6 +44,8 @@
 
 ### Not Immediate
 - [ ] Landing Page is a little boring and too "businessy" looking. Learn more doesn't link to anything.  
+- [ ] Waitlist is very small. Make more prominent in line with material design 3 guidelines. 
+- [ ] Snackbar messages are not very prominent. Make them more prominent in line with material design 3 guidelines. 
 
 ### Future When manually approved not interested in tackling yet 
 - [ ] Build a scheduling system for times when kiosk is active and auto suspend when not; connected to admin panel as option and timezone selection. T
