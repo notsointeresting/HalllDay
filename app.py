@@ -110,6 +110,7 @@ class Settings(db.Model):
 
     auto_ban_overdue = db.Column(db.Boolean, nullable=False, default=False)
     auto_promote_queue = db.Column(db.Boolean, nullable=False, default=False)
+    enable_queue = db.Column(db.Boolean, nullable=False, default=False)
     # 2.0: Add user_id FK (nullable for migration compatibility, ID=1 is legacy global)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
     
@@ -428,7 +429,9 @@ def get_settings(user_id: Optional[int] = None):
             "capacity": s.capacity, 
             "overdue_minutes": s.overdue_minutes, 
             "kiosk_suspended": kiosk_suspended, 
-            "auto_ban_overdue": auto_ban_overdue
+            "auto_ban_overdue": auto_ban_overdue,
+            "enable_queue": getattr(s, 'enable_queue', False),
+            "auto_promote_queue": getattr(s, 'auto_promote_queue', False)
         }
     except Exception:
         # If query fails, return defaults
@@ -437,7 +440,9 @@ def get_settings(user_id: Optional[int] = None):
             "capacity": config.CAPACITY, 
             "overdue_minutes": getattr(config, "MAX_MINUTES", 10), 
             "kiosk_suspended": False, 
-            "auto_ban_overdue": False
+            "auto_ban_overdue": False,
+            "enable_queue": False,
+            "auto_promote_queue": False
         }
 
 @app.context_processor
@@ -1266,8 +1271,16 @@ def api_scan():
             else:
                  return jsonify(ok=False, action="denied_queue_position", message="You are in the waitlist. Please wait for your turn."), 409
         else:
-             # Not in queue, prompt to join
-             return jsonify(ok=False, action="queue_prompt", message="Hall pass full. Join Queue?"), 409
+             # Not in queue. Check if Queue is ENABLED
+             if settings.get("enable_queue"):
+                 # Auto-Join Queue
+                 q = Queue(student_id=code, user_id=user_id)
+                 db.session.add(q)
+                 db.session.commit()
+                 return jsonify(ok=True, action="queued", message="Added to Waitlist")
+             else:
+                 # Queue Disabled - Deny
+                 return jsonify(ok=False, action="denied", message="Pass limit reached."), 409
 
     # Otherwise start a new session (either ample capacity or promoted from queue)
     sess = Session(student_id=code, start_ts=now_utc(), room=settings["room_name"], user_id=user_id)
@@ -1314,7 +1327,9 @@ def api_status():
     overdue_minutes = settings["overdue_minutes"]
     kiosk_suspended = settings["kiosk_suspended"]
     auto_ban_overdue = settings.get("auto_ban_overdue", False)
+
     auto_promote_queue = settings.get("auto_promote_queue", False)
+    enable_queue = settings.get("enable_queue", False)
     
     if s:
         is_overdue = s.duration_seconds > overdue_minutes * 60
@@ -1937,7 +1952,7 @@ def init_db():
     """Initialize database tables and default settings."""
     db.create_all()
     if not Settings.query.get(1):
-        db.session.add(Settings(id=1, room_name=config.ROOM_NAME, capacity=config.CAPACITY, overdue_minutes=getattr(config, "MAX_MINUTES", 10), kiosk_suspended=False, auto_ban_overdue=False, auto_promote_queue=False))
+        db.session.add(Settings(id=1, room_name=config.ROOM_NAME, capacity=config.CAPACITY, overdue_minutes=getattr(config, "MAX_MINUTES", 10), kiosk_suspended=False, auto_ban_overdue=False, auto_promote_queue=False, enable_queue=False))
         db.session.commit()
     print("Database initialized successfully.")
 
@@ -2110,7 +2125,42 @@ def run_migrations():
     else:
         messages.append("auto_promote_queue column already exists")
 
-    # Migration 5: ensure StudentName.encrypted_id exists
+    # Migration 5: ensure Settings.enable_queue exists
+    enable_queue_exists = False
+    try:
+        res = db.session.execute(text(
+            """
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_name = 'settings' AND column_name = 'enable_queue'
+            """
+        ))
+        enable_queue_exists = res.scalar() is not None
+    except Exception as e:
+         messages.append(f"Warning: enable_queue column introspection failed: {e}; attempting ALTER TABLE...")
+
+    if not enable_queue_exists:
+        messages.append("Adding enable_queue column to settings table")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
+        try:
+            with db.engine.begin() as conn:
+                conn.execute(text("ALTER TABLE settings ADD COLUMN IF NOT EXISTS enable_queue BOOLEAN DEFAULT FALSE"))
+                conn.execute(text("UPDATE settings SET enable_queue = FALSE WHERE enable_queue IS NULL"))
+                conn.execute(text("ALTER TABLE settings ALTER COLUMN enable_queue SET NOT NULL"))
+            messages.append("Added enable_queue column successfully")
+        except Exception as e:
+            try: db.session.rollback() 
+            except Exception: pass
+            messages.append(f"Failed to add enable_queue column: {e}")
+            raise
+    else:
+        messages.append("enable_queue column already exists")
+
+    # Migration 6: ensure StudentName.encrypted_id exists
     try:
         with db.engine.connect() as conn:
             res = conn.execute(text(
@@ -2439,6 +2489,8 @@ def update_settings_api():
         s.auto_ban_overdue = bool(data["auto_ban_overdue"])
     if "auto_promote_queue" in data:
         s.auto_promote_queue = bool(data["auto_promote_queue"])
+    if "enable_queue" in data:
+        s.enable_queue = bool(data["enable_queue"])
     
     db.session.commit()
     return jsonify(ok=True, settings=get_settings(user_id))

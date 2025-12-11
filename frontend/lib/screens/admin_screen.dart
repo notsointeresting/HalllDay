@@ -23,6 +23,7 @@ class _AdminScreenState extends State<AdminScreen> {
   late TextEditingController _overdueCtrl;
   late TextEditingController _slugCtrl;
   bool _autoPromoteQueue = false;
+  bool _enableQueue = false;
 
   @override
   void initState() {
@@ -62,6 +63,7 @@ class _AdminScreenState extends State<AdminScreen> {
           _slugCtrl.text = user['slug'] ?? '';
 
           _autoPromoteQueue = settings['auto_promote_queue'] == true;
+          _enableQueue = settings['enable_queue'] == true;
         });
       }
     } catch (e) {
@@ -85,6 +87,7 @@ class _AdminScreenState extends State<AdminScreen> {
         'capacity': int.tryParse(_capacityCtrl.text) ?? 1,
         'overdue_minutes': int.tryParse(_overdueCtrl.text) ?? 10,
         'auto_promote_queue': _autoPromoteQueue,
+        'enable_queue': _enableQueue,
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -611,17 +614,43 @@ class _AdminScreenState extends State<AdminScreen> {
                         ),
 
                         const SizedBox(height: 16),
+                        const SizedBox(height: 16),
+
+                        // Queue Master Switch
                         CheckboxListTile(
-                          title: const Text("Auto-Start Next in Queue"),
+                          title: const Text("Enable Waitlist Queue"),
                           subtitle: const Text(
-                            "Automatically start the next student when a pass is returned.",
+                            "Allow students to join a queue when room is full.",
                           ),
-                          value: _autoPromoteQueue,
+                          value: _enableQueue,
                           onChanged: (val) =>
-                              setState(() => _autoPromoteQueue = val ?? false),
+                              setState(() => _enableQueue = val ?? false),
                           controlAffinity: ListTileControlAffinity.leading,
                           contentPadding: EdgeInsets.zero,
+                          activeColor: Colors.orange,
                         ),
+
+                        if (_enableQueue) ...[
+                          const Padding(
+                            padding: EdgeInsets.only(left: 16.0),
+                            child: Divider(),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 16.0),
+                            child: CheckboxListTile(
+                              title: const Text("Auto-Start Next in Queue"),
+                              subtitle: const Text(
+                                "Automatically start the next student when a pass is returned.",
+                              ),
+                              value: _autoPromoteQueue,
+                              onChanged: (val) => setState(
+                                () => _autoPromoteQueue = val ?? false,
+                              ),
+                              controlAffinity: ListTileControlAffinity.leading,
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 24),
                         FilledButton(
                           onPressed: _updateSettings,

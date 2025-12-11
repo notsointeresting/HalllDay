@@ -4,7 +4,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../providers/status_provider.dart';
 import '../widgets/physics_layout.dart';
-import '../services/api_service.dart';
 
 class KioskScreen extends StatefulWidget {
   final String token;
@@ -45,7 +44,6 @@ class _KioskScreenState extends State<KioskScreen>
 
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final provider = context.read<StatusProvider>();
-    final token = widget.token;
 
     // Clear immediately
     _scanController.clear();
@@ -68,6 +66,14 @@ class _KioskScreenState extends State<KioskScreen>
           result['message'] ?? "Student Auto-Banned",
           Colors.red,
         );
+      } else if (result['action'] == 'queued') {
+        HapticFeedback.lightImpact();
+        _showSnack(
+          scaffoldMessenger,
+          result['message'] ?? "Added to Waitlist",
+          Colors.orange,
+        );
+        context.read<StatusProvider>().fetchStatus();
       } else {
         _showSnack(
           scaffoldMessenger,
@@ -76,61 +82,10 @@ class _KioskScreenState extends State<KioskScreen>
         );
       }
     } else {
-      // Check for Queue Prompt
-      if (result['action'] == 'queue_prompt') {
-        _showQueueDialog(code.trim(), token);
-        return; // Don't shake or show error yet
-      }
-
       HapticFeedback.heavyImpact();
       _shakeController?.forward(from: 0);
       _showSnack(scaffoldMessenger, result['message'] ?? "Error", Colors.red);
     }
-  }
-
-  void _showQueueDialog(String code, String token) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text("Room Full"),
-        content: const Text("Would you like to join the waitlist?"),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _focusNode.requestFocus();
-            },
-            child: const Text("Cancel"),
-          ),
-          FilledButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              try {
-                await ApiService().joinQueue(code, token);
-                if (mounted) context.read<StatusProvider>().fetchStatus();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Added to Waitlist")),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text("Error: $e"),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
-              _focusNode.requestFocus();
-            },
-            child: const Text("Join Queue"),
-          ),
-        ],
-      ),
-    );
   }
 
   void _showSnack(ScaffoldMessengerState messenger, String msg, Color color) {
