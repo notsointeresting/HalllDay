@@ -22,4 +22,14 @@ class Session {
       start: DateTime.tryParse(json['start'] ?? '') ?? DateTime.now(),
     );
   }
+  // Helpers
+  String get timerText {
+    final int minutes = (elapsed / 60).floor();
+    final int seconds = elapsed % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  // Alias for compatibility if needed, or update consumers
+  bool get isOverdue => overdue;
+  String get studentName => name;
 }

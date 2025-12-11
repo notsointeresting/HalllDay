@@ -6,8 +6,14 @@ import '../physics/bubble_system.dart';
 class BubbleWidget extends StatelessWidget {
   final BubbleModel bubble;
   final bool isDisplay; // Add scaling flag
+  final double scale; // New scale factor
 
-  const BubbleWidget({super.key, required this.bubble, this.isDisplay = false});
+  const BubbleWidget({
+    super.key,
+    required this.bubble,
+    this.isDisplay = false,
+    this.scale = 1.0,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +21,9 @@ class BubbleWidget extends StatelessWidget {
     // Squircle (Available) -> Star/Cookie (Used/Banned)
     // User requested "not too spokey", so we use a "Cookie" config for the StarBorder
     final ShapeBorder shape = bubble.type == BubbleType.available
-        ? RoundedRectangleBorder(borderRadius: BorderRadius.circular(160))
+        ? RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(160 * scale),
+          )
         : StarBorder(
             points: 12,
             innerRadiusRatio: 0.75, // Fatter, less pointy
@@ -35,12 +43,16 @@ class BubbleWidget extends StatelessWidget {
 
     // Scaling Logic for Display Mode
     // If isDisplay is true, we bump sizes significantly
-    final double size = isDisplay ? 480 : 380;
-    final double iconSize = isDisplay ? 80 : 64;
-    final double nameSize = isDisplay
-        ? (bubble.type == BubbleType.available ? 64 : 48)
-        : (bubble.type == BubbleType.available ? 48 : 32);
-    final double timerSize = isDisplay ? 36 : 24;
+    final double baseSize = isDisplay ? 480 : 380;
+    final double size = baseSize * scale;
+
+    final double iconSize = (isDisplay ? 80 : 64) * scale;
+    final double nameSize =
+        (isDisplay
+            ? (bubble.type == BubbleType.available ? 64 : 48)
+            : (bubble.type == BubbleType.available ? 48 : 32)) *
+        scale;
+    final double timerSize = (isDisplay ? 36 : 24) * scale;
 
     // Increased Size for visibility
     Widget bubbleContent = Container(

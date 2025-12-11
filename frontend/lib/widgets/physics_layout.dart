@@ -108,10 +108,14 @@ class _PhysicsLayoutState extends State<PhysicsLayout>
           final double screenW = constraints.maxWidth;
           final double screenH = constraints.maxHeight;
 
-          // Dynamically calculate offset based on Bubble Size
-          // Kiosk (380) -> 190 offset
-          // Display (480) -> 240 offset
-          final double bubbleRadius = widget.isDisplay ? 240.0 : 190.0;
+          // Scale shapes based on screen width
+          double scaleFactor = 1.0;
+          if (screenW < 600) scaleFactor = 0.6; // Mobile/Small Tablet
+          if (screenW < 400) scaleFactor = 0.45; // Very Small
+
+          // Base size multiplied by scale factor
+          final double baseRadius = widget.isDisplay ? 240.0 : 190.0;
+          final double bubbleRadius = baseRadius * scaleFactor;
 
           return Stack(
             children: [
@@ -157,6 +161,7 @@ class _PhysicsLayoutState extends State<PhysicsLayout>
                     child: BubbleWidget(
                       bubble: b,
                       isDisplay: widget.isDisplay, // Pass flag down
+                      scale: scaleFactor, // Scale based on screen size
                     ),
                   ),
                 );

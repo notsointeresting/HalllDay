@@ -651,6 +651,97 @@ class _AdminScreenState extends State<AdminScreen> {
                             ),
                           ),
                         ],
+
+                        // Waitlist Management (Nested in Settings)
+                        if (_enableQueue &&
+                            _data?['queue_list'] != null &&
+                            (_data!['queue_list'] as List).isNotEmpty) ...[
+                          const Padding(
+                            padding: EdgeInsets.only(left: 16.0, top: 16.0),
+                            child: Divider(),
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.only(left: 16.0, bottom: 8.0),
+                            child: Text(
+                              "Current Waitlist",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.orange,
+                              ),
+                            ),
+                          ),
+                          Card(
+                            elevation: 0,
+                            color: Colors.orange.shade50,
+                            margin: const EdgeInsets.only(left: 16.0),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(color: Colors.orange.shade200),
+                            ),
+                            child: ListView.separated(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: (_data!['queue_list'] as List).length,
+                              separatorBuilder: (c, i) =>
+                                  const Divider(height: 1),
+                              itemBuilder: (context, index) {
+                                final student = _data!['queue_list'][index];
+                                return ListTile(
+                                  dense: true,
+                                  leading: const Icon(
+                                    Icons.person,
+                                    color: Colors.orange,
+                                    size: 20,
+                                  ),
+                                  title: Text(
+                                    student['name'] ?? "Unknown",
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  trailing: IconButton(
+                                    icon: const Icon(
+                                      Icons.close,
+                                      color: Colors.red,
+                                      size: 20,
+                                    ),
+                                    onPressed: () async {
+                                      final cid = student['student_id'];
+                                      if (cid == null) return;
+                                      if (await showDialog(
+                                            context: context,
+                                            builder: (c) => AlertDialog(
+                                              title: const Text("Remove?"),
+                                              content: Text(
+                                                "Remove ${student['name']}?",
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(c, false),
+                                                  child: const Text("Cancel"),
+                                                ),
+                                                FilledButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(c, true),
+                                                  child: const Text("Remove"),
+                                                ),
+                                              ],
+                                            ),
+                                          ) ==
+                                          true) {
+                                        ApiService()
+                                            .deleteFromQueue(cid, "")
+                                            .then((_) => _loadData());
+                                      }
+                                    },
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 24),
                         FilledButton(
                           onPressed: _updateSettings,
@@ -762,88 +853,6 @@ class _AdminScreenState extends State<AdminScreen> {
                     ],
                   ),
                 ),
-                // Waitlist Management
-                // Waitlist Management
-                if (_data?['queue_list'] != null &&
-                    (_data!['queue_list'] as List).isNotEmpty) ...[
-                  const SizedBox(height: 32),
-                  const _SectionHeader(
-                    title: "Waitlist Management",
-                    icon: Icons.queue,
-                  ),
-                  Card(
-                    elevation: 0,
-                    color: Colors.orange.shade50,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(color: Colors.orange.shade200),
-                    ),
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: (_data!['queue_list'] as List).length,
-                      separatorBuilder: (c, i) => const Divider(height: 1),
-                      itemBuilder: (context, index) {
-                        final student = _data!['queue_list'][index];
-                        return ListTile(
-                          leading: const Icon(
-                            Icons.person,
-                            color: Colors.orange,
-                          ),
-                          title: Text(
-                            student['name'] ?? "Unknown",
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          trailing: IconButton(
-                            icon: const Icon(
-                              Icons.remove_circle_outline,
-                              color: Colors.red,
-                            ),
-                            onPressed: () async {
-                              final cid = student['student_id'];
-                              if (cid == null) return;
-
-                              if (await showDialog(
-                                    context: context,
-                                    builder: (c) => AlertDialog(
-                                      title: const Text(
-                                        "Remove from Waitlist?",
-                                      ),
-                                      content: Text(
-                                        "Remove ${student['name']}?",
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.pop(c, false),
-                                          child: const Text("Cancel"),
-                                        ),
-                                        FilledButton(
-                                          onPressed: () =>
-                                              Navigator.pop(c, true),
-                                          child: const Text("Remove"),
-                                        ),
-                                      ],
-                                    ),
-                                  ) ==
-                                  true) {
-                                try {
-                                  await ApiService().deleteFromQueue(cid, "");
-                                  _loadData();
-                                } catch (e) {
-                                  if (mounted)
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text("Error: $e")),
-                                    );
-                                }
-                              }
-                            },
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
 
                 const SizedBox(height: 32),
                 const _SectionHeader(

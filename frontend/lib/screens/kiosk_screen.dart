@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import '../providers/status_provider.dart';
 import '../widgets/physics_layout.dart';
 
+import '../widgets/mobile_list_view.dart';
+
 class KioskScreen extends StatefulWidget {
   final String token;
 
@@ -102,6 +104,7 @@ class _KioskScreenState extends State<KioskScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
+
       body: GestureDetector(
         onTap: () => _focusNode.requestFocus(),
         child: Stack(
@@ -117,167 +120,215 @@ class _KioskScreenState extends State<KioskScreen>
               ),
             ),
 
-            Consumer<StatusProvider>(
-              builder: (context, provider, child) {
-                if (provider.isLoading && provider.status == null) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final status = provider.status;
-                if (status == null)
-                  return const Center(
-                    child: Text(
-                      "Error: No Status",
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  );
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isSmallScreen = constraints.maxWidth < 600;
 
-                return Stack(
-                  children: [
-                    // Main Layout
-                    PhysicsLayout(status: status)
-                        .animate(controller: _shakeController, autoPlay: false)
-                        .shakeX(duration: 500.ms, hz: 4, amount: 10),
+                return Consumer<StatusProvider>(
+                  builder: (context, provider, child) {
+                    if (provider.isLoading && provider.status == null) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final status = provider.status;
+                    if (status == null)
+                      return const Center(
+                        child: Text(
+                          "Error: No Status",
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      );
 
-                    // Waitlist Overlay (Bottom Right)
-                    // Waitlist Overlay (Prominent)
-                    if (status.queue.isNotEmpty)
-                      Positioned(
-                        top: 24,
-                        right: 24,
-                        child:
-                            Card(
-                                  elevation: 8,
-                                  shadowColor: Colors.orange.withOpacity(0.5),
-                                  color: Colors.grey[900],
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                    side: const BorderSide(
-                                      color: Colors.orange,
-                                      width: 2,
-                                    ),
-                                  ),
-                                  child: Container(
-                                    width: 300,
-                                    padding: const EdgeInsets.all(24.0),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Row(
+                    // MOBILE VIEW (List)
+                    if (isSmallScreen) {
+                      return MobileListView(status: status);
+                    }
+
+                    // DESKTOP/KIOSK VIEW (Physics)
+                    return Stack(
+                      children: [
+                        // Main Layout
+                        PhysicsLayout(status: status)
+                            .animate(
+                              controller: _shakeController,
+                              autoPlay: false,
+                            )
+                            .shakeX(duration: 500.ms, hz: 4, amount: 10),
+
+                        // Waitlist Overlay (Prominent & Adaptive)
+                        if (status.queue.isNotEmpty)
+                          Positioned(
+                            top: 24,
+                            right: 24,
+                            left: isSmallScreen ? 24 : null, // Stretch on small
+                            child:
+                                Card(
+                                      elevation: 8,
+                                      shadowColor: Colors.orange.withOpacity(
+                                        0.5,
+                                      ),
+                                      color: Colors.grey[900],
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        side: const BorderSide(
+                                          color: Colors.orange,
+                                          width: 2,
+                                        ),
+                                      ),
+                                      child: Container(
+                                        width: isSmallScreen ? null : 300,
+                                        padding: const EdgeInsets.all(24.0),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Container(
-                                              padding: const EdgeInsets.all(8),
-                                              decoration: const BoxDecoration(
-                                                color: Colors.orange,
-                                                shape: BoxShape.circle,
-                                              ),
-                                              child: const Icon(
-                                                Icons.people,
-                                                color: Colors.black,
-                                                size: 24,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 16),
-                                            const Text(
-                                              "WAITLIST",
-                                              style: TextStyle(
-                                                color: Colors.orange,
-                                                fontWeight: FontWeight.w900,
-                                                fontSize: 24,
-                                                letterSpacing: 1.5,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 24),
-                                        const Text(
-                                          "NEXT UP:",
-                                          style: TextStyle(
-                                            color: Colors.grey,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12,
-                                            letterSpacing: 1.2,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        ...status.queue
-                                            .take(4)
-                                            .map(
-                                              (name) => Container(
-                                                margin: const EdgeInsets.only(
-                                                  bottom: 8,
-                                                ),
-                                                padding: const EdgeInsets.all(
-                                                  12,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.white
-                                                      .withOpacity(0.05),
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                  border: Border.all(
-                                                    color: Colors.white
-                                                        .withOpacity(0.1),
+                                            Row(
+                                              children: [
+                                                Container(
+                                                  padding: const EdgeInsets.all(
+                                                    8,
+                                                  ),
+                                                  decoration:
+                                                      const BoxDecoration(
+                                                        color: Colors.orange,
+                                                        shape: BoxShape.circle,
+                                                      ),
+                                                  child: const Icon(
+                                                    Icons.people,
+                                                    color: Colors.black,
+                                                    size: 24,
                                                   ),
                                                 ),
-                                                child: Row(
-                                                  children: [
-                                                    Text(
-                                                      "${status.queue.indexOf(name) + 1}.",
+                                                const SizedBox(width: 16),
+                                                const Text(
+                                                  "WAITLIST",
+                                                  style: TextStyle(
+                                                    color: Colors.orange,
+                                                    fontWeight: FontWeight.w900,
+                                                    fontSize: 24,
+                                                    letterSpacing: 1.5,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            if (!isSmallScreen) ...[
+                                              const SizedBox(height: 24),
+                                              const Text(
+                                                "NEXT UP:",
+                                                style: TextStyle(
+                                                  color: Colors.grey,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 12,
+                                                  letterSpacing: 1.2,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              ...status.queue
+                                                  .take(4)
+                                                  .map(
+                                                    (name) => Container(
+                                                      margin:
+                                                          const EdgeInsets.only(
+                                                            bottom: 8,
+                                                          ),
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                            12,
+                                                          ),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.white
+                                                            .withOpacity(0.05),
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              8,
+                                                            ),
+                                                        border: Border.all(
+                                                          color: Colors.white
+                                                              .withOpacity(0.1),
+                                                        ),
+                                                      ),
+                                                      child: Row(
+                                                        children: [
+                                                          Text(
+                                                            "${status.queue.indexOf(name) + 1}.",
+                                                            style: TextStyle(
+                                                              color: Colors
+                                                                  .orange
+                                                                  .shade300,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                              fontFamily:
+                                                                  'monospace',
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 12,
+                                                          ),
+                                                          Expanded(
+                                                            child: Text(
+                                                              name, // Using name from queue list
+                                                              style: const TextStyle(
+                                                                color: Colors
+                                                                    .white,
+                                                                fontSize: 18,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                              ),
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                              if (status.queue.length > 4)
+                                                Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                        top: 8,
+                                                      ),
+                                                  child: Center(
+                                                    child: Text(
+                                                      "+ ${status.queue.length - 4} more",
                                                       style: TextStyle(
-                                                        color: Colors
-                                                            .orange
-                                                            .shade300,
+                                                        color: Colors.grey[500],
                                                         fontWeight:
                                                             FontWeight.bold,
-                                                        fontFamily: 'monospace',
                                                       ),
                                                     ),
-                                                    const SizedBox(width: 12),
-                                                    Expanded(
-                                                      child: Text(
-                                                        name, // Using name from queue list
-                                                        style: const TextStyle(
-                                                          color: Colors.white,
-                                                          fontSize: 18,
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                        ),
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
-                                                      ),
-                                                    ),
-                                                  ],
+                                                  ),
                                                 ),
-                                              ),
-                                            ),
-                                        if (status.queue.length > 4)
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                              top: 8,
-                                            ),
-                                            child: Center(
-                                              child: Text(
-                                                "+ ${status.queue.length - 4} more",
-                                                style: TextStyle(
-                                                  color: Colors.grey[500],
+                                            ] else ...[
+                                              // Compact Mode
+                                              const SizedBox(height: 12),
+                                              Text(
+                                                "${status.queue.length} students waiting...",
+                                                style: const TextStyle(
+                                                  color: Colors.white,
                                                   fontWeight: FontWeight.bold,
+                                                  fontSize: 16,
                                                 ),
                                               ),
-                                            ),
-                                          ),
-                                      ],
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                    )
+                                    .animate(
+                                      onPlay: (c) => c.repeat(reverse: true),
+                                    )
+                                    .shimmer(
+                                      duration: 3.seconds,
+                                      color: Colors.orange.withOpacity(0.2),
                                     ),
-                                  ),
-                                )
-                                .animate(onPlay: (c) => c.repeat(reverse: true))
-                                .shimmer(
-                                  duration: 3.seconds,
-                                  color: Colors.orange.withOpacity(0.2),
-                                ),
-                      ),
-                  ],
+                          ),
+                      ],
+                    );
+                  },
                 );
               },
             ),
