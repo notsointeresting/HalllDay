@@ -272,6 +272,97 @@ def get_current_user_id(token: Optional[str] = None) -> Optional[int]:
     # Legacy: admin_authenticated but no user_id implies legacy global mode
     return None
 
+
+# ---------- Status Payload Utilities ----------
+
+def _build_status_payload(user_id: Optional[int]) -> Dict[str, Any]:
+    """
+    Single source of truth for Kiosk/Display status payload.
+    Keep this aligned with the Flutter `KioskStatus` model.
+    """
+    settings = get_settings(user_id)
+
+    overdue_minutes = settings["overdue_minutes"]
+    kiosk_suspended = settings["kiosk_suspended"]
+    auto_ban_overdue = settings.get("auto_ban_overdue", False)
+    auto_promote_queue = settings.get("auto_promote_queue", False)
+
+    # Current holder (legacy single-pass fields) + multi-pass
+    s = get_current_holder(user_id)
+    active_sessions = [{
+        "id": sess.id,
+        "name": get_student_name(sess.student_id, "Student", user_id=user_id),
+        "elapsed": sess.duration_seconds,
+        "overdue": sess.duration_seconds > overdue_minutes * 60,
+        "start": to_local(sess.start_ts).isoformat()
+    } for sess in get_open_sessions(user_id)]
+
+    # Queue (names for display + ids for admin actions)
+    queue_rows = Queue.query.filter_by(user_id=user_id).order_by(Queue.joined_ts.asc()).all()
+    queue_names = [get_student_name(q.student_id, "Unknown", user_id=user_id) for q in queue_rows]
+    queue_list = [{
+        "name": get_student_name(q.student_id, "Unknown", user_id=user_id),
+        "student_id": q.student_id,
+    } for q in queue_rows]
+
+    payload: Dict[str, Any] = {
+        "overdue_minutes": overdue_minutes,
+        "kiosk_suspended": kiosk_suspended,
+        "auto_ban_overdue": auto_ban_overdue,
+        "auto_promote_queue": auto_promote_queue,
+        "capacity": settings["capacity"],
+        "active_sessions": active_sessions,
+        "queue": queue_names,
+        "queue_list": queue_list,
+    }
+
+    if s:
+        payload.update({
+            "in_use": True,
+            "name": get_student_name(s.student_id, "Student", user_id=user_id),
+            "start": to_local(s.start_ts).isoformat(),
+            "elapsed": s.duration_seconds,
+            "overdue": s.duration_seconds > overdue_minutes * 60,
+        })
+    else:
+        payload.update({
+            "in_use": False,
+            "name": "",
+            "elapsed": 0,
+            "overdue": False,
+        })
+
+    return payload
+
+
+def _build_status_signature(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    A reduced, stable signature for SSE change detection.
+    Excludes fields that change every second (like `elapsed`).
+    """
+    sig_sessions = [{
+        "id": s.get("id"),
+        "start": s.get("start"),
+        "name": s.get("name"),
+        "overdue": s.get("overdue"),
+    } for s in (payload.get("active_sessions") or [])]
+
+    return {
+        "in_use": payload.get("in_use"),
+        "name": payload.get("name"),
+        "start": payload.get("start"),
+        "overdue": payload.get("overdue"),
+        "overdue_minutes": payload.get("overdue_minutes"),
+        "kiosk_suspended": payload.get("kiosk_suspended"),
+        "auto_ban_overdue": payload.get("auto_ban_overdue"),
+        "auto_promote_queue": payload.get("auto_promote_queue"),
+        "capacity": payload.get("capacity"),
+        "active_sessions": sig_sessions,
+        "queue": payload.get("queue") or [],
+        # queue_list only needed if UI consumes ids; include it for completeness
+        "queue_list": payload.get("queue_list") or [],
+    }
+
 # ---------- FERPA-Compliant Roster Utilities ----------
 
 def get_memory_roster(user_id: Optional[int] = None) -> Dict[str, str]:
@@ -1413,130 +1504,58 @@ def api_queue_delete():
 def api_status():
     token = request.args.get('token')
     user_id = get_current_user_id(token)
-    settings = get_settings(user_id)
-    
-    s = get_current_holder(user_id)
-    overdue_minutes = settings["overdue_minutes"]
-    kiosk_suspended = settings["kiosk_suspended"]
-    auto_ban_overdue = settings.get("auto_ban_overdue", False)
+    return jsonify(_build_status_payload(user_id))
 
-    auto_promote_queue = settings.get("auto_promote_queue", False)
-    enable_queue = settings.get("enable_queue", False)
-    
-    if s:
-        is_overdue = s.duration_seconds > overdue_minutes * 60
-        
-        # FERPA Compliance: Get name from session or memory roster
-        student_name = get_student_name(s.student_id, "Student", user_id=user_id)
-        
-        return jsonify(
-            in_use=True, 
-            name=student_name, 
-            start=to_local(s.start_ts).isoformat(), 
-            elapsed=s.duration_seconds, 
-            overdue=is_overdue, 
-            overdue_minutes=overdue_minutes, 
-            kiosk_suspended=kiosk_suspended, 
-            auto_ban_overdue=auto_ban_overdue,
-            auto_promote_queue=auto_promote_queue,
-            # Multi-pass support
-            capacity=settings["capacity"],
-            active_sessions=[{
-                "id": sess.id,
-                "name": get_student_name(sess.student_id, "Student", user_id=user_id),
-                "elapsed": sess.duration_seconds,
-                "overdue": sess.duration_seconds > overdue_minutes * 60,
-                "start": to_local(sess.start_ts).isoformat()
-            } for sess in get_open_sessions(user_id)],
-            # Queue data
-            queue=[get_student_name(q.student_id, "Unknown", user_id=user_id) 
-                   for q in Queue.query.filter_by(user_id=user_id).order_by(Queue.joined_ts.asc()).all()],
-            queue_list=[{
-                "name": get_student_name(q.student_id, "Unknown", user_id=user_id),
-                "student_id": q.student_id  # Encrypted/ID - wait, local DB uses ID. 
-                # If encryption enabled, student_id is encrypted? No, Queue stores `code`.
-                # If code is encrypted ID, then yes.
-                # However, api_queue_delete expects `student_id`.
-                # We should return what is stored in Queue.student_id.
-            } for q in Queue.query.filter_by(user_id=user_id).order_by(Queue.joined_ts.asc()).all()]
-        )
-    else:
-        return jsonify(
-            in_use=False, 
-            overdue_minutes=overdue_minutes, 
-            kiosk_suspended=kiosk_suspended, 
-            auto_ban_overdue=auto_ban_overdue,
-            auto_promote_queue=auto_promote_queue,
-             # Multi-pass support
-             capacity=settings["capacity"],
-            active_sessions=[],
-            queue=[get_student_name(q.student_id, "Unknown", user_id=user_id) 
-                   for q in Queue.query.filter_by(user_id=user_id).order_by(Queue.joined_ts.asc()).all()],
-            queue_list=[{
-                "name": get_student_name(q.student_id, "Unknown", user_id=user_id),
-                "student_id": q.student_id
-            } for q in Queue.query.filter_by(user_id=user_id).order_by(Queue.joined_ts.asc()).all()]
-        )
+def _sse_status_stream(token: Optional[str]):
+    # Capture user_id at start of stream
+    user_id = get_current_user_id(token)
+
+    def stream():
+        last_sig = None
+        last_heartbeat = 0.0
+
+        # Hint to EventSource clients how quickly to retry
+        yield "retry: 3000\n\n"
+
+        while True:
+            # Reset transaction to see updates from other requests
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+
+            payload = _build_status_payload(user_id)
+            sig = _build_status_signature(payload)
+
+            now = time.time()
+            if sig != last_sig:
+                yield f"data: {json.dumps(payload)}\n\n"
+                last_sig = sig
+                last_heartbeat = now
+            elif now - last_heartbeat > 15:
+                # Keep-alive comment so proxies don't buffer/timeout
+                yield ": ping\n\n"
+                last_heartbeat = now
+
+            time.sleep(0.5)
+
+    resp = Response(stream_with_context(stream()), mimetype="text/event-stream")
+    resp.headers["Cache-Control"] = "no-cache"
+    resp.headers["X-Accel-Buffering"] = "no"
+    return resp
+
+
+@app.get("/api/stream")
+def api_stream():
+    token = request.args.get("token")
+    return _sse_status_stream(token)
+
 
 @app.get("/events")
 def sse_events():
-    token = request.args.get('token')
-    # Capture user_id at start of stream
-    user_id = get_current_user_id(token)
-    
-    def stream():
-        last_payload = None
-        while True:
-            # We must use proper application context inside generator if accessing DB lazily, 
-            # but here we just call helpers which usually should be fine if app context is pushed.
-            # However, stream_with_context handles the context.
-            
-            # End current transaction and start fresh to see committed changes from other connections
-            # (PostgreSQL transaction isolation prevents seeing uncommitted data)
-            db.session.rollback()
-            
-            settings = get_settings(user_id)
-            
-            s = get_current_holder(user_id)
-            overdue_minutes = settings["overdue_minutes"]
-            kiosk_suspended = settings["kiosk_suspended"]
-            auto_ban_overdue = settings.get("auto_ban_overdue", False)
-            auto_promote_queue = settings.get("auto_promote_queue", False)
-            if s:
-                student_name = get_student_name(s.student_id, "Student", user_id=user_id)
-                payload = {
-                    "in_use": True,
-                    "name": student_name,
-                    "elapsed": s.duration_seconds,
-                    "overdue": s.duration_seconds > overdue_minutes * 60,
-                    "overdue_minutes": overdue_minutes,
-                    "kiosk_suspended": kiosk_suspended,
-                    "auto_ban_overdue": auto_ban_overdue,
-                    "auto_promote_queue": auto_promote_queue,
-                    "capacity": settings["capacity"],
-                    "active_sessions": [{
-                        "id": sess.id,
-                        "name": get_student_name(sess.student_id, "Student", user_id=user_id),
-                        "elapsed": sess.duration_seconds,
-                        "overdue": sess.duration_seconds > overdue_minutes * 60,
-                        "start": to_local(sess.start_ts).isoformat()
-                    } for sess in get_open_sessions(user_id)]
-                }
-            else:
-                payload = {
-                    "in_use": False, 
-                    "overdue_minutes": overdue_minutes, 
-                    "kiosk_suspended": kiosk_suspended, 
-                    "auto_ban_overdue": auto_ban_overdue,
-                    "auto_promote_queue": auto_promote_queue,
-                    "capacity": settings["capacity"],
-                    "active_sessions": []
-                }
-            if payload != last_payload:
-                yield f"data: {json.dumps(payload)}\n\n"
-                last_payload = payload
-            time.sleep(1)
-    return Response(stream_with_context(stream()), mimetype="text/event-stream")
+    # Backwards-compatible alias (older clients / README)
+    token = request.args.get("token")
+    return _sse_status_stream(token)
 
 @app.get("/api/stats")
 def api_stats():
