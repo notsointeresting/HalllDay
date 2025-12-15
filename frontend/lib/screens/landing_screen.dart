@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:web/web.dart' as web;
+import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:ui'; // For ImageFilter
 
 class LandingScreen extends StatefulWidget {
@@ -126,19 +127,17 @@ class _LandingScreenState extends State<LandingScreen> {
                             children: [
                               // Prefer a real logo if it exists at the server root.
                               // Bundled as a Flutter asset for reliability (web + mobile).
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(28),
-                                child: Image.asset(
-                                  'assets/brand/logo.png',
-                                  width: 92,
-                                  height: 92,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Icon(
-                                    Icons.school_rounded,
-                                    size: 92,
-                                    color: Colors.black.withValues(alpha: 0.85),
-                                  ),
-                                ),
+                              // SVG Logo for perfect scaling
+                              SvgPicture.asset(
+                                'assets/brand/logo.svg',
+                                height: 100, // Adjusted height for balance
+                                fit:
+                                    BoxFit.contain, // Ensure it's never cut off
+                                placeholderBuilder: (BuildContext context) =>
+                                    Container(
+                                      padding: const EdgeInsets.all(30.0),
+                                      child: const CircularProgressIndicator(),
+                                    ),
                               ),
                               const SizedBox(height: 28),
                               Text(
