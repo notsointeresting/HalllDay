@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 from typing import Dict, Optional, List, Any
 from functools import wraps
 
-from flask import Flask, jsonify, render_template, request, redirect, url_for, send_file, Response, stream_with_context, session
+from flask import Flask, jsonify, render_template, request, redirect, url_for, send_file, Response, stream_with_context, session, send_from_directory
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
@@ -31,6 +31,10 @@ from services.session import SessionService
 from models.user import create_user_model
 
 app = Flask(__name__)
+# Enable CORS for all domains for now (development mode)
+from flask_cors import CORS
+CORS(app)
+
 # Fix for Render/Heroku: Trust X-Forwarded-Proto header for HTTPS
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
@@ -89,13 +93,24 @@ class Session(db.Model):
         end = self.end_ts or datetime.now(timezone.utc)
         return int((end - self.start_ts).total_seconds())
 
+
+class Queue(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.String(50), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    joined_ts = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+
 class Settings(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     room_name = db.Column(db.String, nullable=False, default=config.ROOM_NAME)
     capacity = db.Column(db.Integer, nullable=False, default=config.CAPACITY)
     overdue_minutes = db.Column(db.Integer, nullable=False, default=10)
     kiosk_suspended = db.Column(db.Boolean, nullable=False, default=False)
+
     auto_ban_overdue = db.Column(db.Boolean, nullable=False, default=False)
+    auto_promote_queue = db.Column(db.Boolean, nullable=False, default=False)
+    enable_queue = db.Column(db.Boolean, nullable=False, default=False)
     # 2.0: Add user_id FK (nullable for migration compatibility, ID=1 is legacy global)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
     
@@ -273,6 +288,54 @@ def clear_memory_roster(user_id: Optional[int] = None) -> None:
     if roster_service:
         roster_service.clear_memory_roster(user_id)
 
+def refresh_roster_cache(user_id: Optional[int] = None) -> None:
+    """Refresh the memory cache from the database (scoped to user)."""
+    if not roster_service:
+        return
+        
+    # Get all students for this user with non-encrypted names (or handle decryption)
+    # Simple case: Just load display_name mapped to name_hash or ID
+    # Actually memory cache maps: { id -> Name }
+    # So we need to reconstruct that.
+    
+    # 1. Clear current cache
+    clear_memory_roster(user_id)
+    
+    # 2. Query DB
+    students = StudentName.query.filter_by(user_id=user_id).all()
+    
+    # 3. Build dict
+    new_cache = {}
+    for s in students:
+        # Use encrypted_id if available (decrypted), else fallback to hash
+        # If encrypted_id is None, we can't get the original ID easily unless we used a deterministic hash
+        # But we stored `name_hash` which is `student_{user_id}_{source_id}` hashed.
+        # Wait, the Kiosk lookup hashes the input ID and checks against DB.
+        # But memory cache expects { 'real_id': 'Name' } for fast lookup on scan?
+        # NO, kiosk.js/UI sends raw ID. 
+        # If we hash it in app, we can match.
+        
+        # Actually RosterService.get_student_name checks cache first.
+        # If cache keys are raw IDs, we need raw IDs.
+        # If we only have hashes in DB, we can't repopulate cache with raw IDs!
+        
+        # HOWEVER, the `api_roster_upload` set cache with what?
+        # It didn't. It just called this missing function.
+        
+        # If we can't recover raw IDs, we can't "refresh" the cache fully for ID-based lookup
+        # UNLESS we decrypt the encrypted_id.
+        
+        if s.encrypted_id:
+            try:
+                raw_id = cipher_suite.decrypt(s.encrypted_id.encode()).decode()
+                new_cache[raw_id] = s.display_name
+            except Exception:
+                pass
+                
+    # 4. Set to cache
+    if new_cache:
+        set_memory_roster(new_cache, user_id)
+
 def get_student_name(student_id: str, fallback: str = "Student", user_id: Optional[int] = None) -> str:
     """Get student name from memory or database (scoped to user)."""
     return roster_service.get_student_name(user_id, student_id, fallback) if roster_service else fallback
@@ -366,7 +429,9 @@ def get_settings(user_id: Optional[int] = None):
             "capacity": s.capacity, 
             "overdue_minutes": s.overdue_minutes, 
             "kiosk_suspended": kiosk_suspended, 
-            "auto_ban_overdue": auto_ban_overdue
+            "auto_ban_overdue": auto_ban_overdue,
+            "enable_queue": getattr(s, 'enable_queue', False),
+            "auto_promote_queue": getattr(s, 'auto_promote_queue', False)
         }
     except Exception:
         # If query fails, return defaults
@@ -375,7 +440,9 @@ def get_settings(user_id: Optional[int] = None):
             "capacity": config.CAPACITY, 
             "overdue_minutes": getattr(config, "MAX_MINUTES", 10), 
             "kiosk_suspended": False, 
-            "auto_ban_overdue": False
+            "auto_ban_overdue": False,
+            "enable_queue": False,
+            "auto_promote_queue": False
         }
 
 @app.context_processor
@@ -420,7 +487,9 @@ init_oauth(app)
 
 @app.route("/")
 def index():
-    return redirect(url_for("kiosk"))
+    if os.path.exists(os.path.join(app.static_folder, 'index.html')):
+        return send_from_directory(app.static_folder, 'index.html')
+    return "Flutter App Not Built", 404
 
 # Legacy kiosk route (for backward compatibility and logged-in users)
 @app.route("/kiosk")
@@ -435,6 +504,15 @@ def kiosk():
     return render_template("kiosk_landing.html")
 
 # Public kiosk routes (2.0 - no login required, token-based)
+# Serve Flutter static files (js, json, png, etc) from root
+@app.route('/<path:filename>')
+def serve_static(filename):
+    """
+    Serve static files from the 'static' folder for the root URL path.
+    This enables Flutter Web assets (flutter.js, main.dart.js, assets/...) to load correctly.
+    """
+    return send_from_directory(app.static_folder, filename)
+
 @app.route("/k/<token>")
 @app.route("/kiosk/<token>")
 def public_kiosk(token):
@@ -444,6 +522,14 @@ def public_kiosk(token):
     ).first()
     if not user:
         return "Kiosk not found", 404
+        
+    # Check if Flutter app is built (in static folder)
+    flutter_index = os.path.join(app.static_folder, 'index.html')
+    if os.path.exists(flutter_index):
+        # Serve the Flutter SPA
+        return send_file(flutter_index)
+        
+    # Fallback to legacy template if Flutter not built
     return render_template("kiosk.html", user_id=user.id, user_name=user.name, token=token)
 
 # Legacy display route (for backward compatibility)
@@ -468,6 +554,13 @@ def public_display(token):
     ).first()
     if not user:
         return "Display not found", 404
+        
+    # Check if Flutter app is built (in static folder)
+    flutter_index = os.path.join(app.static_folder, 'index.html')
+    if os.path.exists(flutter_index):
+        # Serve the Flutter SPA
+        return send_file(flutter_index)
+
     return render_template("display.html", user_id=user.id, user_name=user.name, token=token)
 
 @app.route("/admin/login", methods=["GET"])
@@ -480,63 +573,32 @@ def admin_login():
 @app.route("/admin/logout")
 def admin_logout():
     session.pop('admin_authenticated', None)
-    return redirect(url_for('admin_login'))
+    return redirect("/")
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/")
 
 @app.route("/admin")
 @require_admin_auth
 def admin():
-    """Teacher-facing admin dashboard (clean, user-friendly)"""
-    # Get current user if OAuth is active
-    current_user = None
-    user_id = get_current_user_id()
+    """Teacher-facing admin dashboard (Served via Flutter)"""
+    if os.path.exists(os.path.join(app.static_folder, 'index.html')):
+        return send_from_directory(app.static_folder, 'index.html')
     
-    if user_id:
-        current_user = User.query.get(user_id)
-    
-    # Scope queries to current user if available
-    query_session = Session.query
-    query_open = Session.query.filter_by(end_ts=None)
-    query_roster = StudentName.query
-    
-    if user_id is not None:
-        query_session = query_session.filter_by(user_id=user_id)
-        query_open = query_open.filter_by(user_id=user_id)
-        query_roster = query_roster.filter_by(user_id=user_id)
-        
-    total = query_session.count()
-    open_count = query_open.count()
-    db_roster_count = query_roster.count()
-    
-    settings = get_settings(user_id)
-    
-    try:
-        # Roster counts
-        memory_roster_count = len(get_memory_roster(user_id))
-        
-        # Build public URLs for Share/Embed section
-        kiosk_urls = None
-        if current_user:
-            base_url = request.url_root.rstrip('/')
-            kiosk_urls = current_user.get_public_urls(base_url)
-        
-        return render_template(
-            "admin.html",
-            total=total,
-            open_count=open_count,
-            settings=settings,
-            db_roster_count=db_roster_count,
-            memory_roster_count=memory_roster_count,
-            current_user=current_user,
-            kiosk_urls=kiosk_urls,
-        )
-    except Exception as e:
-        import traceback
-        return f"Admin Page Error: {str(e)} <br><pre>{traceback.format_exc()}</pre>", 500
+    # Fallback to Legacy if Flutter not built
+    # ... (Legacy logic effectively removed/hidden, but safely handled by check)
+    return "Flutter App Not Built. Please run ./deploy.sh"
 
 
 @app.route("/dev/login", methods=["GET", "POST"])
 def dev_login():
-    """Developer login page - requires HALLPASS_ADMIN_PASSCODE"""
+    """Legacy Developer login page (Keep for direct access logic or removal?)
+       Since Flutter DevScreen handles login, we might not need this if we rely purely on Flutter.
+       But existing logic redirects here.
+       Let's keep it as is for now, but /dev will bypass it to serve Flutter.
+    """
     if session.get('dev_authenticated'):
         return redirect(url_for('dev'))
     
@@ -552,39 +614,522 @@ def dev_login():
 
 @app.route("/dev")
 def dev():
-    """Developer-only page with database tools - requires passcode"""
-    if not session.get('dev_authenticated'):
-        return redirect(url_for('dev_login'))
+    """Developer-only page (Served via Flutter)"""
+    # Note: We do NOT enforce auth here so that Flutter App can load and show its own Login Screen.
+    # The API endpoint /api/dev/stats IS protected.
     
-    # Get current user if logged in via OAuth
+    if os.path.exists(os.path.join(app.static_folder, 'index.html')):
+        return send_from_directory(app.static_folder, 'index.html')
+    
+    return "Flutter App Not Built. Please run ./deploy.sh"
+
+# ============================================================================
+# API ENDPOINTS FOR FLUTTER ADMIN/DEV DASHBOARDS
+# ============================================================================
+
+@app.route("/api/admin/stats")
+def api_admin_stats():
+    """API Endpoint: Get Admin Dashboard Stats & Insights"""
+    if not is_admin_authenticated():
+        return jsonify(ok=False, error="Unauthorized", authenticated=False), 401
+    
+    user_id = get_current_user_id()
+    
+    # Get User Info
     current_user = None
-    user_id = session.get('user_id')
     if user_id:
         current_user = User.query.get(user_id)
-    
-    total = Session.query.count()
-    open_count = Session.query.filter_by(end_ts=None).count()
-    settings = get_settings()
-    
-    try:
-        # All roster counts (global, not scoped)
-        memory_roster_count = len(get_memory_roster())
-        db_roster_count = StudentName.query.count()
-        user_count = User.query.count()
         
-        return render_template(
-            "dev.html",
-            total=total,
-            open_count=open_count,
-            settings=settings,
-            db_roster_count=db_roster_count,
-            memory_roster_count=memory_roster_count,
-            user_count=user_count,
-            current_user=current_user,
+    public_urls = {}
+    if current_user:
+        base_url = request.url_root.rstrip('/')
+        public_urls = current_user.get_public_urls(base_url)
+
+    # Scope queries
+    query_session = Session.query
+    query_open = Session.query.filter_by(end_ts=None)
+    query_roster = StudentName.query
+    
+    if user_id is not None:
+        query_session = query_session.filter_by(user_id=user_id)
+        query_open = query_open.filter_by(user_id=user_id)
+        query_roster = query_roster.filter_by(user_id=user_id)
+    
+    # Insights: Top Students (Most Sessions)
+    # Join with Student table to get names
+    from sqlalchemy import func, desc
+    top_students = db.session.query(
+        Student.name, func.count(Session.id).label('count')
+    ).select_from(Session).join(Student)\
+     .filter(Session.user_id == user_id if user_id else True)\
+     .group_by(Student.name)\
+     .order_by(desc('count'))\
+     .limit(5).all()
+     
+    # Insights: Most Overdue
+    # (Simplified for stability: Logic for 'is_overdue' in SQL is complex due to timezone/property calculation)
+    # For now, we'll return an empty list or top users to prevent 500 error
+    most_overdue = [] 
+    # Attempting to filter by Python-calculated property in SQL won't work.
+    # Future TODO: Add 'overdue_minutes' to SQL query calculation if needed.
+
+    try:
+        return jsonify(
+            ok=True,
+            user={
+                "name": current_user.name if current_user else "Anonymous",
+                "email": current_user.email if current_user else "",
+                "slug": current_user.kiosk_slug if current_user else None,
+                "urls": public_urls
+            },
+            total_sessions=query_session.count(),
+            active_sessions_count=query_open.count(),
+            roster_count=query_roster.count(),
+            memory_roster_count=len(get_memory_roster(user_id)),
+            settings=get_settings(user_id),
+            queue_list=[{
+                "name": get_student_name(q.student_id, "Unknown", user_id=user_id),
+                "student_id": q.student_id
+            } for q in Queue.query.filter_by(user_id=user_id).order_by(Queue.joined_ts.asc()).all()],
+            insights={
+                "top_students": [{"name": r[0], "count": r[1]} for r in top_students],
+                "most_overdue": [{"name": r[0], "count": r[1]} for r in most_overdue]
+            }
         )
     except Exception as e:
         import traceback
-        return f"Dev Page Error: {str(e)} <br><pre>{traceback.format_exc()}</pre>", 500
+        traceback.print_exc()
+        return jsonify(ok=False, error=str(e)), 500
+
+# --- Admin Action Endpoints ---
+
+
+
+@app.route("/api/settings/update", methods=["POST"])
+@require_admin_auth_api
+def update_settings_api():
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify(ok=False, message="User not authenticated"), 403
+    
+    data = request.get_json(silent=True) or {}
+    
+    # Get or create the user's settings (isolated from all other users)
+    s = Settings.query.filter_by(user_id=user_id).first()
+    if not s:
+        s = Settings(
+            user_id=user_id,
+            room_name="Hall Pass",
+            capacity=1,
+            overdue_minutes=10,
+            kiosk_suspended=False,
+            auto_ban_overdue=False
+        )
+        db.session.add(s)
+    
+    if "room_name" in data:
+        s.room_name = str(data["room_name"]).strip() or s.room_name
+    if "capacity" in data:
+        try:
+            s.capacity = max(1, int(data["capacity"]))
+        except Exception:
+            pass
+    if "overdue_minutes" in data:
+        try:
+            s.overdue_minutes = max(1, int(data["overdue_minutes"]))
+        except Exception:
+            pass
+    if "kiosk_suspended" in data:
+        s.kiosk_suspended = bool(data["kiosk_suspended"])
+    if "auto_ban_overdue" in data:
+        s.auto_ban_overdue = bool(data["auto_ban_overdue"])
+    if "auto_promote_queue" in data:
+        s.auto_promote_queue = bool(data["auto_promote_queue"])
+    if "enable_queue" in data:
+        s.enable_queue = bool(data["enable_queue"])
+    
+    db.session.commit()
+    return jsonify(ok=True, settings=get_settings(user_id))
+
+
+@app.route("/api/settings/suspend", methods=["POST"])
+def api_suspend_kiosk():
+    if not is_admin_authenticated():
+        return jsonify(ok=False, error="Unauthorized"), 401
+        
+    data = request.get_json()
+    # Expecting { "suspend": true/false }
+    # Or just toggle? Let's check payload.
+    should_suspend = data.get('suspend')
+    
+    user_id = get_current_user_id()
+    settings = Settings.query.filter_by(user_id=user_id).first()
+    if settings:
+        settings.kiosk_suspended = bool(should_suspend)
+        db.session.commit()
+        return jsonify(ok=True, suspended=settings.kiosk_suspended)
+    return jsonify(ok=False, error="Settings not found"), 404
+
+@app.route("/api/settings/slug", methods=["POST"])
+def api_update_slug():
+    if not is_admin_authenticated():
+        return jsonify(ok=False, error="Unauthorized"), 401
+
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify(ok=False, error="Not logged in"), 400
+        
+    current_user = User.query.get(user_id)
+    slug = request.get_json().get('slug', '').strip()
+    
+    if current_user.set_kiosk_slug(slug):
+        try:
+            db.session.commit()
+            return jsonify(ok=True, slug=current_user.kiosk_slug)
+        except Exception:
+            db.session.rollback()
+            return jsonify(ok=False, error="Slug already taken"), 409
+    
+    return jsonify(ok=False, error="Invalid format"), 400
+
+@app.route("/api/roster/upload", methods=["POST"])
+def api_roster_upload():
+    if not is_admin_authenticated():
+        return jsonify(ok=False, error="Unauthorized"), 401
+    
+    if 'file' not in request.files:
+        return jsonify(ok=False, error="No file provided"), 400
+        
+    file = request.files['file']
+    if not file.filename.endswith('.csv'):
+        return jsonify(ok=False, error="CSV required"), 400
+        
+    user_id = get_current_user_id()
+    
+    try:
+        # Clear existing?
+        # Behavior: Upload usually replaces or appends. 
+        # Requirement: "Uploading a roster will replace".
+        StudentName.query.filter_by(user_id=user_id).delete()
+        
+        stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
+        reader = csv.reader(stream)
+        
+        count = 0
+        for row in reader:
+            if not row: continue
+            # Assume Col 0 = ID, Col 1 = Name (or header check)
+            # Simple heuristic: If multiple cols, assume Name is last?
+            # Or Name,ID?
+            # Standard: Name, ID  OR  ID, Name.
+            # Let's try to detect or just assume Name is first for simplicity, or Name, ID.
+            # User provided screenshot "Student data is encrypted".
+            # Let's verify legacy Logic. `update_roster` used `StudentName(name=...)`.
+            
+            # Parse CSV: Expect Name,ID or ID,Name format
+            # Try: First col is Name, second is ID (if present)
+            # Auto-detect format:
+            # Check if col 0 looks like an ID (digits) and col 1 like text
+            # Or vice versa.
+            col0 = row[0].strip() if len(row) > 0 else ""
+            col1 = row[1].strip() if len(row) > 1 else ""
+            
+            name = None
+            student_id = None
+            
+            # Simple heuristic: IDs are usually numeric. Names are not.
+            if col0 and all(c.isdigit() for c in col0) and not (col1 and all(c.isdigit() for c in col1)):
+                # Format: ID, Name
+                student_id = col0
+                name = col1
+            elif col1 and all(c.isdigit() for c in col1) and not (col0 and all(c.isdigit() for c in col0)):
+                # Format: Name, ID
+                name = col0
+                student_id = col1
+            else:
+                # Ambiguous or both strings/ints. Fallback to Name, ID default
+                name = col0
+                student_id = col1
+            
+            if not name:
+                continue
+            
+            # Use student_id for hashing if present, else fall back to row index
+            hash_source = student_id if student_id else f"row_{count}"
+            # Include user_id in hash to avoid collisions across users
+            name_hash = hashlib.sha256(f"student_{user_id}_{hash_source}".encode()).hexdigest()[:16]
+            
+            # Encrypt student_id if provided
+            encrypted_id = None
+            if student_id:
+                encrypted_id = cipher_suite.encrypt(student_id.encode()).decode()
+            
+            s = StudentName(
+                display_name=name,
+                name_hash=name_hash,
+                encrypted_id=encrypted_id,
+                user_id=user_id,
+                banned=False
+            )
+            db.session.add(s)
+            count += 1
+            
+        db.session.commit()
+        # Update memory cache
+        refresh_roster_cache(user_id)
+        return jsonify(ok=True, count=count)
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(ok=False, error=str(e)), 500
+
+@app.route("/api/roster", methods=["GET"])
+def api_roster_get():
+    if not is_admin_authenticated():
+        return jsonify(ok=False, error="Unauthorized"), 401
+    
+    user_id = get_current_user_id()
+    try:
+        students = StudentName.query.filter_by(user_id=user_id).order_by(StudentName.display_name).limit(500).all()
+        # Limit 500 for safety, though user might have more. Pagination ideal but full dump okay for now.
+        
+        roster = []
+        for s in students:
+            # Decrypt ID if possible
+            readable_id = "Hidden"
+            if s.encrypted_id:
+                try:
+                    readable_id = cipher_suite.decrypt(s.encrypted_id.encode()).decode()
+                except:
+                    readable_id = "Error"
+            
+            roster.append({
+                "id": s.id,
+                "name": s.display_name,
+                "student_id": readable_id,
+                "banned": s.banned,
+                "name_hash": s.name_hash
+            })
+            
+        return jsonify(ok=True, roster=roster)
+    except Exception as e:
+        return jsonify(ok=False, error=str(e)), 500
+
+@app.route("/api/roster/ban", methods=["POST"])
+def api_roster_ban():
+    if not is_admin_authenticated():
+        return jsonify(ok=False, error="Unauthorized"), 401
+        
+    data = request.get_json()
+    hash_key = data.get('name_hash')
+    should_ban = data.get('banned')
+    
+    if not hash_key or should_ban is None:
+        return jsonify(ok=False, error="Missing parameters"), 400
+        
+    user_id = get_current_user_id()
+    try:
+        student = StudentName.query.filter_by(user_id=user_id, name_hash=hash_key).first()
+        if student:
+            student.banned = bool(should_ban)
+            db.session.commit()
+            return jsonify(ok=True)
+        else:
+            return jsonify(ok=False, error="Student not found"), 404
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(ok=False, error=str(e)), 500
+
+@app.route("/api/roster/clear", methods=["POST"])
+def api_roster_clear():
+    if not is_admin_authenticated():
+        return jsonify(ok=False, error="Unauthorized"), 401
+        
+    user_id = get_current_user_id()
+    data = request.get_json() or {}
+    clear_history = data.get('clear_history', False)
+    
+    try:
+        StudentName.query.filter_by(user_id=user_id).delete()
+        if clear_history:
+            # Remove all sessions for this user
+            Session.query.filter_by(user_id=user_id).delete()
+            
+        db.session.commit()
+        refresh_roster_cache(user_id)
+        return jsonify(ok=True)
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(ok=False, error=str(e)), 500
+
+@app.route("/api/admin/logs", methods=["GET"])
+def api_admin_logs():
+    if not is_admin_authenticated():
+        return jsonify(ok=False, error="Unauthorized"), 401
+        
+    user_id = get_current_user_id()
+    try:
+        # Fetch last 100 sessions
+        sessions = Session.query.filter_by(user_id=user_id).order_by(Session.start_ts.desc()).limit(100).all()
+        
+        logs = []
+        for s in sessions:
+            name = get_student_name(s.student_id, "Unknown", user_id=user_id)
+            
+            status = "active"
+            if s.end_ts:
+                status = "completed"
+                # Check if it was overdue
+                if s.duration_seconds > get_settings(user_id)["overdue_minutes"] * 60:
+                    status = "overdue"
+            
+            logs.append({
+                "id": s.id,
+                "name": name,
+                "student_id": s.student_id, # Raw ID might be needed for correlation
+                "start": to_local(s.start_ts).isoformat(),
+                "end": to_local(s.end_ts).isoformat() if s.end_ts else None,
+                "duration_minutes": round(s.duration_seconds / 60, 1),
+                "status": status,
+                "room": s.room
+            })
+            
+        return jsonify(ok=True, logs=logs)
+    except Exception as e:
+        return jsonify(ok=False, error=str(e)), 500
+
+@app.route("/api/admin/logs/export", methods=["GET"])
+def api_admin_logs_export():
+    if not is_admin_authenticated():
+        return "Unauthorized", 401
+    
+    user_id = get_current_user_id()
+    try:
+        # Fetch all sessions (limited to reasonable number or date range? User said "export logs", implies all)
+        # Let's limit to last 1000 for safety, or all if feasible. 1000 is safe.
+        sessions = Session.query.filter_by(user_id=user_id).order_by(Session.start_ts.desc()).limit(1000).all()
+        
+        si = io.StringIO()
+        cw = csv.writer(si)
+        cw.writerow(["Student Name", "Student ID", "Room", "Start Time", "End Time", "Duration (Minutes)", "Status"])
+        
+        for s in sessions:
+            name = get_student_name(s.student_id, "Unknown", user_id=user_id)
+            status = "active"
+            if s.end_ts:
+                status = "completed"
+                if s.duration_seconds > get_settings(user_id)["overdue_minutes"] * 60:
+                    status = "overdue"
+            
+            cw.writerow([
+                name,
+                s.student_id,
+                s.room,
+                to_local(s.start_ts).isoformat(),
+                to_local(s.end_ts).isoformat() if s.end_ts else "",
+                round(s.duration_seconds / 60, 1),
+                status
+            ])
+            
+        output = io.BytesIO()
+        output.write(si.getvalue().encode('utf-8'))
+        output.seek(0)
+        
+        return send_file(
+            output,
+            mimetype="text/csv",
+            as_attachment=True,
+            download_name="pass_logs.csv"
+        )
+    except Exception as e:
+        return str(e), 500
+
+@app.route("/api/control/ban_overdue", methods=["POST"])
+def api_ban_overdue():
+    if not is_admin_authenticated():
+        return jsonify(ok=False, error="Unauthorized"), 401
+        
+    user_id = get_current_user_id()
+    settings = get_settings(user_id)
+    overdue_seconds = settings["overdue_minutes"] * 60
+    
+    try:
+        # Find active sessions that are overdue
+        open_sessions = Session.query.filter_by(user_id=user_id, end_ts=None).all()
+        count = 0
+        for s in open_sessions:
+            # Check if overdue using duration_seconds property
+            if s.duration_seconds > overdue_seconds:
+                # Find StudentName by hashing the student_id
+                name_hash = hashlib.sha256(f"student_{user_id}_{s.student_id}".encode()).hexdigest()[:16]
+                student_name = StudentName.query.filter_by(user_id=user_id, name_hash=name_hash).first()
+                if student_name and not student_name.banned:
+                    student_name.banned = True
+                    count += 1
+        db.session.commit()
+        return jsonify(ok=True, count=count)
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(ok=False, error=str(e)), 500
+
+@app.route("/api/control/delete_history", methods=["POST"])
+def api_delete_history():
+    if not is_admin_authenticated():
+        return jsonify(ok=False, error="Unauthorized"), 401
+        
+    user_id = get_current_user_id()
+    try:
+        Session.query.filter_by(user_id=user_id).delete()
+        db.session.commit()
+        return jsonify(ok=True)
+    except Exception as e:
+        return jsonify(ok=False, error=str(e)), 500
+
+@app.route("/api/admin/roster")
+def api_admin_roster():
+    """API Endpoint: Get Roster List"""
+    if not is_admin_authenticated():
+        return jsonify(ok=False, error="Unauthorized", authenticated=False), 401
+        
+    user_id = get_current_user_id()
+    students = StudentName.query
+    if user_id is not None:
+        students = students.filter_by(user_id=user_id)
+    
+    students = students.order_by(StudentName.display_name).all()
+    
+    return jsonify(
+        ok=True,
+        roster=[{"id": s.id, "name": s.display_name, "banned": s.banned} for s in students]
+    )
+
+@app.route("/api/dev/auth", methods=["POST"])
+def api_dev_auth():
+    """API Endpoint: Developer Login"""
+    data = request.get_json()
+    passcode = data.get("passcode", "").strip()
+    
+    if passcode == config.ADMIN_PASSCODE:
+        session['dev_authenticated'] = True
+        session.permanent = True
+        return jsonify(ok=True)
+    return jsonify(ok=False, error="Invalid Passcode"), 401
+
+@app.route("/api/dev/stats")
+def api_dev_stats():
+    """API Endpoint: Get System Stats (Dev Only)"""
+    if not session.get('dev_authenticated'):
+        return jsonify(ok=False, error="Unauthorized", authenticated=False), 401
+    
+    # Global Stats
+    return jsonify(
+        ok=True,
+        total_sessions=Session.query.count(),
+        active_sessions=Session.query.filter_by(end_ts=None).count(),
+        total_students=StudentName.query.count(),
+        total_users=User.query.count(),
+        settings=get_settings()
+    )
 
 # ---------- Keep-alive (Render) ----------
 _keepalive_started = False
@@ -716,6 +1261,9 @@ def api_scan():
     for s in open_sessions:
         if s.student_id == code:
             # Check if student is overdue and auto-ban is enabled
+            # Check if student is overdue and auto-ban is enabled
+            action = "ended"
+            msg = None
             if settings.get("auto_ban_overdue", False):
                 overdue_seconds = settings["overdue_minutes"] * 60
                 if s.duration_seconds > overdue_seconds:
@@ -723,27 +1271,143 @@ def api_scan():
                     if not is_student_banned(code, user_id=user_id):
                         set_student_banned(code, True, user_id=user_id)
                         print(f"AUTO-BAN ON SCAN-BACK: {student_name} ({code}) was overdue {round(s.duration_seconds / 60, 1)} minutes")
+                        action = "ended_banned"
+                        msg = "PASSED RETURNED LATE - AUTO BANNED"
             
             # End the session
             s.end_ts = now_utc()
             s.ended_by = "kiosk_scan"
             db.session.commit()
-            return jsonify(ok=True, action="ended", name=student_name)
+            
+            # ---------------------------
+            # AUTO-PROMOTE LOGIC
+            # ---------------------------
+            next_student_name = None
+            if settings.get("enable_queue") and settings.get("auto_promote_queue"):
+                # Check for next student
+                next_in_line = Queue.query.filter_by(user_id=user_id).order_by(Queue.joined_ts.asc()).first()
+                if next_in_line:
+                    # Promote them!
+                    next_code = next_in_line.student_id
+                    
+                    # Start session for ANY capacity (since we just freed one, or config allows)
+                    # Actually, we should check if capacity is available, but since we ended 's', we have -1.
+                    # Wait, if capacity was 1/1, now 0/1. So we can add.
+                    
+                    promoted_sess = Session(student_id=next_code, start_ts=now_utc(), room=settings["room_name"], user_id=user_id, ended_by="auto")
+                    db.session.add(promoted_sess)
+                    db.session.delete(next_in_line) # Remove from queue
+                    db.session.commit()
+                    
+                    next_student_name = get_student_name(next_code, "Student", user_id=user_id)
+                    action = "ended_auto_started" # Special action for UI
+            
+            return jsonify(ok=True, action=action, message=msg, name=student_name, next_student=next_student_name)
     
     # Check if student is banned from starting NEW restroom trips
     # (They can still end existing trips above)
     if is_student_banned(code, user_id=user_id):
         return jsonify(ok=False, action="banned", message="RESTROOM PRIVILEGES SUSPENDED - SEE TEACHER", name=student_name), 403
 
-    # If capacity is full and someone else is out, deny
+    # ---------------------------
+    # QUEUE LOCK LOGIC
+    # ---------------------------
+    # If queue exists, scanner MUST be at the top to start.
+    queue_count = Queue.query.filter_by(user_id=user_id).count()
+    if queue_count > 0:
+        top_spot = Queue.query.filter_by(user_id=user_id).order_by(Queue.joined_ts.asc()).first()
+        if top_spot.student_id != code:
+             # Scanner is NOT the top spot.
+             # Check if they are already in queue (somewhere else)
+             if Queue.query.filter_by(user_id=user_id, student_id=code).first():
+                 return jsonify(ok=False, action="denied_queue_position", message="You are in the waitlist. Please wait for your turn (Queue Lock)."), 409
+             else:
+                 # New student trying to cut in line
+                 # If Queue is enabled, auto-join them to the BACK.
+                 if settings.get("enable_queue"):
+                     q = Queue(student_id=code, user_id=user_id)
+                     db.session.add(q)
+                     db.session.commit()
+                     return jsonify(ok=True, action="queued", message="Added to Waitlist (Queue is active)")
+                 else:
+                     return jsonify(ok=False, action="denied", message="Waitlist is active. Cannot start."), 409
+        else:
+            # Scanner IS the top spot. Allow and REMOVE from queue.
+            db.session.delete(top_spot)
+            # Proceed to start session...
+
+    # ---------------------------
+    # CAPACITY CHECK & START
+    # ---------------------------
     if len(open_sessions) >= settings["capacity"]:
-        return jsonify(ok=False, action="denied", message=f"Hall pass currently in use"), 409
+         # Queue Prompt / Auto-Join (Fail-safe for non-queue setups or race conditions)
+         # Check if already in Queue (already checked above if queue>0, but if queue=0 and now full?)
+         existing_q = Queue.query.filter_by(user_id=user_id, student_id=code).first()
+         if existing_q:
+              return jsonify(ok=False, action="denied_queue_position", message="You are in the waitlist."), 409
+         
+         if settings.get("enable_queue"):
+             # Auto-Join Queue
+             q = Queue(student_id=code, user_id=user_id)
+             db.session.add(q)
+             db.session.commit()
+             return jsonify(ok=True, action="queued", message="Added to Waitlist")
+         else:
+             # Queue Disabled - Deny
+             return jsonify(ok=False, action="denied", message="Pass limit reached."), 409
 
     # Otherwise start a new session
+    # (Cleanup: Ensure not in queue if we reached here? logic above handles top_spot delete)
+    # Double check just in case (e.g. queue was 0, but race condition?)
+    Queue.query.filter_by(user_id=user_id, student_id=code).delete()
+    
     sess = Session(student_id=code, start_ts=now_utc(), room=settings["room_name"], user_id=user_id)
     db.session.add(sess)
     db.session.commit()
     return jsonify(ok=True, action="started", name=student_name)
+
+@app.route("/api/queue/join", methods=["POST"])
+def api_queue_join():
+    payload = request.get_json(silent=True) or {}
+    token = payload.get("token")
+    code = payload.get("code")
+    user_id = get_current_user_id(token)
+    
+    if not code: return jsonify(ok=False), 400
+    
+    # Check if already in queue
+    if Queue.query.filter_by(user_id=user_id, student_id=code).first():
+        return jsonify(ok=True, message="Already in queue")
+        
+    q = Queue(student_id=code, user_id=user_id)
+    db.session.add(q)
+    db.session.commit()
+    return jsonify(ok=True)
+
+@app.route("/api/queue/leave", methods=["POST"])
+def api_queue_leave():
+    payload = request.get_json(silent=True) or {}
+    token = payload.get("token")
+    code = payload.get("code")
+    user_id = get_current_user_id(token)
+
+    Queue.query.filter_by(user_id=user_id, student_id=code).delete()
+    db.session.commit()
+    return jsonify(ok=True)
+
+@app.route("/api/queue/delete", methods=["POST"])
+@require_admin_auth_api
+def api_queue_delete():
+    payload = request.get_json(silent=True) or {}
+    student_id = payload.get("student_id") # Decrypted ID
+    user_id = get_current_user_id()
+    
+    if not student_id:
+        return jsonify(ok=False, error="Missing student_id"), 400
+
+    Queue.query.filter_by(user_id=user_id, student_id=student_id).delete()
+    db.session.commit()
+    return jsonify(ok=True)
 
 @app.get("/api/status")
 def api_status():
@@ -755,6 +1419,9 @@ def api_status():
     overdue_minutes = settings["overdue_minutes"]
     kiosk_suspended = settings["kiosk_suspended"]
     auto_ban_overdue = settings.get("auto_ban_overdue", False)
+
+    auto_promote_queue = settings.get("auto_promote_queue", False)
+    enable_queue = settings.get("enable_queue", False)
     
     if s:
         is_overdue = s.duration_seconds > overdue_minutes * 60
@@ -771,6 +1438,7 @@ def api_status():
             overdue_minutes=overdue_minutes, 
             kiosk_suspended=kiosk_suspended, 
             auto_ban_overdue=auto_ban_overdue,
+            auto_promote_queue=auto_promote_queue,
             # Multi-pass support
             capacity=settings["capacity"],
             active_sessions=[{
@@ -779,7 +1447,18 @@ def api_status():
                 "elapsed": sess.duration_seconds,
                 "overdue": sess.duration_seconds > overdue_minutes * 60,
                 "start": to_local(sess.start_ts).isoformat()
-            } for sess in get_open_sessions(user_id)]
+            } for sess in get_open_sessions(user_id)],
+            # Queue data
+            queue=[get_student_name(q.student_id, "Unknown", user_id=user_id) 
+                   for q in Queue.query.filter_by(user_id=user_id).order_by(Queue.joined_ts.asc()).all()],
+            queue_list=[{
+                "name": get_student_name(q.student_id, "Unknown", user_id=user_id),
+                "student_id": q.student_id  # Encrypted/ID - wait, local DB uses ID. 
+                # If encryption enabled, student_id is encrypted? No, Queue stores `code`.
+                # If code is encrypted ID, then yes.
+                # However, api_queue_delete expects `student_id`.
+                # We should return what is stored in Queue.student_id.
+            } for q in Queue.query.filter_by(user_id=user_id).order_by(Queue.joined_ts.asc()).all()]
         )
     else:
         return jsonify(
@@ -787,9 +1466,16 @@ def api_status():
             overdue_minutes=overdue_minutes, 
             kiosk_suspended=kiosk_suspended, 
             auto_ban_overdue=auto_ban_overdue,
+            auto_promote_queue=auto_promote_queue,
              # Multi-pass support
-            capacity=settings["capacity"],
-            active_sessions=[]
+             capacity=settings["capacity"],
+            active_sessions=[],
+            queue=[get_student_name(q.student_id, "Unknown", user_id=user_id) 
+                   for q in Queue.query.filter_by(user_id=user_id).order_by(Queue.joined_ts.asc()).all()],
+            queue_list=[{
+                "name": get_student_name(q.student_id, "Unknown", user_id=user_id),
+                "student_id": q.student_id
+            } for q in Queue.query.filter_by(user_id=user_id).order_by(Queue.joined_ts.asc()).all()]
         )
 
 @app.get("/events")
@@ -815,6 +1501,7 @@ def sse_events():
             overdue_minutes = settings["overdue_minutes"]
             kiosk_suspended = settings["kiosk_suspended"]
             auto_ban_overdue = settings.get("auto_ban_overdue", False)
+            auto_promote_queue = settings.get("auto_promote_queue", False)
             if s:
                 student_name = get_student_name(s.student_id, "Student", user_id=user_id)
                 payload = {
@@ -825,6 +1512,7 @@ def sse_events():
                     "overdue_minutes": overdue_minutes,
                     "kiosk_suspended": kiosk_suspended,
                     "auto_ban_overdue": auto_ban_overdue,
+                    "auto_promote_queue": auto_promote_queue,
                     "capacity": settings["capacity"],
                     "active_sessions": [{
                         "id": sess.id,
@@ -840,6 +1528,7 @@ def sse_events():
                     "overdue_minutes": overdue_minutes, 
                     "kiosk_suspended": kiosk_suspended, 
                     "auto_ban_overdue": auto_ban_overdue,
+                    "auto_promote_queue": auto_promote_queue,
                     "capacity": settings["capacity"],
                     "active_sessions": []
                 }
@@ -910,7 +1599,9 @@ def api_stats_week():
     for r in rows:
         sid = r.student_id
         # Prefer roster name over Student table name (fixes Anonymous entries)
-        name = get_student_name(sid, r.student.name, user_id=user_id)
+        name = get_student_name(sid, "Unknown", user_id=user_id)
+        if name == "Unknown" and r.student and r.student.name != "Student":
+            name = r.student.name
         if sid not in per_student:
             per_student[sid] = {"name": name, "count": 0, "overdue": 0}
         per_student[sid]["count"] += 1
@@ -954,61 +1645,9 @@ def api_override_end():
     db.session.commit()
     return jsonify(ok=True)
 
-@app.post("/api/suspend_kiosk")
-@require_admin_auth_api
-def api_suspend_kiosk():
-    try:
-        user_id = get_current_user_id()
-        if not user_id:
-            return jsonify(ok=False, message="User not authenticated"), 403
-        
-        # Get or create settings for this user
-        s = Settings.query.filter_by(user_id=user_id).first()
-        if not s:
-            s = Settings(
-                user_id=user_id,
-                room_name="Hall Pass",
-                capacity=1,
-                overdue_minutes=10,
-                kiosk_suspended=True,
-                auto_ban_overdue=False
-            )
-            db.session.add(s)
-        else:
-            s.kiosk_suspended = True
-        db.session.commit()
-        return jsonify(ok=True, suspended=True)
-    except Exception as e:
-        db.session.rollback()
-        return jsonify(ok=False, message=str(e)), 500
 
-@app.post("/api/resume_kiosk")
-@require_admin_auth_api
-def api_resume_kiosk():
-    try:
-        user_id = get_current_user_id()
-        if not user_id:
-            return jsonify(ok=False, message="User not authenticated"), 403
-        
-        # Get or create settings for this user
-        s = Settings.query.filter_by(user_id=user_id).first()
-        if not s:
-            s = Settings(
-                user_id=user_id,
-                room_name="Hall Pass",
-                capacity=1,
-                overdue_minutes=10,
-                kiosk_suspended=False,
-                auto_ban_overdue=False
-            )
-            db.session.add(s)
-        else:
-            s.kiosk_suspended = False
-        db.session.commit()
-        return jsonify(ok=True, suspended=False)
-    except Exception as e:
-        db.session.rollback()
-        return jsonify(ok=False, message=str(e)), 500
+# Legacy suspend/resume endpoints removed - superseded by /api/settings/suspend
+
 
 @app.post("/api/toggle_kiosk_suspend_quick")
 def api_toggle_kiosk_suspend_quick():
@@ -1031,7 +1670,8 @@ def api_toggle_kiosk_suspend_quick():
                 capacity=1,
                 overdue_minutes=10,
                 kiosk_suspended=True,
-                auto_ban_overdue=False
+                auto_ban_overdue=False,
+                auto_promote_queue=False
             )
             db.session.add(s)
             new_state = True
@@ -1420,7 +2060,7 @@ def init_db():
     """Initialize database tables and default settings."""
     db.create_all()
     if not Settings.query.get(1):
-        db.session.add(Settings(id=1, room_name=config.ROOM_NAME, capacity=config.CAPACITY, overdue_minutes=getattr(config, "MAX_MINUTES", 10), kiosk_suspended=False, auto_ban_overdue=False))
+        db.session.add(Settings(id=1, room_name=config.ROOM_NAME, capacity=config.CAPACITY, overdue_minutes=getattr(config, "MAX_MINUTES", 10), kiosk_suspended=False, auto_ban_overdue=False, auto_promote_queue=False, enable_queue=False))
         db.session.commit()
     print("Database initialized successfully.")
 
@@ -1558,7 +2198,77 @@ def run_migrations():
     else:
         messages.append("auto_ban_overdue column already exists")
 
-    # Migration 4: ensure StudentName.encrypted_id exists
+    # Migration 4: ensure Settings.auto_promote_queue exists
+    auto_promote_queue_exists = False
+    try:
+        res = db.session.execute(text(
+            """
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_name = 'settings' AND column_name = 'auto_promote_queue'
+            """
+        ))
+        auto_promote_queue_exists = res.scalar() is not None
+    except Exception as e:
+         messages.append(f"Warning: auto_promote_queue column introspection failed: {e}; attempting ALTER TABLE...")
+
+    if not auto_promote_queue_exists:
+        messages.append("Adding auto_promote_queue column to settings table")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
+        try:
+            with db.engine.begin() as conn:
+                conn.execute(text("ALTER TABLE settings ADD COLUMN IF NOT EXISTS auto_promote_queue BOOLEAN DEFAULT FALSE"))
+                conn.execute(text("UPDATE settings SET auto_promote_queue = FALSE WHERE auto_promote_queue IS NULL"))
+                conn.execute(text("ALTER TABLE settings ALTER COLUMN auto_promote_queue SET NOT NULL"))
+            messages.append("Added auto_promote_queue column successfully")
+        except Exception as e:
+            try: db.session.rollback() 
+            except Exception: pass
+            messages.append(f"Failed to add auto_promote_queue column: {e}")
+            raise
+    else:
+        messages.append("auto_promote_queue column already exists")
+
+    # Migration 5: ensure Settings.enable_queue exists
+    enable_queue_exists = False
+    try:
+        res = db.session.execute(text(
+            """
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_name = 'settings' AND column_name = 'enable_queue'
+            """
+        ))
+        enable_queue_exists = res.scalar() is not None
+    except Exception as e:
+         messages.append(f"Warning: enable_queue column introspection failed: {e}; attempting ALTER TABLE...")
+
+    if not enable_queue_exists:
+        messages.append("Adding enable_queue column to settings table")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
+        try:
+            with db.engine.begin() as conn:
+                conn.execute(text("ALTER TABLE settings ADD COLUMN IF NOT EXISTS enable_queue BOOLEAN DEFAULT FALSE"))
+                conn.execute(text("UPDATE settings SET enable_queue = FALSE WHERE enable_queue IS NULL"))
+                conn.execute(text("ALTER TABLE settings ALTER COLUMN enable_queue SET NOT NULL"))
+            messages.append("Added enable_queue column successfully")
+        except Exception as e:
+            try: db.session.rollback() 
+            except Exception: pass
+            messages.append(f"Failed to add enable_queue column: {e}")
+            raise
+    else:
+        messages.append("enable_queue column already exists")
+
+    # Migration 6: ensure StudentName.encrypted_id exists
     try:
         with db.engine.connect() as conn:
             res = conn.execute(text(
@@ -1710,6 +2420,30 @@ def run_migrations():
             pass
         messages.append(f"Legacy data migration: {e}")
 
+    # Migration 8: Drop old unique constraint on student_name.name_hash (replaced by composite)
+    try:
+        # Check if old constraint exists
+        res = db.session.execute(text("""
+            SELECT 1 FROM information_schema.table_constraints
+            WHERE table_name = 'student_name' AND constraint_name = 'student_name_name_hash_key'
+        """))
+        old_constraint_exists = res.scalar() is not None
+        
+        if old_constraint_exists:
+            messages.append("Dropping legacy student_name_name_hash_key constraint...")
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+            
+            with db.engine.begin() as conn:
+                conn.execute(text("ALTER TABLE student_name DROP CONSTRAINT IF EXISTS student_name_name_hash_key"))
+            messages.append("Dropped legacy constraint successfully")
+        else:
+            messages.append("Legacy name_hash constraint already dropped")
+    except Exception as e:
+        messages.append(f"Warning: constraint migration: {e}")
+
     return messages
 
 
@@ -1823,47 +2557,7 @@ def migrate_api():
 def get_settings_api():
     return jsonify(get_settings())
 
-@app.post("/api/settings")
-@require_admin_auth_api
-def update_settings_api():
-    user_id = get_current_user_id()
-    if not user_id:
-        return jsonify(ok=False, message="User not authenticated"), 403
-    
-    data = request.get_json(silent=True) or {}
-    
-    # Get or create the user's settings (isolated from all other users)
-    s = Settings.query.filter_by(user_id=user_id).first()
-    if not s:
-        s = Settings(
-            user_id=user_id,
-            room_name="Hall Pass",
-            capacity=1,
-            overdue_minutes=10,
-            kiosk_suspended=False,
-            auto_ban_overdue=False
-        )
-        db.session.add(s)
-    
-    if "room_name" in data:
-        s.room_name = str(data["room_name"]).strip() or s.room_name
-    if "capacity" in data:
-        try:
-            s.capacity = max(1, int(data["capacity"]))
-        except Exception:
-            pass
-    if "overdue_minutes" in data:
-        try:
-            s.overdue_minutes = max(1, int(data["overdue_minutes"]))
-        except Exception:
-            pass
-    if "kiosk_suspended" in data:
-        s.kiosk_suspended = bool(data["kiosk_suspended"])
-    if "auto_ban_overdue" in data:
-        s.auto_ban_overdue = bool(data["auto_ban_overdue"])
-    
-    db.session.commit()
-    return jsonify(ok=True, settings=get_settings(user_id))
+
 
 if __name__ == "__main__":
     with app.app_context():
