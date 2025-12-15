@@ -123,93 +123,84 @@ class _LandingScreenState extends State<LandingScreen> {
                     children: [
                       // Hero Section
                       Column(
-                        children: [
-                          // Prefer a real logo if it exists at the server root.
-                          // Bundled as a Flutter asset for reliability (web + mobile).
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(28),
-                            child: Image.asset(
-                              'assets/brand/logo.png',
-                              width: 92,
-                              height: 92,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Icon(
-                                Icons.school_rounded,
-                                size: 92,
-                                color: Colors.black.withValues(alpha: 0.85),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 28),
-                          Text(
-                            "The hall pass, reimagined",
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.8,
-                              color: cs.primary,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          const Text(
-                            "Hall passes\nwithout the chaos.",
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 60,
-                              fontWeight: FontWeight.w900,
-                              height: 0.98,
-                              letterSpacing: -2.2,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          const SizedBox(height: 18),
-                          Container(
-                            constraints: const BoxConstraints(maxWidth: 560),
-                            child: const Text(
-                              "Track time. Control queues. See who’s out—without asking.",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 20,
-                                color: Colors.black54,
-                                height: 1.5,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 40),
-
-                          // CTA Buttons (clear hierarchy)
-                          Wrap(
-                            spacing: 16,
-                            runSpacing: 12,
-                            alignment: WrapAlignment.center,
                             children: [
-                              FilledButton.icon(
-                                onPressed: () {
-                                  web.window.location.href = '/admin/login';
-                                },
-                                icon: const Icon(Icons.dashboard_rounded),
-                                label: const Text("Teacher Dashboard"),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: cs.primary,
-                                  foregroundColor: cs.onPrimary,
-                                  textStyle: const TextStyle(fontSize: 18),
-                                  elevation: 2,
+                              // Prefer a real logo if it exists at the server root.
+                              // Bundled as a Flutter asset for reliability (web + mobile).
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(28),
+                                child: Image.asset(
+                                  'assets/brand/logo.png',
+                                  width: 92,
+                                  height: 92,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Icon(
+                                    Icons.school_rounded,
+                                    size: 92,
+                                    color: Colors.black.withValues(alpha: 0.85),
+                                  ),
                                 ),
                               ),
-                              TextButton(
-                                onPressed: _scrollToFAQ,
-                                style: TextButton.styleFrom(
-                                  foregroundColor: Colors.black87,
-                                  textStyle: const TextStyle(fontSize: 18),
+                              const SizedBox(height: 28),
+                              Text(
+                                "Hall passes without the chaos.",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 56,
+                                  fontWeight: FontWeight.w900,
+                                  height: 1.05,
+                                  letterSpacing: -2.0,
+                                  color: Colors.black87,
                                 ),
-                                child: const Text("How it works"),
+                              ),
+                              const SizedBox(height: 18),
+                              Container(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 600,
+                                ),
+                                child: const Text(
+                                  "Track time, manage queues, and see who’s out. No paper. No guessing.",
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    color: Colors.black54,
+                                    height: 1.4,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 48),
+
+                              // CTA Buttons (clear hierarchy)
+                              Wrap(
+                                spacing: 16,
+                                runSpacing: 12,
+                                alignment: WrapAlignment.center,
+                                children: [
+                                  FilledButton.icon(
+                                    onPressed: () {
+                                      web.window.location.href = '/admin/login';
+                                    },
+                                    icon: const Icon(Icons.dashboard_rounded),
+                                    label: const Text("Teacher Dashboard"),
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: cs.primary,
+                                      foregroundColor: cs.onPrimary,
+                                      textStyle: const TextStyle(fontSize: 18),
+                                      elevation: 2,
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: _scrollToFAQ,
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: Colors.black87,
+                                      textStyle: const TextStyle(fontSize: 18),
+                                    ),
+                                    child: const Text("How it works"),
+                                  ),
+                                ],
                               ),
                             ],
-                          ),
-                        ],
-                      )
+                          )
                           .animate()
                           .fadeIn(duration: 520.ms, curve: Curves.easeOutCubic)
                           .slideY(
@@ -223,46 +214,49 @@ class _LandingScreenState extends State<LandingScreen> {
 
                       // Room Entry Card (more sculptural + accent for focus/action)
                       ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 520),
-                        child: Container(
-                          padding: const EdgeInsets.all(32),
-                          decoration: BoxDecoration(
-                            color: cs.surface,
-                            borderRadius: BorderRadius.circular(32),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.06),
-                                blurRadius: 28,
-                                offset: const Offset(0, 14),
-                              ),
-                            ],
-                            border: Border.all(
-                              color: cs.primary.withValues(alpha: 0.08),
-                              width: 1.5,
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-                              const Text(
-                                "Enter your room",
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: -0.6,
+                            constraints: const BoxConstraints(maxWidth: 520),
+                            child: Container(
+                              padding: const EdgeInsets.all(32),
+                              decoration: BoxDecoration(
+                                color: cs.surface,
+                                borderRadius: BorderRadius.circular(32),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.06),
+                                    blurRadius: 28,
+                                    offset: const Offset(0, 14),
+                                  ),
+                                ],
+                                border: Border.all(
+                                  color: cs.primary.withValues(alpha: 0.08),
+                                  width: 1.5,
                                 ),
                               ),
-                              const SizedBox(height: 8),
-                              const Text(
-                                "Type the room code your teacher gives you.",
-                                textAlign: TextAlign.center,
-                                style: TextStyle(color: Colors.black54),
+                              child: Column(
+                                children: [
+                                  const Text(
+                                    "Enter your room",
+                                    style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: -0.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    "Type the room code your teacher gives you.",
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: Colors.black54,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 24),
+                                  _TokenInput(accent: cs.primary),
+                                ],
                               ),
-                              const SizedBox(height: 24),
-                              _TokenInput(accent: cs.primary),
-                            ],
-                          ),
-                        ),
-                      )
+                            ),
+                          )
                           .animate()
                           .fadeIn(delay: 220.ms, duration: 520.ms)
                           .slideY(
@@ -291,21 +285,25 @@ class _LandingScreenState extends State<LandingScreen> {
                         child: Column(
                           children: [
                             _FAQItem(
+                              icon: Icons.help_outline_rounded,
                               accent: cs.primary,
                               "How does it work?",
                               "Teachers create a room code. Students check in on a kiosk (any tablet/laptop) to leave the room. The system tracks time automatically.",
                             ),
                             _FAQItem(
+                              icon: Icons.computer_rounded,
                               accent: cs.primary,
                               "What hardware do I need?",
                               "Just a computer or tablet for the kiosk! You can use a barcode scanner (\$20 on Amazon) for faster check-ins, or students can just type their ID.",
                             ),
                             _FAQItem(
+                              icon: Icons.shield_outlined,
                               accent: cs.primary,
                               "Is it FERPA compliant?",
                               "Yes. We do not store sensitive records permanently. Roster names are encrypted, and session history can be cleared at any time.",
                             ),
                             _FAQItem(
+                              icon: Icons.support_agent_rounded,
                               accent: cs.primary,
                               "Does it stop students from leaving?",
                               "It supports your policy—it doesn’t replace it. You’ll see who’s out, for how long, and when they’re overdue.",
@@ -319,6 +317,7 @@ class _LandingScreenState extends State<LandingScreen> {
                       const SizedBox(height: 24),
                       const Text(
                         "© 2025 IDK Can You? • Built by educators who got tired of the clipboard.",
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Colors.grey,
                           fontWeight: FontWeight.w500,
@@ -432,8 +431,14 @@ class _FAQItem extends StatefulWidget {
   final String question;
   final String answer;
   final Color accent;
+  final IconData icon;
 
-  const _FAQItem(this.question, this.answer, {required this.accent});
+  const _FAQItem(
+    this.question,
+    this.answer, {
+    required this.accent,
+    required this.icon,
+  });
 
   @override
   State<_FAQItem> createState() => _FAQItemState();
@@ -450,9 +455,7 @@ class _FAQItemState extends State<_FAQItem> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: _open
-              ? widget.accent.withValues(alpha: 0.22)
-              : Colors.black12,
+          color: _open ? widget.accent.withValues(alpha: 0.22) : Colors.black12,
           width: _open ? 1.5 : 1,
         ),
         boxShadow: [
@@ -476,16 +479,26 @@ class _FAQItemState extends State<_FAQItem> {
               children: [
                 Row(
                   children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: widget.accent.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(widget.icon, color: widget.accent, size: 20),
+                    ),
+                    const SizedBox(width: 16),
                     Expanded(
                       child: Text(
                         widget.question,
                         style: const TextStyle(
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w700,
                           fontSize: 18,
                           letterSpacing: -0.2,
                         ),
                       ),
                     ),
+                    const SizedBox(width: 8),
                     AnimatedRotation(
                       turns: _open ? 0.5 : 0.0,
                       duration: const Duration(milliseconds: 220),
@@ -577,15 +590,17 @@ class _PressableIconButtonState extends State<_PressableIconButton> {
           padding: const EdgeInsets.all(22),
           decoration: BoxDecoration(
             color: widget.backgroundColor,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(24),
             boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12),
-                blurRadius: 18,
-                offset: const Offset(0, 10),
-              ),
+              if (!_pressed)
+                BoxShadow(
+                  color: widget.backgroundColor.withValues(alpha: 0.4),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                ),
             ],
           ),
+
           child: Icon(widget.icon, color: widget.foregroundColor),
         ),
       ),
