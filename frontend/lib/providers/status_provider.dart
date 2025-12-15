@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:universal_html/html.dart' as html;
+import 'dart:html' as html show EventSource;
 import '../models/kiosk_status.dart';
 import '../services/api_service.dart';
 import '../services/sound_service.dart';
@@ -77,7 +77,10 @@ class StatusProvider with ChangeNotifier {
 
   void _startPolling() {
     _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) => fetchStatus());
+    _pollTimer = Timer.periodic(
+      const Duration(seconds: 2),
+      (_) => fetchStatus(),
+    );
   }
 
   void _startSse() {
