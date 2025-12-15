@@ -92,8 +92,13 @@ class StatusProvider with ChangeNotifier {
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
 
-    final uri = Uri(path: '/api/stream', queryParameters: {'token': _token!});
-    final url = uri.toString();
+    // EventSource requires absolute URL - use current origin
+    final baseUrl = Uri.base.origin;
+    final url = '$baseUrl/api/stream?token=$_token';
+
+    if (kDebugMode) {
+      print('[SSE] Attempting to connect to: $url');
+    }
 
     try {
       _eventSource = html.EventSource(url);
@@ -132,6 +137,11 @@ class StatusProvider with ChangeNotifier {
   void _handleSseFailure() {
     _streamFailures += 1;
     _error = "Disconnected";
+
+    if (kDebugMode) {
+      print('[SSE] Connection failed (failure #$_streamFailures)');
+    }
+
     notifyListeners();
 
     // Close the broken stream.
@@ -140,14 +150,23 @@ class StatusProvider with ChangeNotifier {
 
     // After a few failures, fall back to polling so the UI still works.
     if (_streamFailures >= 3) {
+      if (kDebugMode) {
+        print('[SSE] Too many failures, falling back to polling');
+      }
       _startPolling();
     }
 
     // Exponential-ish backoff for reconnect (cap at 30s)
     final delaySeconds = (_streamFailures * 2).clamp(2, 30);
+    if (kDebugMode) {
+      print('[SSE] Will retry in $delaySeconds seconds');
+    }
     _reconnectTimer?.cancel();
     _reconnectTimer = Timer(Duration(seconds: delaySeconds), () {
       if (_token == null) return;
+      if (kDebugMode) {
+        print('[SSE] Attempting reconnect...');
+      }
       _startSse();
     });
   }
