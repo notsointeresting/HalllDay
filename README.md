@@ -72,6 +72,14 @@ The application uses **Material 3 Expressive** principles with a custom color pa
 5.  Set your Environment Variables in the dashboard.
 6.  Add a **PostgreSQL** database (optional but recommended for persistence).
 
+### Important: Updating the Flutter UI in production
+Render is running the **Flask app** and serving the prebuilt Flutter web assets from `static/`. It does **not** build Flutter for you.
+
+When you change anything under `frontend/lib/`, you must:
+- run `./deploy.sh` locally (builds Flutter web + copies `frontend/build/web/*` into `static/`)
+- commit the updated `static/` files
+- push to your repo so Render redeploys with the new UI bundle
+
 ## Admin Manual
 
 ### Roster Management
