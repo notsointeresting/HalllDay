@@ -1,7 +1,5 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'dart:html' as html show EventSource;
 import '../models/kiosk_status.dart';
 import '../services/api_service.dart';
 import '../services/sound_service.dart';
@@ -15,9 +13,6 @@ class StatusProvider with ChangeNotifier {
   String? _token;
   Timer? _pollTimer;
   Timer? _uiTickTimer;
-  Timer? _reconnectTimer;
-  html.EventSource? _eventSource;
-  int _streamFailures = 0;
 
   // Getters
   KioskStatus? get status => _status;
@@ -28,25 +23,21 @@ class StatusProvider with ChangeNotifier {
   // Initialize with token (e.g., from URL path)
   void init(String token) {
     // Idempotent init (avoid reopening streams on rebuild)
-    if (_token == token && (_eventSource != null || _pollTimer != null)) {
+    if (_token == token && _pollTimer != null) {
       return;
     }
 
-    _stopRealtime();
+    _stopPolling();
     _token = token;
     _isLoading = true;
     _error = null;
     notifyListeners();
 
-    // Grab a quick snapshot (helps first paint; also used as fallback if SSE fails)
+    // Fetch initial status
     fetchStatus();
 
-    // Phase 9: prefer SSE on Web; fallback to polling if needed.
-    if (kIsWeb) {
-      _startSse();
-    } else {
-      _startPolling();
-    }
+    // Start polling every 2 seconds
+    _startPolling();
 
     // Local UI tick (no network): keeps timers/overdue indicators updating smoothly.
     _uiTickTimer?.cancel();
@@ -57,22 +48,16 @@ class StatusProvider with ChangeNotifier {
 
   @override
   void dispose() {
-    _stopRealtime();
+    _stopPolling();
     super.dispose();
   }
 
-  void _stopRealtime() {
+  void _stopPolling() {
     _pollTimer?.cancel();
     _pollTimer = null;
 
     _uiTickTimer?.cancel();
     _uiTickTimer = null;
-
-    _reconnectTimer?.cancel();
-    _reconnectTimer = null;
-
-    _eventSource?.close();
-    _eventSource = null;
   }
 
   void _startPolling() {
@@ -81,94 +66,6 @@ class StatusProvider with ChangeNotifier {
       const Duration(seconds: 2),
       (_) => fetchStatus(),
     );
-  }
-
-  void _startSse() {
-    if (_token == null) return;
-
-    // Cancel any existing stream/timers before starting.
-    _eventSource?.close();
-    _eventSource = null;
-    _reconnectTimer?.cancel();
-    _reconnectTimer = null;
-
-    // EventSource requires absolute URL - use current origin
-    final baseUrl = Uri.base.origin;
-    final url = '$baseUrl/api/stream?token=$_token';
-
-    if (kDebugMode) {
-      print('[SSE] Attempting to connect to: $url');
-    }
-
-    try {
-      _eventSource = html.EventSource(url);
-
-      _eventSource!.onMessage.listen((evt) {
-        try {
-          final data = evt.data;
-          if (data is! String) return;
-          final decoded = jsonDecode(data) as Map<String, dynamic>;
-          _status = KioskStatus.fromJson(decoded);
-          _error = null;
-          _isLoading = false;
-          _streamFailures = 0;
-          // If we had fallen back to polling, stop it once SSE is healthy again.
-          _pollTimer?.cancel();
-          _pollTimer = null;
-          notifyListeners();
-        } catch (e) {
-          if (kDebugMode) {
-            print("SSE message parse error: $e");
-          }
-        }
-      });
-
-      _eventSource!.onError.listen((_) {
-        _handleSseFailure();
-      });
-    } catch (e) {
-      if (kDebugMode) {
-        print("Failed to start SSE: $e");
-      }
-      _handleSseFailure();
-    }
-  }
-
-  void _handleSseFailure() {
-    _streamFailures += 1;
-    _error = "Disconnected";
-
-    if (kDebugMode) {
-      print('[SSE] Connection failed (failure #$_streamFailures)');
-    }
-
-    notifyListeners();
-
-    // Close the broken stream.
-    _eventSource?.close();
-    _eventSource = null;
-
-    // After a few failures, fall back to polling so the UI still works.
-    if (_streamFailures >= 3) {
-      if (kDebugMode) {
-        print('[SSE] Too many failures, falling back to polling');
-      }
-      _startPolling();
-    }
-
-    // Exponential-ish backoff for reconnect (cap at 30s)
-    final delaySeconds = (_streamFailures * 2).clamp(2, 30);
-    if (kDebugMode) {
-      print('[SSE] Will retry in $delaySeconds seconds');
-    }
-    _reconnectTimer?.cancel();
-    _reconnectTimer = Timer(Duration(seconds: delaySeconds), () {
-      if (_token == null) return;
-      if (kDebugMode) {
-        print('[SSE] Attempting reconnect...');
-      }
-      _startSse();
-    });
   }
 
   Future<void> fetchStatus() async {
@@ -225,11 +122,7 @@ class StatusProvider with ChangeNotifier {
       }
 
       // Immediately fetch status to update UI
-      // With SSE, the server should push an update quickly; still fetch once if we're
-      // on polling/fallback so UX feels instant.
-      if (_eventSource == null) {
-        await fetchStatus();
-      }
+      await fetchStatus();
       return result;
     } catch (e) {
       SoundService().playError();
