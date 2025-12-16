@@ -5,6 +5,14 @@
 ---
 
 # 🚨 Current Priorities (Immediate Focus)
+[] Looking at "View Full Pass Logs" works well and looks good. But the graphs on the admin screen like "Most Overdue" and "Top Users" has numerous issues. Either do not work at all or show anonymous data. Not particularly useful or actionable data and also not working in the first place. Needs overhaul. 
+- [] Should be able to manage and see active kiosk passes from admin panel just like you can with waitlist. Overall robust way to cancel passes; manual ban button on student out, rearrange waitlist, etc. 
+-[] Auth page looks kinda ugly 
+- [] IDK Can You logo has white inside a couple areas that should be transparent. Refine/animate logo, make it more dynamic and engaging for landing page graphic. be responsive to color changes (future day and dark mode)
+- [] Should be able to access all parts of the app from hamburger menu or top navigation or whatever is material 3 expressive standard for page navigation. Default to landing page, tabs to navigate to kiosk, display, admin, after login. all pages should have  button to return to landing page or navigate to others feedbacking into eachother. Unified navigation between pages.
+- [] admin page not responsive on mobile 
+- [] No "account creation" step. Google Auth seems to work but no account creation step to customize experience and feel like you are establishing a account. If that makes sense. it works...but it just feels so automatic I don't even know if it's a true account Almost makes it feel insecure even if it is secure. If that makes sense. Profile picture, slug option, optional name, etc. I am not sure if this is a good idea and don't want to mess up already made accounts. 
+- [] Fleshed out Dev dashboard with ability to see active users (teachers) and details about sessions while not exposing student data (maintain FERPA compliance). See statistics or active passes without being attached to a specific student data so dev can see usage statistics and activity. 
 
 ## ⚙️ Phase 6: Admin & Dev Tools (Material 3 Port)
 *Goal: Unified Material 3 Design for all surfaces.*
@@ -17,18 +25,18 @@
     - [ ] **Data Tables**: Refine with Material 3 sorting/filtering.
 - [ ] **Dev Dashboard (`/dev`)**:
     - [ ] **Port Tools**: Database Maintenance & System Status.
-    - [ ] **Security**: PROTECT with PIN/Auth.
+    - [ ] **Security**: PROTECT with PIN/Auth and/or Google Auth to maintain FERPA compliance.
     - [ ] **User Management**: robust ability to manage users/active sessions.
 
 ---
 
 # 🔮 Future Roadmap
 
-## 🖥️ Phase 7: Passive Display (Enhancements)
-- [ ] **Sync**: Ensure Display state perfect mirrors Kiosk state (latency < 2s via polling).
-- [ ] **Customization**: School-specific branding/colors.
+- [] Dark mode option 
+
 
 ## 📅 Scheduling System
+
 - [ ] Auto-suspend kiosks based on time/timezone.
 - [ ] Admin panel for scheduling hours.
 
