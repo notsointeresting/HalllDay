@@ -9,7 +9,7 @@
 
 
 [x] Admin Charts: Fixed "Most Overdue" and "Top Users" graphs by moving aggregation to Python and ensuring proper name resolution for active/historic sessions.
-[x] Active Session Management: added "Live Activity" section to Admin Dashboard with list of active sessions (with End/Ban buttons) and Waitlist (with Remove/Reorder capability).
+[x] Active Session Management: added "Live Activity" section to Admin Dashboard with list of active sessions (with End/Ban buttons) and Waitlist (with Remove/Reorder capability). Fixed bugs where section was not visible and added auto-refresh.
 [X] Auth page looks kinda ugly Fixed: Took care of with CSS 
 [x] Refined/Animated Logo: Fixed transparency (using SVG mask) and added "float" animation. Using `currentColor` for context-aware styling.
 [x] Unified Navigation: Implemented `AppNavDrawer` (Hamburger Menu) available on Landing, Admin, and Dev screens. Includes links to Home, Dashboard, and Dev Tools.

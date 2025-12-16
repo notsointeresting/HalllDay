@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:async'; // For Timer
 import 'package:web/web.dart' as web;
 import '../services/api_service.dart';
 import 'dart:html' as html; // For file upload
@@ -25,6 +26,7 @@ class _AdminScreenState extends State<AdminScreen> {
   late TextEditingController _slugCtrl;
   bool _autoPromoteQueue = false;
   bool _enableQueue = false;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
@@ -34,10 +36,16 @@ class _AdminScreenState extends State<AdminScreen> {
     _overdueCtrl = TextEditingController();
     _slugCtrl = TextEditingController();
     _loadData();
+    // Auto-Refresh every 8 seconds
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 8),
+      (_) => _loadData(silent: true),
+    );
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     _roomCtrl.dispose();
     _capacityCtrl.dispose();
     _overdueCtrl.dispose();
@@ -45,7 +53,8 @@ class _AdminScreenState extends State<AdminScreen> {
     super.dispose();
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadData({bool silent = false}) async {
+    if (!silent) setState(() => _loading = true);
     try {
       final data = await _api.getAdminStats();
       if (mounted) {
@@ -53,21 +62,22 @@ class _AdminScreenState extends State<AdminScreen> {
           _data = data;
           _loading = false;
 
-          // Init controllers
-          final settings = data['settings'] ?? {};
-          _roomCtrl.text = settings['room_name'] ?? 'Hall Pass';
-          _capacityCtrl.text = (settings['capacity'] ?? 1).toString();
-          _overdueCtrl.text = (settings['overdue_minutes'] ?? 10).toString();
+          if (!silent) {
+            final settings = data['settings'] ?? {};
+            _roomCtrl.text = settings['room_name'] ?? 'Hall Pass';
+            _capacityCtrl.text = (settings['capacity'] ?? 1).toString();
+            _overdueCtrl.text = (settings['overdue_minutes'] ?? 10).toString();
 
-          // Pre-populate slug if set
-          final user = data['user'] ?? {};
-          _slugCtrl.text = user['slug'] ?? '';
+            final user = data['user'] ?? {};
+            _slugCtrl.text = user['slug'] ?? '';
 
-          _autoPromoteQueue = settings['auto_promote_queue'] == true;
-          _enableQueue = settings['enable_queue'] == true;
+            _autoPromoteQueue = settings['auto_promote_queue'] == true;
+            _enableQueue = settings['enable_queue'] == true;
+          }
         });
       }
     } catch (e) {
+      if (mounted) setState(() => _loading = false);
       if (e.toString().contains('Unauthorized')) {
         web.window.location.href = '/admin/login';
       } else {
@@ -1006,96 +1016,6 @@ class _AdminScreenState extends State<AdminScreen> {
                           ),
                         ],
 
-                        // Waitlist Management (Nested in Settings)
-                        if (_enableQueue &&
-                            _data?['queue_list'] != null &&
-                            (_data!['queue_list'] as List).isNotEmpty) ...[
-                          const Padding(
-                            padding: EdgeInsets.only(left: 16.0, top: 16.0),
-                            child: Divider(),
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.only(left: 16.0, bottom: 8.0),
-                            child: Text(
-                              "Current Waitlist",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.orange,
-                              ),
-                            ),
-                          ),
-                          Card(
-                            elevation: 0,
-                            color: Colors.orange.shade50,
-                            margin: const EdgeInsets.only(left: 16.0),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: BorderSide(color: Colors.orange.shade200),
-                            ),
-                            child: ListView.separated(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: (_data!['queue_list'] as List).length,
-                              separatorBuilder: (c, i) =>
-                                  const Divider(height: 1),
-                              itemBuilder: (context, index) {
-                                final student = _data!['queue_list'][index];
-                                return ListTile(
-                                  dense: true,
-                                  leading: const Icon(
-                                    Icons.person,
-                                    color: Colors.orange,
-                                    size: 20,
-                                  ),
-                                  title: Text(
-                                    student['name'] ?? "Unknown",
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                  trailing: IconButton(
-                                    icon: const Icon(
-                                      Icons.close,
-                                      color: Colors.red,
-                                      size: 20,
-                                    ),
-                                    onPressed: () async {
-                                      final cid = student['student_id'];
-                                      if (cid == null) return;
-                                      if (await showDialog(
-                                            context: context,
-                                            builder: (c) => AlertDialog(
-                                              title: const Text("Remove?"),
-                                              content: Text(
-                                                "Remove ${student['name']}?",
-                                              ),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: () =>
-                                                      Navigator.pop(c, false),
-                                                  child: const Text("Cancel"),
-                                                ),
-                                                FilledButton(
-                                                  onPressed: () =>
-                                                      Navigator.pop(c, true),
-                                                  child: const Text("Remove"),
-                                                ),
-                                              ],
-                                            ),
-                                          ) ==
-                                          true) {
-                                        ApiService()
-                                            .deleteFromQueue(cid, "")
-                                            .then((_) => _loadData());
-                                      }
-                                    },
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ],
                         const SizedBox(height: 24),
                         FilledButton(
                           onPressed: _updateSettings,
