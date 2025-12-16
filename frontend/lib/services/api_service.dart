@@ -307,4 +307,18 @@ class ApiService {
     if (response.statusCode == 200) return json.decode(response.body);
     throw Exception('Failed to load dev stats: ${response.statusCode}');
   }
+
+  Future<Map<String, dynamic>> getExpandedDevStats() async {
+    final uri = _getUri('/api/dev/expanded_stats');
+    // POST request with empty body (cookie-based auth)
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({}),
+    );
+
+    if (response.statusCode == 401) throw Exception('Unauthorized');
+    if (response.statusCode == 200) return json.decode(response.body);
+    throw Exception('Failed to load expanded stats: ${response.statusCode}');
+  }
 }

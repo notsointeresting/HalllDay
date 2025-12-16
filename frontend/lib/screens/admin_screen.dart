@@ -26,6 +26,7 @@ class _AdminScreenState extends State<AdminScreen> {
   late TextEditingController _slugCtrl;
   bool _autoPromoteQueue = false;
   bool _enableQueue = false;
+  bool _autoBanOverdue = false;
   Timer? _refreshTimer;
 
   @override
@@ -73,6 +74,7 @@ class _AdminScreenState extends State<AdminScreen> {
 
             _autoPromoteQueue = settings['auto_promote_queue'] == true;
             _enableQueue = settings['enable_queue'] == true;
+            _autoBanOverdue = settings['auto_ban_overdue'] == true;
           }
         });
       }
@@ -99,6 +101,7 @@ class _AdminScreenState extends State<AdminScreen> {
         'overdue_minutes': int.tryParse(_overdueCtrl.text) ?? 10,
         'auto_promote_queue': _autoPromoteQueue,
         'enable_queue': _enableQueue,
+        'auto_ban_overdue': _autoBanOverdue,
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1086,6 +1089,20 @@ class _AdminScreenState extends State<AdminScreen> {
                           ),
                         ],
 
+                        const Divider(),
+                        CheckboxListTile(
+                          title: const Text("Auto-Ban Overdue Students"),
+                          subtitle: const Text(
+                            "Automatically ban students if they exceed the overdue limit.",
+                          ),
+                          value: _autoBanOverdue,
+                          onChanged: (val) =>
+                              setState(() => _autoBanOverdue = val ?? false),
+                          controlAffinity: ListTileControlAffinity.leading,
+                          contentPadding: EdgeInsets.zero,
+                          activeColor: Colors.red,
+                        ),
+
                         const SizedBox(height: 24),
                         FilledButton(
                           onPressed: _updateSettings,
@@ -1142,61 +1159,6 @@ class _AdminScreenState extends State<AdminScreen> {
                 ),
 
                 const SizedBox(height: 32),
-
-                // System Controls (Auto-Ban)
-                _SectionHeader(title: "Auto-Ban", color: Colors.green[800]),
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE2ECE4),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border(
-                      left: BorderSide(color: Colors.red[700]!, width: 4),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Checkbox(
-                            value: settings['auto_ban_overdue'] == true,
-                            onChanged: (val) async {
-                              // Optimistic update
-                              setState(() {
-                                settings['auto_ban_overdue'] = val;
-                              });
-                              try {
-                                await _api.updateSettings({
-                                  'auto_ban_overdue': val,
-                                });
-                                // Success - background reload to confirm sync
-                                _loadData();
-                              } catch (e) {
-                                // Revert on failure
-                                setState(() {
-                                  settings['auto_ban_overdue'] = !val!;
-                                });
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Error: $e'),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                }
-                              }
-                            },
-                          ),
-                          const Text(
-                            "Auto-Ban Enabled",
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
 
                 const SizedBox(height: 32),
                 const _SectionHeader(

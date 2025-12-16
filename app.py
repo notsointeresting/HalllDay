@@ -2792,6 +2792,81 @@ def get_settings_api():
 
 
 
+@app.route("/api/dev/expanded_stats", methods=["POST"])
+def api_dev_expanded_stats():
+    """Get expanded stats for Dev Dashboard (God Mode).
+    Authenticated via dev passcode only.
+    """
+    if not session.get('dev_authenticated'):
+        data = request.get_json(silent=True) or {}
+        passcode = data.get('passcode')
+        
+        if passcode != os.environ.get("DEV_PASSCODE") and passcode != config.ADMIN_PASSCODE:
+            # Security by obscurity - pretend it doesn't exist or just 401
+            return jsonify(ok=False, error="Unauthorized"), 401
+        
+    # --- Global Stats ---
+    total_sessions = Session.query.count()
+    active_sessions = Session.query.filter(Session.end_ts == None).count()
+    total_students = Student.query.count()
+    total_users = User.query.count()
+    
+    # --- Active Teachers List ---
+    # We want: email, active_count, total_count, last_active
+    # This might be heavy if many users, but fine for now.
+    teachers_data = []
+    users = User.query.all()
+    
+    for u in users:
+        # Optimization: Could allow raw SQL for performance later
+        u_total = Session.query.filter_by(user_id=u.id).count()
+        u_active = Session.query.filter_by(user_id=u.id, end_ts=None).count()
+        
+        teachers_data.append({
+            "email": u.email,
+            "active_sessions": u_active,
+            "total_sessions": u_total,
+            "last_login": u.last_login.isoformat() if u.last_login else None
+        })
+        
+    # Sort by active sessions desc, then recent login
+    teachers_data.sort(key=lambda x: (x['active_sessions'], x['last_login'] or ""), reverse=True)
+    
+    # --- Recent System Activity ---
+    # Fetch last 20 sessions across ALL users
+    recent_sess = Session.query.order_by(Session.start_ts.desc()).limit(20).all()
+    activity_log = []
+    
+    for s in recent_sess:
+        teacher_email = s.user.email if s.user else "Unknown"
+        # ANONYMIZE STUDENT DATA
+        # We do NOT show s.student.name or s.student_id
+        # We just show "Student"
+        
+        action = "Active Pass"
+        if s.end_ts:
+            action = "Returned Pass"
+            
+        activity_log.append({
+            "timestamp": s.start_ts.isoformat(),
+            "teacher": teacher_email,
+            "action": f"{action} ({s.room or 'Unknown Room'})",
+            # Calculate duration string if ended, else "Ongoing"
+            "duration": f"{s.duration_seconds // 60}m" if s.end_ts else "Ongoing"
+        })
+        
+    return jsonify({
+        "ok": True,
+        "global_stats": {
+            "total_sessions": total_sessions,
+            "active_sessions": active_sessions,
+            "total_students": total_students,
+            "total_users": total_users,
+        },
+        "teachers": teachers_data,
+        "activity": activity_log
+    })
+
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
