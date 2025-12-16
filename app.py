@@ -848,9 +848,26 @@ def api_end_session():
         
     session.end_ts = now_utc()
     session.ended_by = "admin_override"
+    
+    # Check for auto-promote
+    settings = get_settings(user_id)
+    promoted_msg = ""
+    if settings.get("enable_queue") and settings.get("auto_promote_queue"):
+        next_in_line = Queue.query.filter_by(user_id=user_id).order_by(Queue.joined_ts.asc()).first()
+        if next_in_line:
+            next_code = next_in_line.student_id
+            
+            # Start session for next student
+            promoted_sess = Session(student_id=next_code, start_ts=now_utc(), room=settings["room_name"], user_id=user_id, ended_by="auto")
+            db.session.add(promoted_sess)
+            db.session.delete(next_in_line) # Remove from queue
+            
+            next_name = get_student_name(next_code, "Student", user_id=user_id)
+            promoted_msg = f". Auto-started {next_name} from waitlist."
+
     db.session.commit()
     
-    return jsonify(ok=True, message=f"Ended session for {get_student_name(session.student_id, 'Student', user_id=user_id)}")
+    return jsonify(ok=True, message=f"Ended session for {get_student_name(session.student_id, 'Student', user_id=user_id)}{promoted_msg}")
 
 
 

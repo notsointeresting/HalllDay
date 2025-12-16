@@ -16,6 +16,7 @@
 - [] admin page not responsive on mobile 
 - [] No "account creation" step. Google Auth seems to work but no account creation step to customize experience and feel like you are establishing a account. If that makes sense. it works...but it just feels so automatic I don't even know if it's a true account Almost makes it feel insecure even if it is secure. If that makes sense. Profile picture, slug option, optional name, etc. I am not sure if this is a good idea and don't want to mess up already made accounts. 
 - [] Fleshed out Dev dashboard with ability to see active users (teachers) and details about sessions while not exposing student data (maintain FERPA compliance). See statistics or active passes without being attached to a specific student data so dev can see usage statistics and activity. 
+- [ ] Dev Dashboard should not be in menu navigation. That is private. It should only be landing page, kiosk, display, admin to travel between eachother.
 
 ## ⚙️ Phase 6: Admin & Dev Tools (Material 3 Port)
 *Goal: Unified Material 3 Design for all surfaces.*

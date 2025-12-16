@@ -69,17 +69,6 @@ class AppNavDrawer extends StatelessWidget {
                     }
                   },
                 ),
-                _DrawerItem(
-                  icon: Icons.developer_mode,
-                  label: "Developer",
-                  isSelected: currentRoute == '/dev',
-                  onTap: () {
-                    Navigator.pop(context);
-                    if (currentRoute != '/dev') {
-                      Navigator.of(context).pushReplacementNamed('/dev');
-                    }
-                  },
-                ),
               ],
             ),
           ),
