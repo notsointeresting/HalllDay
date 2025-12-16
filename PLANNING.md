@@ -10,9 +10,9 @@
 
 [x] Admin Charts: Fixed "Most Overdue" and "Top Users" graphs by moving aggregation to Python and ensuring proper name resolution for active/historic sessions.
 [x] Active Session Management: added "Live Activity" section to Admin Dashboard with list of active sessions (with End/Ban buttons) and Waitlist (with Remove/Reorder capability).
--[X] Auth page looks kinda ugly Fixed: Took care of with CSS 
-- [] IDK Can You logo has white inside a couple areas that should be transparent. Refine/animate logo, make it more dynamic and engaging for landing page graphic. be responsive to color changes (future day and dark mode)
-- [] Should be able to access all parts of the app from hamburger menu or top navigation or whatever is material 3 expressive standard for page navigation. Default to landing page, tabs to navigate to kiosk, display, admin, after login. all pages should have  button to return to landing page or navigate to others feedbacking into eachother. Unified navigation between pages.
+[X] Auth page looks kinda ugly Fixed: Took care of with CSS 
+[x] Refined/Animated Logo: Fixed transparency (using SVG mask) and added "float" animation. Using `currentColor` for context-aware styling.
+[x] Unified Navigation: Implemented `AppNavDrawer` (Hamburger Menu) available on Landing, Admin, and Dev screens. Includes links to Home, Dashboard, and Dev Tools.
 - [] admin page not responsive on mobile 
 - [] No "account creation" step. Google Auth seems to work but no account creation step to customize experience and feel like you are establishing a account. If that makes sense. it works...but it just feels so automatic I don't even know if it's a true account Almost makes it feel insecure even if it is secure. If that makes sense. Profile picture, slug option, optional name, etc. I am not sure if this is a good idea and don't want to mess up already made accounts. 
 - [] Fleshed out Dev dashboard with ability to see active users (teachers) and details about sessions while not exposing student data (maintain FERPA compliance). See statistics or active passes without being attached to a specific student data so dev can see usage statistics and activity. 

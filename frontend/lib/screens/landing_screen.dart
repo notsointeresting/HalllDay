@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:web/web.dart' as web;
 import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:ui'; // For ImageFilter
+import '../widgets/app_nav_drawer.dart';
 
 class LandingScreen extends StatefulWidget {
   const LandingScreen({super.key});
@@ -38,6 +39,7 @@ class _LandingScreenState extends State<LandingScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
+      drawer: const AppNavDrawer(currentRoute: '/'),
       body: Stack(
         children: [
           // Background Blobs

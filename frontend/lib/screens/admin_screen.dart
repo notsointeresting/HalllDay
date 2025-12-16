@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:web/web.dart' as web;
 import '../services/api_service.dart';
 import 'dart:html' as html; // For file upload
+import '../widgets/app_nav_drawer.dart';
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
@@ -433,6 +434,7 @@ class _AdminScreenState extends State<AdminScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFFBFDF8), // Material 3 surface
+      drawer: const AppNavDrawer(currentRoute: '/admin'),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(32),
         child: Center(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../widgets/app_nav_drawer.dart';
 
 class DevScreen extends StatefulWidget {
   const DevScreen({super.key});
@@ -114,6 +115,7 @@ class _DevScreenState extends State<DevScreen> {
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
       ),
+      drawer: const AppNavDrawer(currentRoute: '/dev'),
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
