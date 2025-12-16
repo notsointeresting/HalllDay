@@ -9,8 +9,8 @@
 
 
 [x] Admin Charts: Fixed "Most Overdue" and "Top Users" graphs by moving aggregation to Python and ensuring proper name resolution for active/historic sessions.
-[x] Active Session Management: added "Live Activity" section to Admin Dashboard with list of active sessions (with End button) and Waitlist (with Remove button).
--[] Auth page looks kinda ugly 
+[x] Active Session Management: added "Live Activity" section to Admin Dashboard with list of active sessions (with End/Ban buttons) and Waitlist (with Remove/Reorder capability).
+-[X] Auth page looks kinda ugly Fixed: Took care of with CSS 
 - [] IDK Can You logo has white inside a couple areas that should be transparent. Refine/animate logo, make it more dynamic and engaging for landing page graphic. be responsive to color changes (future day and dark mode)
 - [] Should be able to access all parts of the app from hamburger menu or top navigation or whatever is material 3 expressive standard for page navigation. Default to landing page, tabs to navigate to kiosk, display, admin, after login. all pages should have  button to return to landing page or navigate to others feedbacking into eachother. Unified navigation between pages.
 - [] admin page not responsive on mobile 

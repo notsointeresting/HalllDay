@@ -1516,6 +1516,42 @@ def api_scan():
     db.session.commit()
     return jsonify(ok=True, action="started", name=student_name)
 
+@app.route("/api/queue/reorder", methods=["POST"])
+@require_admin_auth_api
+def api_queue_reorder():
+    """
+    Reorder the waitlist.
+    Payload: { "student_ids": ["id1", "id2", "id3"] }
+    The order of IDs in the list determines their new position.
+    We implement this by updating 'joined_ts' to preserve order.
+    """
+    user_id = get_current_user_id()
+    payload = request.get_json(silent=True) or {}
+    new_order = payload.get("student_ids", [])
+    
+    if not new_order:
+         return jsonify(ok=False, message="No order provided"), 400
+
+    # Strategy: Respace joined_ts starting from now, with 1 second increments?
+    # Or just fetch all queue items, map them, and update joined_ts.
+    
+    current_queue = Queue.query.filter_by(user_id=user_id).all()
+    queue_map = {q.student_id: q for q in current_queue}
+    
+    base_time = now_utc()
+    
+    # We want the first item in 'new_order' to be the oldest (first in line).
+    # So we assign times such that item[0] < item[1] < item[2]...
+    
+    for i, student_id in enumerate(new_order):
+        if student_id in queue_map:
+            # Assign timestamps in increasing order
+            # item 0 gets base_time, item 1 gets base_time + 1s, etc.
+            queue_map[student_id].joined_ts = base_time + timedelta(seconds=i)
+            
+    db.session.commit()
+    return jsonify(ok=True, message="Queue reordered")
+
 @app.route("/api/queue/join", methods=["POST"])
 def api_queue_join():
     payload = request.get_json(silent=True) or {}
@@ -1821,8 +1857,18 @@ def api_ban_student():
     # Set ban status
     success = set_student_banned(student_id, True, user_id=user_id)
     
+    # Also end any active session
+    active_session = Session.query.filter_by(student_id=student_id, end_ts=None, user_id=user_id).first()
+    if active_session:
+        active_session.end_ts = now_utc()
+        active_session.ended_by = "admin_ban"
+        db.session.commit()
+    
     if success:
-        return jsonify(ok=True, message=f"{student_name} banned from restroom", student_id=student_id)
+        msg = f"{student_name} banned"
+        if active_session:
+            msg += " and active session ended"
+        return jsonify(ok=True, message=msg, student_id=student_id)
     else:
         return jsonify(ok=False, message="Failed to ban student"), 500
 

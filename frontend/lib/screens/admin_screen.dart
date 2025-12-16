@@ -379,6 +379,45 @@ class _AdminScreenState extends State<AdminScreen> {
     }
   }
 
+  Future<void> _banStudent(String studentId, String name) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Ban $name?"),
+        content: const Text(
+          "This will end their current session (if any) and prevent them from checking out in the future.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text("Ban Student"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await _api.banStudent(studentId);
+        _loadData();
+        if (mounted)
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Student banned.')));
+      } catch (e) {
+        if (mounted)
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -556,6 +595,17 @@ class _AdminScreenState extends State<AdminScreen> {
                                       onPressed: () =>
                                           _endSessionForId(s['id'], s['name']),
                                     ),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.block,
+                                        color: Colors.red,
+                                      ),
+                                      tooltip: "Ban Student",
+                                      onPressed: () => _banStudent(
+                                        s['student_id'],
+                                        s['name'],
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -593,13 +643,51 @@ class _AdminScreenState extends State<AdminScreen> {
                               ),
                             )
                           else
-                            ...(_data!['queue_list'] as List)
-                                .asMap()
-                                .entries
-                                .map((entry) {
-                                  final idx = entry.key + 1;
-                                  final q = entry.value;
-                                  return Container(
+                            ReorderableListView(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              onReorder: (oldIndex, newIndex) async {
+                                if (oldIndex < newIndex) {
+                                  newIndex -= 1;
+                                }
+                                final queue = List<Map<String, dynamic>>.from(
+                                  _data!['queue_list'],
+                                );
+                                final item = queue.removeAt(oldIndex);
+                                queue.insert(newIndex, item);
+
+                                // Optimistic update
+                                setState(() {
+                                  _data!['queue_list'] = queue;
+                                });
+
+                                // Sync API
+                                final ids = queue
+                                    .map((e) => e['student_id'] as String)
+                                    .toList();
+                                try {
+                                  await _api.reorderQueue(ids);
+                                } catch (e) {
+                                  if (mounted)
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Reorder failed: $e'),
+                                      ),
+                                    );
+                                  _loadData(); // Revert on failure
+                                }
+                              },
+                              children: [
+                                for (
+                                  int i = 0;
+                                  i < (_data!['queue_list'] as List).length;
+                                  i++
+                                )
+                                  Container(
+                                    key: ValueKey(
+                                      (_data!['queue_list']
+                                          as List)[i]['student_id'],
+                                    ),
                                     margin: const EdgeInsets.only(bottom: 12),
                                     padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
@@ -611,11 +699,16 @@ class _AdminScreenState extends State<AdminScreen> {
                                     ),
                                     child: Row(
                                       children: [
+                                        const Icon(
+                                          Icons.drag_handle,
+                                          color: Colors.grey,
+                                        ),
+                                        const SizedBox(width: 8),
                                         CircleAvatar(
                                           radius: 12,
                                           backgroundColor: Colors.orange,
                                           child: Text(
-                                            "$idx",
+                                            "${i + 1}",
                                             style: const TextStyle(
                                               fontSize: 12,
                                               color: Colors.white,
@@ -626,7 +719,9 @@ class _AdminScreenState extends State<AdminScreen> {
                                         const SizedBox(width: 12),
                                         Expanded(
                                           child: Text(
-                                            q['name'] ?? 'Unknown',
+                                            (_data!['queue_list']
+                                                    as List)[i]['name'] ??
+                                                'Unknown',
                                             style: const TextStyle(
                                               fontWeight: FontWeight.bold,
                                             ),
@@ -639,14 +734,17 @@ class _AdminScreenState extends State<AdminScreen> {
                                           ),
                                           tooltip: "Remove from Waitlist",
                                           onPressed: () => _removeFromQueue(
-                                            q['student_id'],
-                                            q['name'],
+                                            (_data!['queue_list']
+                                                as List)[i]['student_id'],
+                                            (_data!['queue_list']
+                                                as List)[i]['name'],
                                           ),
                                         ),
                                       ],
                                     ),
-                                  );
-                                }),
+                                  ),
+                              ],
+                            ),
                         ],
                       ),
                     ),

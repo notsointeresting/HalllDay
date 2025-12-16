@@ -206,6 +206,17 @@ class ApiService {
     }
   }
 
+  Future<void> reorderQueue(List<String> studentIds) async {
+    final uri = _getUri('/api/queue/reorder');
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'student_ids': studentIds}),
+    );
+    if (response.statusCode == 401) throw Exception('Unauthorized');
+    if (response.statusCode != 200) throw Exception('Failed to reorder queue');
+  }
+
   Future<void> toggleBan(String nameHash, bool banned) async {
     final uri = _getUri('/api/roster/ban');
     final response = await http.post(
@@ -259,6 +270,17 @@ class ApiService {
     );
     if (response.statusCode == 401) throw Exception('Unauthorized');
     if (response.statusCode != 200) throw Exception('Failed to end session');
+  }
+
+  Future<void> banStudent(String studentId) async {
+    final uri = _getUri('/api/ban_student');
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'student_id': studentId}),
+    );
+    if (response.statusCode == 401) throw Exception('Unauthorized');
+    if (response.statusCode != 200) throw Exception('Failed to ban student');
   }
 
   // --- DEV API ---
