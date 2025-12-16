@@ -754,6 +754,7 @@ def api_admin_stats():
     sessions = query_session.filter(Session.start_ts >= start_date).all()
     
     student_stats = {} # {id: {count: 0, overdue: 0}}
+    settings = get_settings(user_id)
     capacity = settings["capacity"]
     overdue_limit = settings["overdue_minutes"] * 60 # seconds
     
