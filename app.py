@@ -746,23 +746,51 @@ def api_admin_stats():
         query_open = query_open.filter_by(user_id=user_id)
         query_roster = query_roster.filter_by(user_id=user_id)
     
-    # Insights: Top Students (Most Sessions)
-    # Join with Student table to get names
-    from sqlalchemy import func, desc
-    top_students = db.session.query(
-        Student.name, func.count(Session.id).label('count')
-    ).select_from(Session).join(Student)\
-     .filter(Session.user_id == user_id if user_id else True)\
-     .group_by(Student.name)\
-     .order_by(desc('count'))\
-     .limit(5).all()
-     
-    # Insights: Most Overdue
-    # (Simplified for stability: Logic for 'is_overdue' in SQL is complex due to timezone/property calculation)
-    # For now, we'll return an empty list or top users to prevent 500 error
-    most_overdue = [] 
-    # Attempting to filter by Python-calculated property in SQL won't work.
-    # Future TODO: Add 'overdue_minutes' to SQL query calculation if needed.
+    # Insights Logic (Python-side aggregation for correct name resolution)
+    # We fetch relevant sessions (e.g., last 30 days) to avoid processing entire history every load
+    # If dataset is huge, this should be optimized to SQL eventually.
+    
+    start_date = datetime.now(timezone.utc) - timedelta(days=30)
+    sessions = query_session.filter(Session.start_ts >= start_date).all()
+    
+    student_stats = {} # {id: {count: 0, overdue: 0}}
+    capacity = settings["capacity"]
+    overdue_limit = settings["overdue_minutes"] * 60 # seconds
+    
+    for s in sessions:
+        sid = s.student_id
+        if sid not in student_stats:
+            student_stats[sid] = {"count": 0, "overdue": 0}
+        
+        stat = student_stats[sid]
+        stat["count"] += 1
+        
+        # Check overdue
+        end_time = s.end_ts or now_utc()
+        duration = (end_time - s.start_ts).total_seconds()
+        if duration > overdue_limit:
+            stat["overdue"] += 1
+            
+    # Convert to list and sort
+    # Resolve names ONLY for the top items to save lookups
+    def resolve_top(stats_dict, sort_key, limit=5):
+        sorted_items = sorted(stats_dict.items(), key=lambda x: x[1][sort_key], reverse=True)[:limit]
+        result = []
+        for sid, data in sorted_items:
+            # key is sid
+            name = get_student_name(sid, "Unknown", user_id=user_id)
+            if name == "Unknown":
+                # Fallback to Student table if possible, or just used ID
+                # We don't have the session object here easily, but get_student_name falls back to "Student" or we can use ID
+                # Try to clean up "Anonymous_" if that's what we have
+                pass
+            result.append({"name": name if name != "Unknown" else f"ID: {sid}", "count": data[sort_key]})
+        return result
+
+    insights = {
+        "top_students": resolve_top(student_stats, "count"),
+        "most_overdue": resolve_top(student_stats, "overdue")
+    }
 
     try:
         return jsonify(
@@ -782,10 +810,14 @@ def api_admin_stats():
                 "name": get_student_name(q.student_id, "Unknown", user_id=user_id),
                 "student_id": q.student_id
             } for q in Queue.query.filter_by(user_id=user_id).order_by(Queue.joined_ts.asc()).all()],
-            insights={
-                "top_students": [{"name": r[0], "count": r[1]} for r in top_students],
-                "most_overdue": [{"name": r[0], "count": r[1]} for r in most_overdue]
-            }
+            insights=insights,
+            active_sessions=[{
+                "id": s.id,
+                "student_id": s.student_id,
+                "name": get_student_name(s.student_id, "Unknown", user_id=user_id),
+                "start_ts": s.start_ts.isoformat(),
+                "room": s.room
+            } for s in query_open.all()]
         )
     except Exception as e:
         import traceback
@@ -793,6 +825,32 @@ def api_admin_stats():
         return jsonify(ok=False, error=str(e)), 500
 
 # --- Admin Action Endpoints ---
+
+@app.post("/api/admin/end_session")
+@require_admin_auth_api
+@handle_db_errors
+def api_end_session():
+    """Manually end a specific session."""
+    user_id = get_current_user_id()
+    payload = request.get_json(silent=True) or {}
+    session_id = payload.get('session_id')
+    
+    if not session_id:
+        return jsonify(ok=False, message="Missing session ID"), 400
+        
+    session = Session.query.filter_by(id=session_id, user_id=user_id).first()
+    if not session:
+        return jsonify(ok=False, message="Session not found"), 404
+        
+    if session.end_ts:
+        return jsonify(ok=False, message="Session already ended"), 400
+        
+    session.end_ts = now_utc()
+    session.ended_by = "admin_override"
+    db.session.commit()
+    
+    return jsonify(ok=True, message=f"Ended session for {get_student_name(session.student_id, 'Student', user_id=user_id)}")
+
 
 
 

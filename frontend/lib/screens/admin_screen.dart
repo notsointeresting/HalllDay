@@ -305,6 +305,80 @@ class _AdminScreenState extends State<AdminScreen> {
     }
   }
 
+  Future<void> _endSessionForId(int id, String name) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("End Session for $name?"),
+        content: const Text(
+          "This will mark the student as returned immediately.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("End Session"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await _api.endSession(id);
+        _loadData();
+        if (mounted)
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Session ended.')));
+      } catch (e) {
+        if (mounted)
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
+  Future<void> _removeFromQueue(String studentId, String name) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Remove $name from Waitlist?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text("Remove"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await _api.deleteFromQueue(studentId, ""); // Token not needed for admin
+        _loadData();
+        if (mounted)
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Removed from waitlist.')),
+          );
+      } catch (e) {
+        if (mounted)
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -402,6 +476,182 @@ class _AdminScreenState extends State<AdminScreen> {
                   ],
                 ),
                 const SizedBox(height: 32),
+
+                // LIVE ACTIVITY (Active Sessions & Waitlist)
+                const _SectionHeader(
+                  icon: Icons.access_time_filled,
+                  title: "Live Activity",
+                ),
+                Wrap(
+                  spacing: 24,
+                  runSpacing: 24,
+                  children: [
+                    // Active Sessions
+                    Container(
+                      width: 480,
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE2ECE4),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Active Sessions (${stats['active_sessions_count'] ?? 0})",
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          if ((_data?['active_sessions'] as List?)?.isEmpty ??
+                              true)
+                            const Padding(
+                              padding: EdgeInsets.all(16.0),
+                              child: Text(
+                                "No active sessions.",
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            )
+                          else
+                            ...(_data!['active_sessions'] as List).map(
+                              (s) => Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.grey[300]!),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            s['name'] ?? 'Unknown',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          Text(
+                                            "Started: ${s['start_ts']?.split('T')[1]?.split('.')[0]}",
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.stop_circle_outlined,
+                                        color: Colors.red,
+                                      ),
+                                      tooltip: "End Session",
+                                      onPressed: () =>
+                                          _endSessionForId(s['id'], s['name']),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+
+                    // Waitlist
+                    Container(
+                      width: 480,
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF3E0), // Orange tint
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Waitlist (${(_data?['queue_list'] as List?)?.length ?? 0})",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              color: Colors.orange[900],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          if ((_data?['queue_list'] as List?)?.isEmpty ?? true)
+                            const Padding(
+                              padding: EdgeInsets.all(16.0),
+                              child: Text(
+                                "Waitlist is empty.",
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            )
+                          else
+                            ...(_data!['queue_list'] as List)
+                                .asMap()
+                                .entries
+                                .map((entry) {
+                                  final idx = entry.key + 1;
+                                  final q = entry.value;
+                                  return Container(
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: Colors.orange[200]!,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 12,
+                                          backgroundColor: Colors.orange,
+                                          child: Text(
+                                            "$idx",
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Text(
+                                            q['name'] ?? 'Unknown',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.close,
+                                            color: Colors.grey,
+                                          ),
+                                          tooltip: "Remove from Waitlist",
+                                          onPressed: () => _removeFromQueue(
+                                            q['student_id'],
+                                            q['name'],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
 
                 // Share Section
                 const _SectionHeader(

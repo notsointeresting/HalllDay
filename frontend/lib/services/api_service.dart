@@ -250,6 +250,17 @@ class ApiService {
     if (response.statusCode != 200) throw Exception('Failed to delete history');
   }
 
+  Future<void> endSession(int sessionId) async {
+    final uri = _getUri('/api/admin/end_session');
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'session_id': sessionId}),
+    );
+    if (response.statusCode == 401) throw Exception('Unauthorized');
+    if (response.statusCode != 200) throw Exception('Failed to end session');
+  }
+
   // --- DEV API ---
   Future<bool> devAuth(String passcode) async {
     final uri = _getUri('/api/dev/auth');

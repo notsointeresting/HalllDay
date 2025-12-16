@@ -8,8 +8,8 @@
 [x] Biggest Priority: For some reason the flutter implementation is causing the input to stop registering at times through the day... **FIXED**: Implemented aggressive focus reclamation on app resume and a periodic 2s timer to ensure the hidden input field always has focus on the kiosk screen. 
 
 
-[] Looking at "View Full Pass Logs" works well and looks good. But the graphs on the admin screen like "Most Overdue" and "Top Users" has numerous issues. Either do not work at all or show anonymous data. Not particularly useful or actionable data and also not working in the first place. Needs overhaul. 
-- [] Should be able to manage and see active kiosk passes from admin panel just like you can with waitlist. Overall robust way to cancel passes; manual ban button on student out, rearrange waitlist, etc. 
+[x] Admin Charts: Fixed "Most Overdue" and "Top Users" graphs by moving aggregation to Python and ensuring proper name resolution for active/historic sessions.
+[x] Active Session Management: added "Live Activity" section to Admin Dashboard with list of active sessions (with End button) and Waitlist (with Remove button).
 -[] Auth page looks kinda ugly 
 - [] IDK Can You logo has white inside a couple areas that should be transparent. Refine/animate logo, make it more dynamic and engaging for landing page graphic. be responsive to color changes (future day and dark mode)
 - [] Should be able to access all parts of the app from hamburger menu or top navigation or whatever is material 3 expressive standard for page navigation. Default to landing page, tabs to navigate to kiosk, display, admin, after login. all pages should have  button to return to landing page or navigate to others feedbacking into eachother. Unified navigation between pages.
