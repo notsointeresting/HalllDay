@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // For HapticFeedback
+import 'dart:async'; // For Timer
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../providers/status_provider.dart';
@@ -17,24 +18,50 @@ class KioskScreen extends StatefulWidget {
 }
 
 class _KioskScreenState extends State<KioskScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   final TextEditingController _scanController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   AnimationController? _shakeController;
+  Timer? _focusTimer; // Periodic check
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this); // Listen to lifecycle
     _shakeController = AnimationController(vsync: this, duration: 500.ms);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<StatusProvider>().init(widget.token);
-      _focusNode.requestFocus();
+      _requestFocus();
     });
+
+    // Kiosk Mode: Force focus every 2 seconds if lost
+    _focusTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+      if (!_focusNode.hasFocus) {
+        debugPrint("Lost focus - reclaiming for generic input");
+        _requestFocus();
+      }
+    });
+  }
+
+  void _requestFocus() {
+    if (mounted) {
+      _focusNode.requestFocus();
+      // SystemChannels.textInput.invokeMethod('TextInput.show'); // Optional: ensure soft keyboard doesn't hide functionality if needed, though usually distinct
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _requestFocus();
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _focusTimer?.cancel();
     _shakeController?.dispose();
     _scanController.dispose();
     _focusNode.dispose();
@@ -49,7 +76,7 @@ class _KioskScreenState extends State<KioskScreen>
 
     // Clear immediately
     _scanController.clear();
-    _focusNode.requestFocus();
+    _requestFocus();
 
     final result = await provider.scanCode(code.trim());
 
@@ -106,7 +133,8 @@ class _KioskScreenState extends State<KioskScreen>
       backgroundColor: Colors.black,
 
       body: GestureDetector(
-        onTap: () => _focusNode.requestFocus(),
+        behavior: HitTestBehavior.translucent, // Catch taps on empty space
+        onTap: _requestFocus,
         child: Stack(
           fit: StackFit.expand,
           children: [
