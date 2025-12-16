@@ -181,7 +181,7 @@ class _LandingScreenState extends State<LandingScreen> {
                                   maxWidth: 600,
                                 ),
                                 child: const Text(
-                                  "Track time, manage queues, and see who’s out. No paper. No guessing.",
+                                  "Track time, manage queues, and see who’s out.",
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     fontSize: 22,
