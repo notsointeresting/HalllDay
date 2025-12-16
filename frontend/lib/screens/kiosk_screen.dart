@@ -130,13 +130,14 @@ class _KioskScreenState extends State<KioskScreen>
                       return const Center(child: CircularProgressIndicator());
                     }
                     final status = provider.status;
-                    if (status == null)
+                    if (status == null) {
                       return const Center(
                         child: Text(
                           "Error: No Status",
                           style: TextStyle(color: Colors.white),
                         ),
                       );
+                    }
 
                     // MOBILE VIEW (List)
                     if (isSmallScreen) {

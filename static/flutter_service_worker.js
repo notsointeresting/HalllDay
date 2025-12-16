@@ -3,7 +3,7 @@ const MANIFEST = 'flutter-app-manifest';
 const TEMP = 'flutter-temp-cache';
 const CACHE_NAME = 'flutter-app-cache';
 
-const RESOURCES = {"flutter_bootstrap.js": "3ce3cc6d36b06882708fd13973f4890b",
+const RESOURCES = {"flutter_bootstrap.js": "c7b703ed019fa4430d09936d6d8679d1",
 "version.json": "2b521e10dfa0f067561de489a19d6620",
 "index.html": "924e12d6bcb7e0caa0a59ed2142a82e9",
 "/": "924e12d6bcb7e0caa0a59ed2142a82e9",
@@ -24,7 +24,7 @@ const RESOURCES = {"flutter_bootstrap.js": "3ce3cc6d36b06882708fd13973f4890b",
 "assets/AssetManifest.bin": "de1176d908f2b0bbb70da2b14d89d34e",
 "assets/fonts/MaterialIcons-Regular.otf": "13ffd01f5eaee1086c4ca9a203638cc1",
 "assets/assets/brand/logo.png": "77232a2361cd49f585617d81bbc21e23",
-"assets/assets/brand/logo.svg": "4bfc37c87796c690732143cd284a9ce5",
+"assets/assets/brand/logo.svg": "d42eeaa91f88d4aa17bdd008b14b56fc",
 "canvaskit/skwasm.js": "8060d46e9a4901ca9991edd3a26be4f0",
 "canvaskit/skwasm_heavy.js": "740d43a6b8240ef9e23eed8c48840da4",
 "canvaskit/skwasm.js.symbols": "3a4aadf4e8141f284bd524976b1d6bdc",

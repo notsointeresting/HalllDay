@@ -150,7 +150,7 @@ class _PhysicsLayoutState extends State<PhysicsLayout>
                     ),
                   ),
                 );
-              }).toList(),
+              }),
             ],
           );
         },

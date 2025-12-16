@@ -304,8 +304,9 @@ class _AdminScreenState extends State<AdminScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading)
+    if (_loading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     final user = _data?['user'] ?? {};
     final stats = _data ?? {};
@@ -1282,7 +1283,7 @@ class _RosterManagerState extends State<_RosterManager> {
                               const SizedBox(width: 8),
                               Switch(
                                 value: isBanned,
-                                activeColor: Colors.red,
+                                activeThumbColor: Colors.red,
                                 onChanged: (v) => _toggleBan(i, v),
                               ),
                             ],
@@ -1385,9 +1386,9 @@ class _PassLogsDialogState extends State<_PassLogsDialog> {
                           final isEnded = status == 'completed';
 
                           Color color = Colors.black;
-                          if (isOverdue)
+                          if (isOverdue) {
                             color = Colors.red;
-                          else if (!isEnded)
+                          } else if (!isEnded)
                             color = Colors.green[800]!;
 
                           return DataRow(

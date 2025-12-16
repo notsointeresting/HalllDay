@@ -94,8 +94,9 @@ class ApiService {
       body: json.encode(settings),
     );
     if (response.statusCode == 401) throw Exception('Unauthorized');
-    if (response.statusCode != 200)
+    if (response.statusCode != 200) {
       throw Exception('Failed to update settings');
+    }
   }
 
   Future<void> updateSlug(String slug) async {
