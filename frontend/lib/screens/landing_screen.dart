@@ -359,7 +359,7 @@ class _LandingScreenState extends State<LandingScreen> {
                       const Divider(),
                       const SizedBox(height: 24),
                       const Text(
-                        "© 2025 IDK Can You? • Built by educators who got tired of the clipboard.",
+                        "© 2025 IDK Can You? • Elisha Lucero",
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Colors.grey,
