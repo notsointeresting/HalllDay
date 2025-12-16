@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:web/web.dart' as web;
-
-import 'dart:ui'; // For ImageFilter
 import '../widgets/app_nav_drawer.dart';
+import 'dart:html' as html;
+import 'dart:ui' as ui; // ignore: library_prefixes
+import 'dart:ui_web' as ui_web;
 
 class LandingScreen extends StatefulWidget {
   const LandingScreen({super.key});
@@ -15,6 +16,22 @@ class LandingScreen extends StatefulWidget {
 class _LandingScreenState extends State<LandingScreen> {
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _faqKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    // Register YouTube view factory for Web
+    // ignore: undefined_prefixed_name
+    ui_web.platformViewRegistry.registerViewFactory(
+      'youtube-video',
+      (int viewId) => html.IFrameElement()
+        ..src = 'https://www.youtube.com/embed/L8NvFc-F5EU?si=Xu21FymPx2G17ppY'
+        ..style.border = 'none'
+        ..allow =
+            'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share'
+        ..allowFullscreen = true,
+    );
+  }
 
   void _scrollToFAQ() {
     final context = _faqKey.currentContext;
@@ -148,7 +165,7 @@ class _LandingScreenState extends State<LandingScreen> {
                                   ),
                               const SizedBox(height: 28),
                               Text(
-                                "Hall passes without the chaos.",
+                                "Fixing the part of classroom management everyone hates dealing with.",
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 56,
@@ -215,6 +232,32 @@ class _LandingScreenState extends State<LandingScreen> {
                             duration: 520.ms,
                             curve: Curves.easeOutCubic,
                           ),
+
+                      const SizedBox(height: 64),
+
+                      // Video Embed
+                      Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 800),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(24),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 30,
+                                  offset: Offset(0, 15),
+                                ),
+                              ],
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: const AspectRatio(
+                              aspectRatio: 16 / 9,
+                              child: HtmlElementView(viewType: 'youtube-video'),
+                            ),
+                          ),
+                        ),
+                      ),
 
                       const SizedBox(height: 96),
 
@@ -291,28 +334,22 @@ class _LandingScreenState extends State<LandingScreen> {
                         child: Column(
                           children: [
                             _FAQItem(
-                              icon: Icons.help_outline_rounded,
+                              icon: Icons.app_registration_rounded,
                               accent: cs.primary,
-                              "How does it work?",
-                              "Teachers create a room code. Students check in on a kiosk (any tablet/laptop) to leave the room. The system tracks time automatically.",
+                              "1. Set up Admin",
+                              "Sign in as a teacher. Create your room slug (e.g. 'mr-smith'), set your rules, and upload your roster if you want.",
                             ),
                             _FAQItem(
-                              icon: Icons.computer_rounded,
-                              accent: cs.primary,
-                              "What hardware do I need?",
-                              "Just a computer or tablet for the kiosk! You can use a barcode scanner (\$20 on Amazon) for faster check-ins, or students can just type their ID.",
+                              icon: Icons.devices_other_rounded,
+                              accent: cs.secondary,
+                              "2. Launch Kiosk",
+                              "Open the Kiosk URL (/kiosk/your-slug) on a dedicated device (iPad, Chromebook). Students use this to scan or type their ID to leave.",
                             ),
                             _FAQItem(
-                              icon: Icons.shield_outlined,
-                              accent: cs.primary,
-                              "Is it FERPA compliant?",
-                              "Yes. We do not store sensitive records permanently. Roster names are encrypted, and session history can be cleared at any time.",
-                            ),
-                            _FAQItem(
-                              icon: Icons.support_agent_rounded,
-                              accent: cs.primary,
-                              "Does it stop students from leaving?",
-                              "It supports your policy—it doesn’t replace it. You’ll see who’s out, for how long, and when they’re overdue.",
+                              icon: Icons.tv_rounded,
+                              accent: cs.tertiary,
+                              "3. Launch Display (Optional)",
+                              "Open the Display URL (/display/your-slug) on your projector or a second screen. This shows the live list of who is out and the waitlist.",
                             ),
                           ],
                         ),
@@ -357,7 +394,7 @@ class _BlurBlob extends StatelessWidget {
         shape: BoxShape.circle,
       ),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
+        filter: ui.ImageFilter.blur(sigmaX: 60, sigmaY: 60),
         child: Container(
           decoration: BoxDecoration(
             shape: BoxShape.circle,

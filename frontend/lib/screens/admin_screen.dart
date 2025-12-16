@@ -496,7 +496,51 @@ class _AdminScreenState extends State<AdminScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 16),
+                // Launch Actions
+                Container(
+                  margin: const EdgeInsets.only(bottom: 24),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        "Launch:",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      OutlinedButton.icon(
+                        onPressed: () => web.window.open(
+                          '/kiosk/${_slugCtrl.text}',
+                          '_blank',
+                        ),
+                        icon: const Icon(Icons.devices_other),
+                        label: const Text("Kiosk"),
+                      ),
+                      const SizedBox(width: 12),
+                      OutlinedButton.icon(
+                        onPressed: () => web.window.open(
+                          '/display/${_slugCtrl.text}',
+                          '_blank',
+                        ),
+                        icon: const Icon(Icons.tv),
+                        label: const Text("Display"),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
 
                 // Quick Stats & Suspend
                 Row(
