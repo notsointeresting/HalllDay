@@ -218,11 +218,11 @@ class ApiService {
   }
 
   Future<void> clearRoster({bool clearHistory = false}) async {
-    final uri = _getUri('/api/roster/clear');
+    final uri = _getUri('/api/admin/reset');
     final response = await http.post(
       uri,
       headers: {'Content-Type': 'application/json'},
-      body: json.encode({'clear_history': clearHistory}),
+      body: json.encode({'clear_roster': true, 'clear_sessions': clearHistory}),
     );
     if (response.statusCode == 401) throw Exception('Unauthorized');
     if (response.statusCode != 200) throw Exception('Failed to clear roster');
@@ -240,8 +240,12 @@ class ApiService {
   }
 
   Future<void> deleteHistory() async {
-    final uri = _getUri('/api/control/delete_history');
-    final response = await http.post(uri);
+    final uri = _getUri('/api/admin/reset');
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'clear_sessions': true, 'clear_roster': false}),
+    );
     if (response.statusCode == 401) throw Exception('Unauthorized');
     if (response.statusCode != 200) throw Exception('Failed to delete history');
   }

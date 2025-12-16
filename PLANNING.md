@@ -18,9 +18,10 @@
 *Goal: Unified Material 3 Design for all surfaces.*
 
 - [ ] **Admin Dashboard (`/admin`)**:
+    - [x] **Admin Login UI**: Revamped with Material 3 card layout.
     - [x] **Roster Management**: Manual Ban List & View.
     - [x] **Pass Logs**: Ported to Flutter.
-    - [ ] **Roster Clear**: Ensure session history is cleared (remove "Anonymous" ghost stats).
+    - [x] **Roster Clear**: Implemented backend endpoint and frontend controls for clearing session history and roster data.
     - [ ] **CSV Import/Export**: Template instructions and export functionality.
     - [ ] **Data Tables**: Refine with Material 3 sorting/filtering.
 - [ ] **Dev Dashboard (`/dev`)**:

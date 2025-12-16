@@ -1905,12 +1905,51 @@ def api_clear_session_roster():
 
 
 
+@app.post("/api/admin/reset")
+@require_admin_auth_api
+def api_admin_reset():
+    """
+    Reset user data:
+    - clear_sessions: Clear session history (logs/stats)
+    - clear_roster: Clear student names/roster
+    """
+    try:
+        user_id = get_current_user_id()
+        payload = request.get_json(silent=True) or {}
+        
+        clear_sessions = payload.get("clear_sessions", False)
+        clear_roster = payload.get("clear_roster", False)
+        
+        messages = []
+        
+        if clear_sessions:
+            if session_service:
+                success = session_service.clear_user_history(user_id)
+                if success:
+                    messages.append("Session history cleared")
+                else:
+                    return jsonify(ok=False, message="Failed to clear session history"), 500
+        
+        if clear_roster:
+            if roster_service:
+                success = roster_service.clear_all_student_names(user_id)
+                if success:
+                    messages.append("Student roster cleared")
+                else:
+                    return jsonify(ok=False, message="Failed to clear roster"), 500
+                    
+        return jsonify(ok=True, message=". ".join(messages) if messages else "No actions taken", cleared=messages)
+        
+    except Exception as e:
+        return jsonify(ok=False, message=str(e)), 500
+
 @app.post("/api/reset_database")
 @require_admin_auth_api
 def api_reset_database():
-    """Reset: Delete user's sessions from database.
+    """Legacy Endpoint: Reset: Delete user's sessions from database.
     
     This clears all session history for the current user. Student roster and settings are preserved.
+    KEPT FOR BACKWARD COMPATIBILITY but functionality is duplicated in /api/admin/reset
     """
     try:
         user_id = get_current_user_id()

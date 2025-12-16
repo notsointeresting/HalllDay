@@ -213,10 +213,10 @@ class _AdminScreenState extends State<AdminScreen> {
                 onPressed: () => Navigator.pop(context, false),
                 child: const Text('Cancel'),
               ),
-              TextButton(
+              FilledButton(
                 onPressed: () => Navigator.pop(context, true),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: const Text('Clear'),
+                style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('Clear Roster'),
               ),
             ],
           );
@@ -268,21 +268,19 @@ class _AdminScreenState extends State<AdminScreen> {
     final cur = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Delete History?'),
+        title: const Text('Clear History?'),
         content: const Text(
-          'Permanently delete all session history. This cannot be undone.',
+          'Permanently delete all session history logs. This cannot be undone.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancel'),
           ),
-          TextButton(
+          FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'DELETE',
-              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-            ),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete History'),
           ),
         ],
       ),
@@ -291,6 +289,11 @@ class _AdminScreenState extends State<AdminScreen> {
     if (cur == true) {
       try {
         await _api.deleteHistory();
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('History cleared.')));
+        }
         _loadData();
       } catch (e) {
         if (mounted) {
