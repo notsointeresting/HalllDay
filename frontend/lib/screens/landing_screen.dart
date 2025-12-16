@@ -131,16 +131,27 @@ class _LandingScreenState extends State<LandingScreen> {
                               // Bundled as a Flutter asset for reliability (web + mobile).
                               // SVG Logo for perfect scaling
                               SvgPicture.asset(
-                                'assets/brand/logo.svg',
-                                height: 100, // Adjusted height for balance
-                                fit:
-                                    BoxFit.contain, // Ensure it's never cut off
-                                placeholderBuilder: (BuildContext context) =>
-                                    Container(
-                                      padding: const EdgeInsets.all(30.0),
-                                      child: const CircularProgressIndicator(),
-                                    ),
-                              ),
+                                    'assets/brand/logo.svg',
+                                    height: 100, // Adjusted height for balance
+                                    fit: BoxFit
+                                        .contain, // Ensure it's never cut off
+                                    placeholderBuilder:
+                                        (BuildContext context) => Container(
+                                          padding: const EdgeInsets.all(30.0),
+                                          child:
+                                              const CircularProgressIndicator(),
+                                        ),
+                                  )
+                                  .animate(
+                                    onPlay: (controller) =>
+                                        controller.repeat(reverse: true),
+                                  )
+                                  .moveY(
+                                    begin: 0,
+                                    end: -10,
+                                    duration: 3.seconds,
+                                    curve: Curves.easeInOut,
+                                  ),
                               const SizedBox(height: 28),
                               Text(
                                 "Hall passes without the chaos.",
