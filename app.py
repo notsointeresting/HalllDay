@@ -959,6 +959,59 @@ def api_update_slug():
     
     return jsonify(ok=False, error="Invalid format"), 400
 
+@app.route("/api/roster/export")
+def api_roster_export():
+    """Export current roster to CSV."""
+    if not is_admin_authenticated():
+        return jsonify(ok=False, error="Unauthorized"), 401
+    
+    user_id = get_current_user_id()
+    roster = roster_service.get_all_students(user_id) if roster_service else []
+    
+    out = io.StringIO()
+    w = csv.writer(out)
+    w.writerow(["student_id", "name"])
+    
+    for s in roster:
+        # Decrypt ID for export if needed, but StudentName stores hash and encrypted_id.
+        # RosterService.store_student_name encrypts the ID.
+        # We need to decrypt it to show the original ID.
+        student_id = "UNKNOWN"
+        try:
+            student_id = cipher_suite.decrypt(s.encrypted_id.encode()).decode()
+        except Exception:
+            pass
+        w.writerow([student_id, s.display_name])
+        
+    out.seek(0)
+    return send_file(
+        io.BytesIO(out.getvalue().encode("utf-8")),
+        mimetype="text/csv",
+        as_attachment=True,
+        download_name="roster_export.csv",
+    )
+
+@app.route("/api/roster/template")
+def api_roster_template():
+    """Download CSV template for roster upload."""
+    # No auth strictly required for a blank template, but consistent with admin tools
+    if not is_admin_authenticated():
+        return jsonify(ok=False, error="Unauthorized"), 401
+        
+    out = io.StringIO()
+    w = csv.writer(out)
+    w.writerow(["student_id", "name"])
+    w.writerow(["123456", "Jane Doe"])
+    w.writerow(["789012", "John Smith"])
+    
+    out.seek(0)
+    return send_file(
+        io.BytesIO(out.getvalue().encode("utf-8")),
+        mimetype="text/csv",
+        as_attachment=True,
+        download_name="roster_template.csv",
+    )
+
 @app.route("/api/roster/upload", methods=["POST"])
 def api_roster_upload():
     if not is_admin_authenticated():

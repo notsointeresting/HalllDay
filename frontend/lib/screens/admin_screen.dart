@@ -930,6 +930,17 @@ class _AdminScreenState extends State<AdminScreen> {
                           ),
                           const SizedBox(width: 16),
                           OutlinedButton.icon(
+                            onPressed: () {
+                              web.window.open('/api/roster/template', '_blank');
+                            },
+                            icon: const Icon(Icons.download),
+                            label: const Text("Template"),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.green[800],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          OutlinedButton.icon(
                             onPressed: () => showDialog(
                               context: context,
                               builder: (c) => _RosterManager(api: _api),
@@ -961,13 +972,28 @@ class _AdminScreenState extends State<AdminScreen> {
                         ],
                       ),
                       const SizedBox(height: 24),
-                      OutlinedButton(
-                        onPressed: _clearRoster,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.red,
-                          side: const BorderSide(color: Colors.red),
-                        ),
-                        child: const Text("Clear All Roster Data"),
+                      Row(
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              web.window.open('/api/roster/export', '_blank');
+                            },
+                            icon: const Icon(Icons.download),
+                            label: const Text("Export Roster"),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.green[800],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          OutlinedButton(
+                            onPressed: _clearRoster,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red,
+                              side: const BorderSide(color: Colors.red),
+                            ),
+                            child: const Text("Clear All Roster Data"),
+                          ),
+                        ],
                       ),
                     ],
                   ),
