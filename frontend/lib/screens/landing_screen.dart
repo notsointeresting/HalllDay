@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:web/web.dart' as web;
-import 'package:flutter_svg/flutter_svg.dart';
+
 import 'dart:ui'; // For ImageFilter
 import '../widgets/app_nav_drawer.dart';
 
@@ -130,17 +130,11 @@ class _LandingScreenState extends State<LandingScreen> {
                               // Prefer a real logo if it exists at the server root.
                               // Bundled as a Flutter asset for reliability (web + mobile).
                               // SVG Logo for perfect scaling
-                              SvgPicture.asset(
-                                    'assets/brand/logo.svg',
+                              Image.asset(
+                                    'assets/brand/logo.png',
                                     height: 100, // Adjusted height for balance
                                     fit: BoxFit
                                         .contain, // Ensure it's never cut off
-                                    placeholderBuilder:
-                                        (BuildContext context) => Container(
-                                          padding: const EdgeInsets.all(30.0),
-                                          child:
-                                              const CircularProgressIndicator(),
-                                        ),
                                   )
                                   .animate(
                                     onPlay: (controller) =>

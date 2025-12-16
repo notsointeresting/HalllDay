@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 class AppNavDrawer extends StatelessWidget {
   final String currentRoute;
@@ -22,13 +21,11 @@ class AppNavDrawer extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  SvgPicture.asset(
-                    'assets/brand/logo.svg',
+                  Image.asset(
+                    'assets/brand/logo.png',
                     height: 48,
-                    colorFilter: ColorFilter.mode(
-                      theme.colorScheme.primary,
-                      BlendMode.srcIn,
-                    ),
+                    color: theme.colorScheme.primary,
+                    colorBlendMode: BlendMode.srcIn,
                   ),
                   const SizedBox(height: 12),
                   Text(
