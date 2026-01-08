@@ -524,19 +524,18 @@ class _AdminScreenState extends State<AdminScreen> {
                       ),
                       const SizedBox(width: 16),
                       OutlinedButton.icon(
-                        onPressed: () => web.window.open(
-                          '/kiosk/${_slugCtrl.text}',
-                          '_blank',
-                        ),
+                        onPressed: urls['kiosk']?.toString().isNotEmpty == true
+                            ? () => web.window.open(urls['kiosk'], '_blank')
+                            : null,
                         icon: const Icon(Icons.devices_other),
                         label: const Text("Kiosk"),
                       ),
                       const SizedBox(width: 12),
                       OutlinedButton.icon(
-                        onPressed: () => web.window.open(
-                          '/display/${_slugCtrl.text}',
-                          '_blank',
-                        ),
+                        onPressed:
+                            urls['display']?.toString().isNotEmpty == true
+                            ? () => web.window.open(urls['display'], '_blank')
+                            : null,
                         icon: const Icon(Icons.tv),
                         label: const Text("Display"),
                       ),

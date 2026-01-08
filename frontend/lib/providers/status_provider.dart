@@ -14,6 +14,10 @@ class StatusProvider with ChangeNotifier {
   Timer? _pollTimer;
   Timer? _uiTickTimer;
 
+  // Track consecutive failures to detect offline state
+  int _failureCount = 0;
+  static const int _maxFailuresBeforeOffline = 3;
+
   // Getters
   KioskStatus? get status => _status;
   bool get isLoading => _isLoading;
@@ -31,6 +35,7 @@ class StatusProvider with ChangeNotifier {
     _token = token;
     _isLoading = true;
     _error = null;
+    _failureCount = 0;
     notifyListeners();
 
     // Fetch initial status
@@ -42,7 +47,8 @@ class StatusProvider with ChangeNotifier {
     // Local UI tick (no network): keeps timers/overdue indicators updating smoothly.
     _uiTickTimer?.cancel();
     _uiTickTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (_status != null) notifyListeners();
+      // Only tick UI if connected - stops stale timer display when offline
+      if (_status != null && _error == null) notifyListeners();
     });
   }
 
@@ -74,13 +80,17 @@ class StatusProvider with ChangeNotifier {
     try {
       final newStatus = await _api.getStatus(_token!);
       _status = newStatus;
-      _error = null; // Clear error on success
+      _error = null;
+      _failureCount = 0; // Reset on success
     } catch (e) {
+      _failureCount++;
       if (kDebugMode) {
-        print("Error fetching status: $e");
+        print("Error fetching status (attempt $_failureCount): $e");
       }
-      // Don't overwrite _status with null on transient errors, just set error flag
-      // _error = e.toString();
+      // After 3 consecutive failures (6 seconds), mark as offline
+      if (_failureCount >= _maxFailuresBeforeOffline) {
+        _error = 'Connection lost';
+      }
     } finally {
       _isLoading = false;
       notifyListeners();

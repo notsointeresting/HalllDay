@@ -34,7 +34,10 @@ class BubbleModel {
   String timerText = '';
   bool isOverdue = false;
 
-  DateTime? sessionStart;
+  // Timer sync: Use server-provided elapsed time as baseline, increment locally
+  // This prevents negative timers when device clocks are out of sync
+  int serverElapsed = 0;
+  DateTime lastSyncTime = DateTime.now();
 
   BubbleModel({
     required this.id,
@@ -55,9 +58,11 @@ class BubbleModel {
     scaleSpring.update(dt);
     rotateSpring.update(dt);
 
-    // Update Timer locally if active
-    if (type == BubbleType.used && sessionStart != null) {
-      final int elapsed = DateTime.now().difference(sessionStart!).inSeconds;
+    // Update Timer locally using server elapsed + local offset
+    // This avoids relying on device clock accuracy
+    if (type == BubbleType.used) {
+      final int localOffset = DateTime.now().difference(lastSyncTime).inSeconds;
+      final int elapsed = serverElapsed + localOffset;
       final int mins = (elapsed / 60).floor();
       final int secs = elapsed % 60;
       timerText = "$mins:${secs.toString().padLeft(2, '0')}";
@@ -87,38 +92,30 @@ class BubbleModel {
     // Update Content Data
     if (newType == BubbleType.used && sessionData != null) {
       name = sessionData.name;
-      // Sync stats immediately
-      // Snap to nearest second to sync timer ticks across devices/passes
-      final rawStart = sessionData.start;
-      sessionStart = rawStart.subtract(
-        Duration(
-          milliseconds: rawStart.millisecond,
-          microseconds: rawStart.microsecond,
-        ),
-      );
-
+      // Use server-provided elapsed time, sync timestamp for local increments
+      serverElapsed = sessionData.elapsed;
+      lastSyncTime = DateTime.now();
       isOverdue = sessionData.overdue;
 
-      // Update text immediately
-      final int elapsed = DateTime.now().difference(sessionStart!).inSeconds;
-      final int mins = (elapsed / 60).floor();
-      final int secs = elapsed % 60;
+      // Update text immediately using server elapsed
+      final int mins = (serverElapsed / 60).floor();
+      final int secs = serverElapsed % 60;
       timerText = "$mins:${secs.toString().padLeft(2, '0')}";
     } else if (newType == BubbleType.banned) {
       name = "BANNED";
       timerText = "";
       isOverdue = true;
-      sessionStart = null;
+      serverElapsed = 0;
     } else if (newType == BubbleType.suspended) {
       name = "SUSPENDED";
       timerText = "";
       isOverdue = true;
-      sessionStart = null;
+      serverElapsed = 0;
     } else {
       name = "Scan ID";
       timerText = "";
       isOverdue = false;
-      sessionStart = null;
+      serverElapsed = 0;
     }
   }
 }

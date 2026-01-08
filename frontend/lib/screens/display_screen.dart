@@ -38,6 +38,42 @@ class _DisplayScreenState extends State<DisplayScreen> {
                 return const Center(child: CircularProgressIndicator());
               }
 
+              // Show offline error overlay when connection is lost
+              if (!provider.isConnected) {
+                return Container(
+                  color: Colors.grey[900],
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.cloud_off,
+                          size: 80,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          "Connection Lost",
+                          style: TextStyle(
+                            color: Colors.grey[400],
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "Reconnecting...",
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 18,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
               final status = provider.status;
               if (status == null) {
                 return const Center(
