@@ -5,8 +5,13 @@ import '../models/kiosk_status.dart';
 
 class MobileListView extends StatelessWidget {
   final KioskStatus status;
+  final int serverTimeOffsetMs; // For synced timer display
 
-  const MobileListView({super.key, required this.status});
+  const MobileListView({
+    super.key,
+    required this.status,
+    this.serverTimeOffsetMs = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +56,7 @@ class MobileListView extends StatelessWidget {
                           ),
                         ),
                         trailing: Text(
-                          session.timerText,
+                          session.getTimerText(serverTimeOffsetMs),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 18,

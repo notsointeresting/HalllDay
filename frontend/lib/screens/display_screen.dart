@@ -86,13 +86,20 @@ class _DisplayScreenState extends State<DisplayScreen> {
 
               // MOBILE VIEW
               if (isSmallScreen) {
-                return MobileListView(status: status);
+                return MobileListView(
+                  status: status,
+                  serverTimeOffsetMs: provider.serverTimeOffsetMs,
+                );
               }
 
               return Stack(
                 children: [
                   // Rendering Physics Layout in DISPLAY MODE (Big Text, No Inputs)
-                  PhysicsLayout(status: status, isDisplay: true),
+                  PhysicsLayout(
+                    status: status,
+                    isDisplay: true,
+                    serverTimeOffsetMs: provider.serverTimeOffsetMs,
+                  ),
 
                   // Waitlist Overlay (Parity with Kiosk)
                   if (status.queue.isNotEmpty)

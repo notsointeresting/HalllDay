@@ -34,10 +34,8 @@ class BubbleModel {
   String timerText = '';
   bool isOverdue = false;
 
-  // Timer sync: Use server-provided elapsed time as baseline, increment locally
-  // This prevents negative timers when device clocks are out of sync
-  int serverElapsed = 0;
-  DateTime lastSyncTime = DateTime.now();
+  // Session reference for real-time timer calculation
+  Session? _activeSession;
 
   BubbleModel({
     required this.id,
@@ -52,20 +50,17 @@ class BubbleModel {
     rotateSpring.set(0.0);
   }
 
-  void update(double dt) {
+  /// Update physics and timer display
+  /// [serverTimeOffsetMs] - offset to sync client clock with server
+  void update(double dt, {int serverTimeOffsetMs = 0}) {
     xSpring.update(dt);
     ySpring.update(dt);
     scaleSpring.update(dt);
     rotateSpring.update(dt);
 
-    // Update Timer locally using server elapsed + local offset
-    // This avoids relying on device clock accuracy
-    if (type == BubbleType.used) {
-      final int localOffset = DateTime.now().difference(lastSyncTime).inSeconds;
-      final int elapsed = serverElapsed + localOffset;
-      final int mins = (elapsed / 60).floor();
-      final int secs = elapsed % 60;
-      timerText = "$mins:${secs.toString().padLeft(2, '0')}";
+    // Update timer using server-synced time (runs every frame for smooth display)
+    if (type == BubbleType.used && _activeSession != null) {
+      timerText = _activeSession!.getTimerText(serverTimeOffsetMs);
     }
   }
 
@@ -75,6 +70,7 @@ class BubbleModel {
     required double scale,
     required BubbleType newType,
     Session? sessionData,
+    int serverTimeOffsetMs = 0,
   }) {
     xSpring.target = x;
     ySpring.target = y;
@@ -92,30 +88,25 @@ class BubbleModel {
     // Update Content Data
     if (newType == BubbleType.used && sessionData != null) {
       name = sessionData.name;
-      // Use server-provided elapsed time, sync timestamp for local increments
-      serverElapsed = sessionData.elapsed;
-      lastSyncTime = DateTime.now();
       isOverdue = sessionData.overdue;
-
-      // Update text immediately using server elapsed
-      final int mins = (serverElapsed / 60).floor();
-      final int secs = serverElapsed % 60;
-      timerText = "$mins:${secs.toString().padLeft(2, '0')}";
+      _activeSession = sessionData;
+      // Initial timer text using synced time
+      timerText = sessionData.getTimerText(serverTimeOffsetMs);
     } else if (newType == BubbleType.banned) {
       name = "BANNED";
       timerText = "";
       isOverdue = true;
-      serverElapsed = 0;
+      _activeSession = null;
     } else if (newType == BubbleType.suspended) {
       name = "SUSPENDED";
       timerText = "";
       isOverdue = true;
-      serverElapsed = 0;
+      _activeSession = null;
     } else {
       name = "Scan ID";
       timerText = "";
       isOverdue = false;
-      serverElapsed = 0;
+      _activeSession = null;
     }
   }
 }
@@ -124,9 +115,12 @@ class BubbleModel {
 class BubbleSystem {
   List<BubbleModel> bubbles = [];
 
+  // Server time offset for synced timer display
+  int serverTimeOffsetMs = 0;
+
   void update(double dt) {
     for (var b in bubbles) {
-      b.update(dt);
+      b.update(dt, serverTimeOffsetMs: serverTimeOffsetMs);
     }
   }
 
@@ -158,7 +152,10 @@ class BubbleSystem {
     }
   }
 
-  void sync({required KioskStatus status}) {
+  void sync({required KioskStatus status, int serverTimeOffsetMs = 0}) {
+    // Store for use in update loop
+    this.serverTimeOffsetMs = serverTimeOffsetMs;
+
     if (status.kioskSuspended) {
       ensureBubbleCount(1);
       bubbles[0].settarget(
@@ -187,6 +184,7 @@ class BubbleSystem {
         scale: pos['scale']!,
         newType: BubbleType.used,
         sessionData: status.activeSessions[i],
+        serverTimeOffsetMs: serverTimeOffsetMs,
       );
     }
 

@@ -287,6 +287,10 @@ def _build_status_payload(user_id: Optional[int]) -> Dict[str, Any]:
     auto_ban_overdue = settings.get("auto_ban_overdue", False)
     auto_promote_queue = settings.get("auto_promote_queue", False)
 
+    # Server time in milliseconds for client sync (NTP-lite)
+    server_now = datetime.now(timezone.utc)
+    server_time_ms = int(server_now.timestamp() * 1000)
+
     # Current holder (legacy single-pass fields) + multi-pass
     s = get_current_holder(user_id)
     active_sessions = [{
@@ -294,7 +298,9 @@ def _build_status_payload(user_id: Optional[int]) -> Dict[str, Any]:
         "name": get_student_name(sess.student_id, "Student", user_id=user_id),
         "elapsed": sess.duration_seconds,
         "overdue": sess.duration_seconds > overdue_minutes * 60,
-        "start": to_local(sess.start_ts).isoformat()
+        "start": to_local(sess.start_ts).isoformat(),
+        # Unix timestamp in ms for precise client-side calculation
+        "start_ms": int(sess.start_ts.timestamp() * 1000)
     } for sess in get_open_sessions(user_id)]
 
     # Queue (names for display + ids for admin actions)
@@ -306,6 +312,7 @@ def _build_status_payload(user_id: Optional[int]) -> Dict[str, Any]:
     } for q in queue_rows]
 
     payload: Dict[str, Any] = {
+        "server_time_ms": server_time_ms,  # For client clock sync
         "overdue_minutes": overdue_minutes,
         "kiosk_suspended": kiosk_suspended,
         "auto_ban_overdue": auto_ban_overdue,
@@ -321,6 +328,7 @@ def _build_status_payload(user_id: Optional[int]) -> Dict[str, Any]:
             "in_use": True,
             "name": get_student_name(s.student_id, "Student", user_id=user_id),
             "start": to_local(s.start_ts).isoformat(),
+            "start_ms": int(s.start_ts.timestamp() * 1000),
             "elapsed": s.duration_seconds,
             "overdue": s.duration_seconds > overdue_minutes * 60,
         })
@@ -333,6 +341,7 @@ def _build_status_payload(user_id: Optional[int]) -> Dict[str, Any]:
         })
 
     return payload
+
 
 
 def _build_status_signature(payload: Dict[str, Any]) -> Dict[str, Any]:

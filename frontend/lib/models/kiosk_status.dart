@@ -11,6 +11,7 @@ class KioskStatus {
   final int capacity;
   final List<Session> activeSessions;
   final List<String> queue;
+  final int serverTimeMs; // Server timestamp in ms for clock sync
 
   KioskStatus({
     required this.inUse,
@@ -23,6 +24,7 @@ class KioskStatus {
     required this.capacity,
     required this.activeSessions,
     required this.queue,
+    required this.serverTimeMs,
   });
 
   factory KioskStatus.fromJson(Map<String, dynamic> json) {
@@ -51,6 +53,7 @@ class KioskStatus {
       capacity: json['capacity'] is int ? json['capacity'] : 1,
       activeSessions: sessions,
       queue: queueList,
+      serverTimeMs: json['server_time_ms'] is int ? json['server_time_ms'] : 0,
     );
   }
 }

@@ -7,11 +7,13 @@ import 'bubble_widget.dart';
 class PhysicsLayout extends StatefulWidget {
   final KioskStatus status;
   final bool isDisplay;
+  final int serverTimeOffsetMs; // For synced timer display
 
   const PhysicsLayout({
     super.key,
     required this.status,
     this.isDisplay = false,
+    this.serverTimeOffsetMs = 0,
   });
 
   @override
@@ -30,7 +32,10 @@ class _PhysicsLayoutState extends State<PhysicsLayout>
     // Initialize Bubble System
     _bubbleSystem = BubbleSystem();
     // Sync initial state
-    _bubbleSystem.sync(status: widget.status);
+    _bubbleSystem.sync(
+      status: widget.status,
+      serverTimeOffsetMs: widget.serverTimeOffsetMs,
+    );
 
     // Create Ticker for physics loop
     _ticker = createTicker(_onTick)..start();
@@ -39,8 +44,13 @@ class _PhysicsLayoutState extends State<PhysicsLayout>
   @override
   void didUpdateWidget(PhysicsLayout oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.status != oldWidget.status) {
-      _bubbleSystem.sync(status: widget.status);
+    // Re-sync when status or time offset changes
+    if (widget.status != oldWidget.status ||
+        widget.serverTimeOffsetMs != oldWidget.serverTimeOffsetMs) {
+      _bubbleSystem.sync(
+        status: widget.status,
+        serverTimeOffsetMs: widget.serverTimeOffsetMs,
+      );
     }
   }
 

@@ -18,11 +18,16 @@ class StatusProvider with ChangeNotifier {
   int _failureCount = 0;
   static const int _maxFailuresBeforeOffline = 3;
 
+  // NTP-lite time sync: offset between server and client clocks (in milliseconds)
+  // Positive means client is behind server, negative means client is ahead
+  int _serverTimeOffsetMs = 0;
+
   // Getters
   KioskStatus? get status => _status;
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isConnected => _error == null;
+  int get serverTimeOffsetMs => _serverTimeOffsetMs;
 
   // Initialize with token (e.g., from URL path)
   void init(String token) {
@@ -36,6 +41,7 @@ class StatusProvider with ChangeNotifier {
     _isLoading = true;
     _error = null;
     _failureCount = 0;
+    _serverTimeOffsetMs = 0;
     notifyListeners();
 
     // Fetch initial status
@@ -44,7 +50,7 @@ class StatusProvider with ChangeNotifier {
     // Start polling every 2 seconds
     _startPolling();
 
-    // Local UI tick (no network): keeps timers/overdue indicators updating smoothly.
+    // Local UI tick (1 second): keeps timers updating smoothly between polls
     _uiTickTimer?.cancel();
     _uiTickTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       // Only tick UI if connected - stops stale timer display when offline
@@ -77,8 +83,29 @@ class StatusProvider with ChangeNotifier {
   Future<void> fetchStatus() async {
     if (_token == null) return;
 
+    // Record client time before request for NTP-lite calculation
+    final int clientTimeBeforeMs = DateTime.now().millisecondsSinceEpoch;
+
     try {
       final newStatus = await _api.getStatus(_token!);
+
+      // Calculate server time offset (NTP-lite)
+      // This accounts for the client's clock being ahead or behind the server
+      if (newStatus.serverTimeMs > 0) {
+        final int clientTimeAfterMs = DateTime.now().millisecondsSinceEpoch;
+        // Estimate one-way latency as half of round-trip time
+        final int estimatedLatencyMs =
+            (clientTimeAfterMs - clientTimeBeforeMs) ~/ 2;
+        // Server time at the moment we received the response
+        final int serverTimeNowMs = newStatus.serverTimeMs + estimatedLatencyMs;
+        // Offset: how much to add to client time to get server time
+        _serverTimeOffsetMs = serverTimeNowMs - clientTimeAfterMs;
+
+        if (kDebugMode && _serverTimeOffsetMs.abs() > 1000) {
+          print("Time sync: client-server offset = ${_serverTimeOffsetMs}ms");
+        }
+      }
+
       _status = newStatus;
       _error = null;
       _failureCount = 0; // Reset on success
