@@ -28,10 +28,18 @@ class KioskStatus {
   });
 
   factory KioskStatus.fromJson(Map<String, dynamic> json) {
+    // Get server time first - needed for session time sync
+    final int serverTimeMs = json['server_time_ms'] is int
+        ? json['server_time_ms']
+        : 0;
+
     var rawSessions = json['active_sessions'] as List?;
     List<Session> sessions = [];
     if (rawSessions != null) {
-      sessions = rawSessions.map((s) => Session.fromJson(s)).toList();
+      // Pass serverTimeMs to each session for accurate elapsed calculation
+      sessions = rawSessions
+          .map((s) => Session.fromJson(s, serverTimeMs: serverTimeMs))
+          .toList();
     }
 
     var rawQueue = json['queue'] as List?;
@@ -53,7 +61,7 @@ class KioskStatus {
       capacity: json['capacity'] is int ? json['capacity'] : 1,
       activeSessions: sessions,
       queue: queueList,
-      serverTimeMs: json['server_time_ms'] is int ? json['server_time_ms'] : 0,
+      serverTimeMs: serverTimeMs,
     );
   }
 }

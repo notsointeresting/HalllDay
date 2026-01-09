@@ -18,10 +18,12 @@ class StatusProvider with ChangeNotifier {
   int _failureCount = 0;
   static const int _maxFailuresBeforeOffline = 3;
 
-  // Simple time sync: track when we last received data from server
-  // Timer = server elapsed + local seconds since we received that data
-  // This approach is device-clock-independent (only measures local deltas)
-  DateTime _lastPollTime = DateTime.now();
+  // Monotonic time tracking using Stopwatch
+  // Unlike DateTime, Stopwatch uses system uptime which is:
+  // - Immune to device clock changes
+  // - Immune to timezone changes
+  // - Consistent across all devices
+  final Stopwatch _pollStopwatch = Stopwatch();
 
   // Getters
   KioskStatus? get status => _status;
@@ -30,9 +32,9 @@ class StatusProvider with ChangeNotifier {
   bool get isConnected => _error == null;
 
   /// Get the number of seconds elapsed since last server poll
-  /// Used by widgets to calculate current timer: serverElapsed + localSecondsSincePoll
+  /// Uses Stopwatch (monotonic time) for reliability
   int get localSecondsSincePoll {
-    return DateTime.now().difference(_lastPollTime).inSeconds;
+    return _pollStopwatch.elapsed.inSeconds;
   }
 
   // Initialize with token (e.g., from URL path)
@@ -47,7 +49,7 @@ class StatusProvider with ChangeNotifier {
     _isLoading = true;
     _error = null;
     _failureCount = 0;
-    _lastPollTime = DateTime.now();
+    _pollStopwatch.reset();
     notifyListeners();
 
     // Fetch initial status
@@ -92,8 +94,10 @@ class StatusProvider with ChangeNotifier {
     try {
       final newStatus = await _api.getStatus(_token!);
 
-      // Record when we received this data - used for timer calculation
-      _lastPollTime = DateTime.now();
+      // Reset stopwatch on each successful poll - used for timer calculation
+      // Stopwatch uses monotonic time (system uptime), immune to clock changes
+      _pollStopwatch.reset();
+      _pollStopwatch.start();
 
       _status = newStatus;
       _error = null;
