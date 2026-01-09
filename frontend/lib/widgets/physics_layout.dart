@@ -7,14 +7,14 @@ import 'bubble_widget.dart';
 class PhysicsLayout extends StatefulWidget {
   final KioskStatus status;
   final bool isDisplay;
-  final int
-  localSecondsSincePoll; // Seconds since last server poll for timer sync
+  final int Function()
+  getLocalSecondsSincePoll; // Getter for fresh time on each frame
 
   const PhysicsLayout({
     super.key,
     required this.status,
+    required this.getLocalSecondsSincePoll,
     this.isDisplay = false,
-    this.localSecondsSincePoll = 0,
   });
 
   @override
@@ -33,10 +33,7 @@ class _PhysicsLayoutState extends State<PhysicsLayout>
     // Initialize Bubble System
     _bubbleSystem = BubbleSystem();
     // Sync initial state
-    _bubbleSystem.sync(
-      status: widget.status,
-      localSecondsSincePoll: widget.localSecondsSincePoll,
-    );
+    _bubbleSystem.sync(status: widget.status);
 
     // Create Ticker for physics loop
     _ticker = createTicker(_onTick)..start();
@@ -45,13 +42,9 @@ class _PhysicsLayoutState extends State<PhysicsLayout>
   @override
   void didUpdateWidget(PhysicsLayout oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Re-sync when status or time changes
-    if (widget.status != oldWidget.status ||
-        widget.localSecondsSincePoll != oldWidget.localSecondsSincePoll) {
-      _bubbleSystem.sync(
-        status: widget.status,
-        localSecondsSincePoll: widget.localSecondsSincePoll,
-      );
+    // Re-sync when status changes
+    if (widget.status != oldWidget.status) {
+      _bubbleSystem.sync(status: widget.status);
     }
   }
 
@@ -72,8 +65,11 @@ class _PhysicsLayoutState extends State<PhysicsLayout>
     // Cap dt to prevent huge jumps if tab was backgrounded
     if (dt > 0.05) dt = 0.05;
 
-    // Update Physics
-    _bubbleSystem.update(dt);
+    // Update Physics with fresh time getter (smooth per-frame timer updates)
+    _bubbleSystem.update(
+      dt,
+      getLocalSecondsSincePoll: widget.getLocalSecondsSincePoll,
+    );
 
     // Trigger rebuild to paint new positions
     setState(() {});

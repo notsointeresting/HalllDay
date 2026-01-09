@@ -171,7 +171,8 @@ class _KioskScreenState extends State<KioskScreen>
                     if (isSmallScreen) {
                       return MobileListView(
                         status: status,
-                        localSecondsSincePoll: provider.localSecondsSincePoll,
+                        getLocalSecondsSincePoll: () =>
+                            provider.localSecondsSincePoll,
                       );
                     }
 
@@ -181,7 +182,7 @@ class _KioskScreenState extends State<KioskScreen>
                         // Main Layout
                         PhysicsLayout(
                               status: status,
-                              localSecondsSincePoll:
+                              getLocalSecondsSincePoll: () =>
                                   provider.localSecondsSincePoll,
                             )
                             .animate(

@@ -116,12 +116,12 @@ class BubbleModel {
 class BubbleSystem {
   List<BubbleModel> bubbles = [];
 
-  // Local seconds since last poll for timer calculation
-  int localSecondsSincePoll = 0;
-
-  void update(double dt) {
+  /// Update physics and timer display
+  /// [getLocalSecondsSincePoll] is a getter function for fresh time on each frame
+  void update(double dt, {required int Function() getLocalSecondsSincePoll}) {
+    final int currentSeconds = getLocalSecondsSincePoll();
     for (var b in bubbles) {
-      b.update(dt, localSecondsSincePoll: localSecondsSincePoll);
+      b.update(dt, localSecondsSincePoll: currentSeconds);
     }
   }
 
@@ -153,10 +153,7 @@ class BubbleSystem {
     }
   }
 
-  void sync({required KioskStatus status, int localSecondsSincePoll = 0}) {
-    // Store for use in update loop
-    this.localSecondsSincePoll = localSecondsSincePoll;
-
+  void sync({required KioskStatus status}) {
     if (status.kioskSuspended) {
       ensureBubbleCount(1);
       bubbles[0].settarget(
@@ -176,7 +173,7 @@ class BubbleSystem {
 
     final List<Map<String, double>> layout = getLayout(totalBubbles);
 
-    // Sync Used Sessions
+    // Sync Used Sessions (timer handled in update loop with fresh time)
     for (int i = 0; i < usedCount; i++) {
       final pos = layout[i];
       bubbles[i].settarget(
@@ -185,7 +182,6 @@ class BubbleSystem {
         scale: pos['scale']!,
         newType: BubbleType.used,
         sessionData: status.activeSessions[i],
-        localSecondsSincePoll: localSecondsSincePoll,
       );
     }
 
