@@ -88,7 +88,7 @@ class _DisplayScreenState extends State<DisplayScreen> {
               if (isSmallScreen) {
                 return MobileListView(
                   status: status,
-                  serverTimeOffsetMs: provider.serverTimeOffsetMs,
+                  localSecondsSincePoll: provider.localSecondsSincePoll,
                 );
               }
 
@@ -98,7 +98,7 @@ class _DisplayScreenState extends State<DisplayScreen> {
                   PhysicsLayout(
                     status: status,
                     isDisplay: true,
-                    serverTimeOffsetMs: provider.serverTimeOffsetMs,
+                    localSecondsSincePoll: provider.localSecondsSincePoll,
                   ),
 
                   // Waitlist Overlay (Parity with Kiosk)

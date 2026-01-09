@@ -34,7 +34,7 @@ class BubbleModel {
   String timerText = '';
   bool isOverdue = false;
 
-  // Session reference for real-time timer calculation
+  // Session reference for timer calculation
   Session? _activeSession;
 
   BubbleModel({
@@ -51,16 +51,17 @@ class BubbleModel {
   }
 
   /// Update physics and timer display
-  /// [serverTimeOffsetMs] - offset to sync client clock with server
-  void update(double dt, {int serverTimeOffsetMs = 0}) {
+  /// [localSecondsSincePoll] - seconds elapsed since last server data received
+  void update(double dt, {int localSecondsSincePoll = 0}) {
     xSpring.update(dt);
     ySpring.update(dt);
     scaleSpring.update(dt);
     rotateSpring.update(dt);
 
-    // Update timer using server-synced time (runs every frame for smooth display)
+    // Update timer: server elapsed + local seconds since poll
+    // This is device-clock-independent (only measures local deltas)
     if (type == BubbleType.used && _activeSession != null) {
-      timerText = _activeSession!.getTimerText(serverTimeOffsetMs);
+      timerText = _activeSession!.getCurrentTimerText(localSecondsSincePoll);
     }
   }
 
@@ -70,7 +71,7 @@ class BubbleModel {
     required double scale,
     required BubbleType newType,
     Session? sessionData,
-    int serverTimeOffsetMs = 0,
+    int localSecondsSincePoll = 0,
   }) {
     xSpring.target = x;
     ySpring.target = y;
@@ -90,8 +91,8 @@ class BubbleModel {
       name = sessionData.name;
       isOverdue = sessionData.overdue;
       _activeSession = sessionData;
-      // Initial timer text using synced time
-      timerText = sessionData.getTimerText(serverTimeOffsetMs);
+      // Initial timer text
+      timerText = sessionData.getCurrentTimerText(localSecondsSincePoll);
     } else if (newType == BubbleType.banned) {
       name = "BANNED";
       timerText = "";
@@ -115,12 +116,12 @@ class BubbleModel {
 class BubbleSystem {
   List<BubbleModel> bubbles = [];
 
-  // Server time offset for synced timer display
-  int serverTimeOffsetMs = 0;
+  // Local seconds since last poll for timer calculation
+  int localSecondsSincePoll = 0;
 
   void update(double dt) {
     for (var b in bubbles) {
-      b.update(dt, serverTimeOffsetMs: serverTimeOffsetMs);
+      b.update(dt, localSecondsSincePoll: localSecondsSincePoll);
     }
   }
 
@@ -152,9 +153,9 @@ class BubbleSystem {
     }
   }
 
-  void sync({required KioskStatus status, int serverTimeOffsetMs = 0}) {
+  void sync({required KioskStatus status, int localSecondsSincePoll = 0}) {
     // Store for use in update loop
-    this.serverTimeOffsetMs = serverTimeOffsetMs;
+    this.localSecondsSincePoll = localSecondsSincePoll;
 
     if (status.kioskSuspended) {
       ensureBubbleCount(1);
@@ -184,7 +185,7 @@ class BubbleSystem {
         scale: pos['scale']!,
         newType: BubbleType.used,
         sessionData: status.activeSessions[i],
-        serverTimeOffsetMs: serverTimeOffsetMs,
+        localSecondsSincePoll: localSecondsSincePoll,
       );
     }
 

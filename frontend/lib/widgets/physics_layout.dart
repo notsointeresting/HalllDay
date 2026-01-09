@@ -7,13 +7,14 @@ import 'bubble_widget.dart';
 class PhysicsLayout extends StatefulWidget {
   final KioskStatus status;
   final bool isDisplay;
-  final int serverTimeOffsetMs; // For synced timer display
+  final int
+  localSecondsSincePoll; // Seconds since last server poll for timer sync
 
   const PhysicsLayout({
     super.key,
     required this.status,
     this.isDisplay = false,
-    this.serverTimeOffsetMs = 0,
+    this.localSecondsSincePoll = 0,
   });
 
   @override
@@ -34,7 +35,7 @@ class _PhysicsLayoutState extends State<PhysicsLayout>
     // Sync initial state
     _bubbleSystem.sync(
       status: widget.status,
-      serverTimeOffsetMs: widget.serverTimeOffsetMs,
+      localSecondsSincePoll: widget.localSecondsSincePoll,
     );
 
     // Create Ticker for physics loop
@@ -44,12 +45,12 @@ class _PhysicsLayoutState extends State<PhysicsLayout>
   @override
   void didUpdateWidget(PhysicsLayout oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Re-sync when status or time offset changes
+    // Re-sync when status or time changes
     if (widget.status != oldWidget.status ||
-        widget.serverTimeOffsetMs != oldWidget.serverTimeOffsetMs) {
+        widget.localSecondsSincePoll != oldWidget.localSecondsSincePoll) {
       _bubbleSystem.sync(
         status: widget.status,
-        serverTimeOffsetMs: widget.serverTimeOffsetMs,
+        localSecondsSincePoll: widget.localSecondsSincePoll,
       );
     }
   }

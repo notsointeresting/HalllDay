@@ -5,12 +5,13 @@ import '../models/kiosk_status.dart';
 
 class MobileListView extends StatelessWidget {
   final KioskStatus status;
-  final int serverTimeOffsetMs; // For synced timer display
+  final int
+  localSecondsSincePoll; // Seconds since last server poll for timer sync
 
   const MobileListView({
     super.key,
     required this.status,
-    this.serverTimeOffsetMs = 0,
+    this.localSecondsSincePoll = 0,
   });
 
   @override
@@ -56,7 +57,7 @@ class MobileListView extends StatelessWidget {
                           ),
                         ),
                         trailing: Text(
-                          session.getTimerText(serverTimeOffsetMs),
+                          session.getCurrentTimerText(localSecondsSincePoll),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 18,
