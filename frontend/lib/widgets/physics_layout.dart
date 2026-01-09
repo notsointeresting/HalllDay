@@ -46,12 +46,8 @@ class _PhysicsLayoutState extends State<PhysicsLayout>
     if (widget.status != oldWidget.status) {
       _bubbleSystem.sync(status: widget.status);
     }
-    // Always update timers when widget rebuilds (happens every 1 second from UI tick)
-    // This ensures timer display stays current even if Ticker is throttled (background tabs)
-    final currentSeconds = widget.getLocalSecondsSincePoll();
-    for (var bubble in _bubbleSystem.bubbles) {
-      bubble.update(0, localSecondsSincePoll: currentSeconds);
-    }
+    // Update timers on every rebuild (1 second from UI tick) - handles throttled tabs
+    _bubbleSystem.updateTimersOnly(widget.getLocalSecondsSincePoll());
   }
 
   @override

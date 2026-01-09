@@ -71,7 +71,6 @@ class BubbleModel {
     required double scale,
     required BubbleType newType,
     Session? sessionData,
-    int localSecondsSincePoll = 0,
   }) {
     xSpring.target = x;
     ySpring.target = y;
@@ -91,8 +90,9 @@ class BubbleModel {
       name = sessionData.name;
       isOverdue = sessionData.overdue;
       _activeSession = sessionData;
-      // Initial timer text
-      timerText = sessionData.getCurrentTimerText(localSecondsSincePoll);
+      timerText = sessionData.getCurrentTimerText(
+        0,
+      ); // Will be updated next frame
     } else if (newType == BubbleType.banned) {
       name = "BANNED";
       timerText = "";
@@ -116,8 +116,7 @@ class BubbleModel {
 class BubbleSystem {
   List<BubbleModel> bubbles = [];
 
-  /// Update physics and timer display
-  /// [getLocalSecondsSincePoll] is a getter function for fresh time on each frame
+  /// Update physics and timer display (called at 60fps by Ticker)
   void update(double dt, {required int Function() getLocalSecondsSincePoll}) {
     final int currentSeconds = getLocalSecondsSincePoll();
     for (var b in bubbles) {
@@ -125,8 +124,14 @@ class BubbleSystem {
     }
   }
 
+  /// Update timer text only (without physics) - for throttled tab fallback
+  void updateTimersOnly(int localSecondsSincePoll) {
+    for (var b in bubbles) {
+      b.update(0, localSecondsSincePoll: localSecondsSincePoll);
+    }
+  }
+
   // Viewport size needed for aspect ratio calculations
-  // Default to 16:9 landscape if unknown
   Size _viewport = const Size(1920, 1080);
 
   void updateViewport(Size size) {

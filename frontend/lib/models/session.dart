@@ -1,10 +1,9 @@
 class Session {
   final int id;
   final String name;
-  final int elapsed; // Server-calculated elapsed at poll time (backup)
+  final int elapsed; // Fallback if timestamps unavailable
   final bool overdue;
-  final DateTime start;
-  final int startMs; // Absolute session start (Unix ms) - for accurate sync
+  final int startMs; // Session start (Unix ms) - for accurate sync
   final int serverTimeMs; // Server time when response was generated (Unix ms)
 
   Session({
@@ -12,7 +11,6 @@ class Session {
     required this.name,
     required this.elapsed,
     required this.overdue,
-    required this.start,
     required this.startMs,
     required this.serverTimeMs,
   });
@@ -23,7 +21,6 @@ class Session {
       name: json['name'] ?? 'Unknown',
       elapsed: json['elapsed'] is int ? json['elapsed'] : 0,
       overdue: json['overdue'] ?? false,
-      start: DateTime.tryParse(json['start'] ?? '') ?? DateTime.now(),
       startMs: json['start_ms'] is int ? json['start_ms'] : 0,
       serverTimeMs: serverTimeMs,
     );
@@ -37,7 +34,6 @@ class Session {
   }
 
   /// Get current elapsed: serverElapsed + local seconds since we received data
-  /// [localSecondsSincePoll] is measured by Stopwatch (monotonic, device-independent)
   int getCurrentElapsed(int localSecondsSincePoll) {
     return serverElapsedAtResponse + localSecondsSincePoll;
   }
