@@ -200,8 +200,8 @@ class _KioskScreenState extends State<KioskScreen>
                             child:
                                 Card(
                                       elevation: 8,
-                                      shadowColor: Colors.orange.withOpacity(
-                                        0.5,
+                                      shadowColor: Colors.orange.withValues(
+                                        alpha: 0.5,
                                       ),
                                       color: Colors.grey[900],
                                       shape: RoundedRectangleBorder(
@@ -274,14 +274,18 @@ class _KioskScreenState extends State<KioskScreen>
                                                           ),
                                                       decoration: BoxDecoration(
                                                         color: Colors.white
-                                                            .withOpacity(0.05),
+                                                            .withValues(
+                                                              alpha: 0.05,
+                                                            ),
                                                         borderRadius:
                                                             BorderRadius.circular(
                                                               8,
                                                             ),
                                                         border: Border.all(
                                                           color: Colors.white
-                                                              .withOpacity(0.1),
+                                                              .withValues(
+                                                                alpha: 0.1,
+                                                              ),
                                                         ),
                                                       ),
                                                       child: Row(
@@ -360,7 +364,9 @@ class _KioskScreenState extends State<KioskScreen>
                                     )
                                     .shimmer(
                                       duration: 3.seconds,
-                                      color: Colors.orange.withOpacity(0.2),
+                                      color: Colors.orange.withValues(
+                                        alpha: 0.2,
+                                      ),
                                     ),
                           ),
                       ],

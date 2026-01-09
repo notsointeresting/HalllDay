@@ -113,7 +113,7 @@ class _LandingScreenState extends State<LandingScreen> {
                   ],
                 ),
                 centerTitle: true,
-                backgroundColor: Colors.white.withOpacity(0.5),
+                backgroundColor: Colors.white.withValues(alpha: 0.5),
                 surfaceTintColor: Colors.transparent,
                 actions: [
                   Padding(
@@ -390,7 +390,7 @@ class _BlurBlob extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: color.withOpacity(0.4),
+        color: color.withValues(alpha: 0.4),
         shape: BoxShape.circle,
       ),
       child: BackdropFilter(
@@ -398,8 +398,8 @@ class _BlurBlob extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: color.withOpacity(
-              0.0,
+            color: color.withValues(
+              alpha: 0.0,
             ), // Transparent container to clip blur?
           ),
         ),
